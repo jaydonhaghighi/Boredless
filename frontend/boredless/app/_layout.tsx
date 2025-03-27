@@ -14,7 +14,7 @@ export default function RootLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
         }}
@@ -23,7 +23,7 @@ export default function RootLayout() {
         name="generate"
         options={{
           title: "Generate",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="add-circle" size={size} color={color} />
           ),
         }}
@@ -32,7 +32,7 @@ export default function RootLayout() {
         name="favourites"
         options={{
           title: "Favourites",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="heart" size={size} color={color} />
           ),
         }}
