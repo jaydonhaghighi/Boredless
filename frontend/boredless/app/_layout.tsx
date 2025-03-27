@@ -1,13 +1,18 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Image, View } from "react-native";
 
 export default function RootLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#007AFF",
-        tabBarInactiveTintColor: "#8E8E93",
+        tabBarActiveTintColor: "#402E22",
+        tabBarInactiveTintColor: "#402E2280",
         headerShown: true,
+        tabBarShowLabel: false,
+        tabBarStyle: {
+          paddingBottom: 12,
+          paddingTop: 12,
+        },
       }}
     >
       <Tabs.Screen
@@ -15,7 +20,13 @@ export default function RootLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Image 
+                source={require("../assets/images/navbar/home.png")} 
+                style={{ width: 24, height: 24, tintColor: color }}
+                resizeMode="contain"
+              />
+            </View>
           ),
         }}
       />
@@ -24,7 +35,13 @@ export default function RootLayout() {
         options={{
           title: "Generate",
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Ionicons name="add-circle" size={size} color={color} />
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Image 
+                source={require("../assets/images/navbar/generate.png")} 
+                style={{ width: 24, height: 24, tintColor: color }}
+                resizeMode="contain"
+              />
+            </View>
           ),
         }}
       />
@@ -33,7 +50,13 @@ export default function RootLayout() {
         options={{
           title: "Favourites",
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Ionicons name="heart" size={size} color={color} />
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Image 
+                source={require("../assets/images/navbar/favourite.png")} 
+                style={{ width: 24, height: 24, tintColor: color }}
+                resizeMode="contain"
+              />
+            </View>
           ),
         }}
       />
