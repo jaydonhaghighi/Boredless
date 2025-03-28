@@ -1,38 +1,65 @@
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Image, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+
+// Import screens
 import { HomeScreen } from './screens/HomeScreen';
 import { GenerateScreen } from './screens/GenerateScreen';
 import { FavouritesScreen } from './screens/FavouritesScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
-import { Ionicons } from '@expo/vector-icons';
 
+// Import Tab Icons
 import './global.css';
 
-const Tab = createBottomTabNavigator();
+type TabParamList = {
+  Home: undefined;
+  Generate: undefined;
+  Favourites: undefined;
+  Profile: undefined;
+};
+
+const Tab = createBottomTabNavigator<TabParamList>();
 
 export default function App() {
   return (
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName: keyof typeof Ionicons.glyphMap;
+          tabBarIcon: ({ focused, size }) => {
+            let iconName;
+            // Reduce the icon size to prevent cutting off
+            let iconStyle = { 
+              width: size, 
+              height: size,
+              // Apply tint color based on focused state
+              tintColor: focused ? '#000000' : '#8e8e8e'  
+            };
 
             if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
+              iconName = require('./assets/home.png');
             } else if (route.name === 'Generate') {
-              iconName = focused ? 'add-circle' : 'add-circle-outline';
+              iconName = require('./assets/generate.png');
             } else if (route.name === 'Favourites') {
-              iconName = focused ? 'heart' : 'heart-outline';
-            } else {
-              iconName = focused ? 'person' : 'person-outline';
+              iconName = require('./assets/favourite.png');
+            } else if (route.name === 'Profile') {
+              iconName = require('./assets/profile.png');
             }
 
-            return <Ionicons name={iconName} size={size} color={color} />;
+            return <Image 
+              source={iconName} 
+              style={iconStyle}
+              resizeMode="contain" 
+            />;
           },
-          tabBarActiveTintColor: '#007AFF',
-          tabBarInactiveTintColor: 'gray',
+          tabBarShowLabel: false,
+          headerShown: false,
+          tabBarStyle: {
+            height: 80, // Increase the height of the tab bar
+            paddingTop: 15, // Add padding to the top
+            paddingBottom: 15, // Add padding to the bottom
+          }
         })}
       >
         <Tab.Screen name="Home" component={HomeScreen} />
