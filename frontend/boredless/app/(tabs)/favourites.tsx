@@ -11,11 +11,11 @@ export default function FavouritesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
+    backgroundColor: '#FAFAFC',
     justifyContent: 'center',
     alignItems: 'center',
   },
   text: {
-    color: '#fff',
+    color: '#000',
   },
 }); 
