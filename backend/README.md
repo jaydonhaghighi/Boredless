@@ -14,6 +14,12 @@ This is the backend API for the Boredless app, which generates conversation prom
    OPENAI_API_KEY=your_openai_api_key_here
    ```
 
+   Alternatively, you can copy the `.env.example` file:
+   ```bash
+   cp .env.example .env
+   ```
+   Then edit the `.env` file to add your actual API key.
+
 ## Running the API
 
 ### Option 1: Using the run script (recommended)
@@ -66,6 +72,23 @@ If you encounter errors about missing packages, make sure you've installed all d
 ```bash
 pip install -r requirements.txt
 ```
+
+### OpenAI API Key Issues
+
+If you encounter errors related to the OpenAI API key, such as:
+
+```
+Error generating structured output: The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable
+```
+
+Make sure you have:
+
+1. Created a `.env` file in the backend directory
+2. Added your OpenAI API key to the `.env` file:
+   ```
+   OPENAI_API_KEY=your_actual_api_key_here
+   ```
+3. Restarted the server after making these changes
 
 ## API Endpoints
 

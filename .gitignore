@@ -45,5 +45,4 @@ venv/
 *.swo
 
 # Project specific
-frontend/boredless/.git/ 
-backend/.env.example
+frontend/boredless/.git/
