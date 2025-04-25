@@ -46,3 +46,4 @@ venv/
 
 # Project specific
 frontend/boredless/.git/ 
+backend/.env.example

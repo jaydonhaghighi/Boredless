@@ -107,8 +107,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: 'flex-start',
-    paddingTop: 32,
-    paddingBottom: 32,
+    paddingTop: 24,
+    paddingBottom: 24,
     width: '100%',
   },
   headerText: {
