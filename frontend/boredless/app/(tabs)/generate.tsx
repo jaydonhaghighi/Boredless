@@ -4,6 +4,7 @@ import { AntDesign, Ionicons, FontAwesome5, Entypo } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import { useRouter } from 'expo-router';
 import axios from 'axios';
 
 // Define filter options and their types
@@ -74,6 +75,8 @@ type Relationship = typeof FILTER_OPTIONS.relationships[number];
 const API_BASE_URL = 'http://localhost:8000';
 
 export default function GenerateScreen() {
+  const router = useRouter();
+
   // Filter states
   const [selectedTheme, setSelectedTheme] = useState<ConversationTheme | null>(null);
   const [selectedInteraction, setSelectedInteraction] = useState<InteractionType | null>(null);
@@ -81,14 +84,11 @@ export default function GenerateScreen() {
   const [selectedParticipants, setSelectedParticipants] = useState<Participants | null>(null);
   const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
 
-  // Generated content state
-  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  // Loading state
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
   const generatePrompt = async () => {
     setIsLoading(true);
-    setError(null);
 
     try {
       const response = await axios.post(`${API_BASE_URL}/generator/`, {
@@ -99,10 +99,20 @@ export default function GenerateScreen() {
         relationship: selectedRelationship
       });
 
-      setGeneratedPrompt(response.data.prompt);
+      // We don't need to store the prompt text anymore since we're navigating to a new screen
+
+      // Navigate to the prompt screen
+      router.push({
+        pathname: '/prompt',
+        params: {
+          prompt: response.data.prompt,
+          interaction_type: response.data.interaction_type || selectedInteraction,
+          // We could also pass the raw data, but it might be too large for URL params
+          // Instead, we could store it in a context or state management solution
+        }
+      });
     } catch (err) {
       console.error('Error generating prompt:', err);
-      setError('Failed to generate prompt. Please try again.');
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
     } finally {
       setIsLoading(false);
@@ -232,17 +242,6 @@ export default function GenerateScreen() {
               ))}
             </ScrollView>
           </View>
-
-          {/* Generated prompt display */}
-          {generatedPrompt && !isLoading && (
-            <View style={styles.promptContainer}>
-              <Text style={styles.promptTitle}>Your Prompt</Text>
-              <View style={styles.promptCard}>
-                <Text style={styles.promptText}>{generatedPrompt}</Text>
-              </View>
-            </View>
-          )}
-
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.generateButton, isLoading && styles.disabledButton]}

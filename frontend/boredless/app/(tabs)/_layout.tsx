@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Image, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
   return (
@@ -18,10 +19,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Image 
-              source={require('../../assets/images/nav/home.png')} 
-              style={[styles.icon, { tintColor: color }]} 
+          tabBarIcon: ({ color }) => (
+            <Image
+              source={require('../../assets/images/nav/home.png')}
+              style={[styles.icon, { tintColor: color }]}
             />
           ),
         }}
@@ -29,10 +30,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="generate"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Image 
-              source={require('../../assets/images/nav/generate.png')} 
-              style={[styles.icon, { tintColor: color }]} 
+          tabBarIcon: ({ color }) => (
+            <Image
+              source={require('../../assets/images/nav/generate.png')}
+              style={[styles.icon, { tintColor: color }]}
             />
           ),
         }}
@@ -40,21 +41,30 @@ export default function TabLayout() {
       <Tabs.Screen
         name="favourites"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Image 
-              source={require('../../assets/images/nav/favourite.png')} 
-              style={[styles.icon, { tintColor: color }]} 
+          tabBarIcon: ({ color }) => (
+            <Image
+              source={require('../../assets/images/nav/favourite.png')}
+              style={[styles.icon, { tintColor: color }]}
             />
           ),
         }}
       />
       <Tabs.Screen
+        name="prompt"
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="document-text-outline" size={24} color={color} />
+          ),
+          href: null, // Hide from tab bar but keep accessible via direct navigation
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <Image 
-              source={require('../../assets/images/nav/profile.png')} 
-              style={[styles.icon, { tintColor: color }]} 
+          tabBarIcon: ({ color }) => (
+            <Image
+              source={require('../../assets/images/nav/profile.png')}
+              style={[styles.icon, { tintColor: color }]}
             />
           ),
         }}
