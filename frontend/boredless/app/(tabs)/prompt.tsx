@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,16 +19,6 @@ import Animated, {
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
-
-// Default prompt categories to show when opened from tab bar
-const DEFAULT_PROMPT_CATEGORIES = [
-  { title: "Conversation Starters", icon: "chatbubbles-outline" },
-  { title: "Interactive Games", icon: "game-controller-outline" },
-  { title: "Quizzes", icon: "help-circle-outline" },
-  { title: "Friendly Debates", icon: "people-outline" },
-  { title: "Icebreakers", icon: "ice-cream-outline" },
-  { title: "Thought-provoking Questions", icon: "bulb-outline" }
-];
 
 // Screen dimensions for card animations
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -70,10 +60,8 @@ export default function PromptScreen() {
   const [cards, setCards] = useState<Card[]>([]);
   // Current card index being displayed
   const [currentCardIndex, setCurrentCardIndex] = useState<number>(0);
-  // State to track if all cards have been swiped
-  const [isFinished, setIsFinished] = useState<boolean>(false);
-  // State to determine if we're showing categories or cards
-  const [showCategories, setShowCategories] = useState<boolean>(false);
+  // State to track if no decks exist
+  const [noDecksExist, setNoDecksExist] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,17 +82,17 @@ export default function PromptScreen() {
         return newIndex;
       });
     } else {
-      // No more cards
-      setIsFinished(true);
+      // No more cards, go to generate screen
+      router.push('/generate');
     }
     
     // Reset animation values
     translateX.value = 0;
     translateY.value = 0;
     cardOpacity.value = 1;
-  }, [currentCardIndex, cards, translateX, translateY, cardOpacity]);
+  }, [currentCardIndex, cards, translateX, translateY, cardOpacity, router]);
 
-  // Reset state when screen comes into focus
+  // Reset state and load data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       // Reset state to initial values when the screen is focused
@@ -114,11 +102,16 @@ export default function PromptScreen() {
       setIsLoading(true);
       setError(null);
       setShouldLoad(true);
+      setNoDecksExist(false);
       
-      // If we don't have any params, show categories view
+      // If we don't have any params, check for recent decks
       const hasParams = promptId || promptText || promptCards || 
                        (theme && mood && interactionType && participants && relationship);
-      setShowCategories(!hasParams);
+      
+      if (!hasParams) {
+        // Check if any decks exist
+        checkForExistingDecks();
+      }
       
       return () => {
         // This cleanup function runs when the screen loses focus
@@ -127,10 +120,29 @@ export default function PromptScreen() {
     }, [promptId, promptText, promptCards, theme, mood, interactionType, participants, relationship])
   );
 
+  // Check if any previously created decks exist
+  const checkForExistingDecks = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Here you would normally fetch recent decks from storage or API
+      // For now, we'll simulate no decks exist
+      
+      // This is where you would check AsyncStorage, a database, or your backend
+      // For demonstration, we're setting noDecksExist to true
+      setNoDecksExist(true);
+    } catch (err) {
+      console.error('Error checking for existing decks:', err);
+      setError('Failed to check for existing conversation decks.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load the prompt data based on the ID or parameters
   useEffect(() => {
-    // If we're showing categories or shouldn't load, exit early
-    if (showCategories || !shouldLoad) return;
+    // If we're showing categories, already loaded default prompts, or shouldn't load, exit early
+    if (!shouldLoad || (promptData && cards.length > 0)) return;
     
     // Flag to prevent state updates if the component unmounts
     let isMounted = true;
@@ -197,10 +209,6 @@ export default function PromptScreen() {
             }
           }
         }
-        // No parameters provided
-        else {
-          if (isMounted) setError('No prompt data or parameters provided');
-        }
       } catch (err) {
         console.error('Error loading prompt:', err);
         if (isMounted) setError('Failed to load prompt. Please try again.');
@@ -262,41 +270,12 @@ export default function PromptScreen() {
     return () => {
       isMounted = false;
     };
-  }, [promptId, promptText, promptTitle, promptFollowups, promptInstructions, promptOptions, promptStances, promptCards, interactionType, theme, mood, participants, relationship, shouldLoad, showCategories]);
+  }, [promptId, promptText, promptTitle, promptFollowups, promptInstructions, promptOptions, promptStances, promptCards, interactionType, theme, mood, participants, relationship, shouldLoad, promptData, cards]);
 
-  // Generate prompts for the selected category
-  const generatePromptsForCategory = (category: string) => {
-    setShowCategories(false);
-    setIsLoading(true);
-    
-    // Call the API to generate prompts for this category
-    axios.post(`${API_BASE_URL}/generator/`, {
-      interaction_type: category
-    })
-    .then(response => {
-      if (response.data.cards && Array.isArray(response.data.cards)) {
-        setCards(response.data.cards);
-        if (response.data.cards.length > 0) {
-          setPromptData(response.data.cards[0]);
-        }
-      } else {
-        // Fallback for old format
-        setPromptData(response.data);
-        setCards([response.data]);
-      }
-      setIsLoading(false);
-    })
-    .catch(err => {
-      console.error('Error generating prompts:', err);
-      setError('Failed to generate prompts. Please try again.');
-      setIsLoading(false);
-    });
-  };
-
-  // Handle generating more cards from the category selection
+  // Handle generating more cards
   const handleGenerateMore = () => {
-    setShowCategories(true);
-    setIsFinished(false);
+    // Navigate to generate screen
+    router.push('/generate');
   };
 
   // Navigate to next card
@@ -312,7 +291,6 @@ export default function PromptScreen() {
   const previousCard = () => {
     if (currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
-      setPromptData(cards[currentCardIndex - 1]);
     }
   };
 
@@ -397,22 +375,8 @@ export default function PromptScreen() {
 
   // Go back to the generator
   const goBack = () => {
-    // If we're showing categories, go back to home
-    if (showCategories) {
-      router.replace('/');
-      return;
-    }
-    
-    // Clear state before navigating back
-    setPromptData(null);
-    setCards([]);
-    setCurrentCardIndex(0);
-    setIsLoading(true);
-    setError(null);
-    setShouldLoad(false);
-    
-    // Navigate back
-    router.back();
+    // Navigate to home
+    router.replace('/');
   };
 
   // Font loading
@@ -503,12 +467,6 @@ export default function PromptScreen() {
                 </View>
               )}
             </View>
-            
-            {/* Swipe instruction overlay */}
-            <View style={styles.swipeInstructions}>
-              <Ionicons name="arrow-forward" size={24} color="#FFFFFF" style={styles.swipeIcon} />
-              <Text style={styles.swipeText}>Swipe to see next</Text>
-            </View>
           </Animated.View>
         </GestureDetector>
         
@@ -518,55 +476,19 @@ export default function PromptScreen() {
             <Ionicons name="heart-outline" size={24} color="#5D5FEF" />
             <Text style={styles.actionButtonText}>Save</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={sharePrompt}>
-            <Ionicons name="share-outline" size={24} color="#5D5FEF" />
-            <Text style={styles.actionButtonText}>Share</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton} onPress={nextCard}>
-            <Ionicons name="chevron-forward-outline" size={24} color="#5D5FEF" />
-            <Text style={styles.actionButtonText}>Skip</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
   };
 
-  // Categories view component
-  const CategoriesView = () => (
-    <ScrollView style={styles.categoriesScrollView}>
-      <View style={styles.categoriesContainer}>
-        <Text style={styles.categoriesTitle}>Choose a Category</Text>
-        <Text style={styles.categoriesSubtitle}>Select a category to explore conversation prompts</Text>
-        
-        <View style={styles.categoriesGrid}>
-          {DEFAULT_PROMPT_CATEGORIES.map((category, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.categoryCard}
-              onPress={() => generatePromptsForCategory(category.title)}
-            >
-              <View style={styles.categoryIconContainer}>
-                <Ionicons name={category.icon as any} size={24} color="#5D5FEF" />
-              </View>
-              <Text style={styles.categoryTitle}>{category.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    </ScrollView>
-  );
-
-  // Empty deck view when all cards are swiped
-  const EmptyDeck = () => (
-    <View style={styles.emptyDeckContainer}>
-      <Ionicons name="checkmark-circle-outline" size={64} color="#5D5FEF" />
-      <Text style={styles.emptyDeckTitle}>All Done!</Text>
-      <Text style={styles.emptyDeckText}>You've gone through all the prompts.</Text>
-      <TouchableOpacity style={styles.generateMoreButton} onPress={handleGenerateMore}>
-        <Ionicons name="refresh-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-        <Text style={styles.generateMoreButtonText}>Generate More</Text>
+  // No decks view when no conversation decks exist
+  const NoDecksView = () => (
+    <View style={styles.noDecksContainer}>
+      <Ionicons name="chatbubbles-outline" size={64} color="#5D5FEF" />
+      <Text style={styles.noDecksTitle}>No Conversation Decks</Text>
+      <Text style={styles.noDecksText}>You haven't created any conversation decks yet.</Text>
+      <TouchableOpacity style={styles.createDeckButton} onPress={handleGenerateMore}>
+        <Text style={styles.createDeckButtonText}>Create Deck</Text>
       </TouchableOpacity>
     </View>
   );
@@ -577,30 +499,26 @@ export default function PromptScreen() {
         <TouchableOpacity onPress={goBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#000000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {showCategories ? "Prompt Categories" : "Your Prompt"}
-        </Text>
+        <Text style={styles.headerTitle}>Your Prompt</Text>
         <View style={styles.headerRight} />
       </View>
 
       <View style={styles.mainContainer}>
-        {showCategories ? (
-          <CategoriesView />
-        ) : isLoading ? (
+        {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#5D5FEF" />
-            <Text style={styles.loadingText}>Loading your prompt...</Text>
+            <Text style={styles.loadingText}>Loading...</Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={48} color="#FF4D4D" />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={goBack}>
-              <Text style={styles.retryButtonText}>Go Back</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={checkForExistingDecks}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
-        ) : isFinished ? (
-          <EmptyDeck />
+        ) : noDecksExist ? (
+          <NoDecksView />
         ) : promptData ? (
           <CardDeck />
         ) : null}
@@ -706,8 +624,8 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   cardMainText: {
-    fontSize: 22,
-    lineHeight: 32,
+    fontSize: 16,
+    lineHeight: 28,
     color: '#333333',
     fontFamily: 'Petrona-Regular',
     textAlign: 'center',
@@ -788,7 +706,7 @@ const styles = StyleSheet.create({
   },
   emptyDeckText: {
     fontSize: 16,
-    color: '#5F5F5F',
+    color: '#666666',
     textAlign: 'center',
     marginBottom: 24,
     fontFamily: 'Petrona-Regular',
@@ -1025,55 +943,36 @@ const styles = StyleSheet.create({
     fontFamily: 'Petrona-Regular',
     flex: 1,
   },
-  categoriesScrollView: {
-    flex: 1,
-  },
-  categoriesContainer: {
+  // No decks styles
+  noDecksContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
   },
-  categoriesTitle: {
-    fontSize: 28,
+  noDecksTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#333333',
+    marginTop: 16,
     marginBottom: 8,
     fontFamily: 'Petrona-Bold',
   },
-  categoriesSubtitle: {
+  noDecksText: {
     fontSize: 16,
     color: '#666666',
-    marginBottom: 32,
+    textAlign: 'center',
+    marginBottom: 24,
     fontFamily: 'Petrona-Regular',
   },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+  createDeckButton: {
+    backgroundColor: '#5D5FEF',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 8,
   },
-  categoryCard: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  categoryIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F0F0FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333333',
-    fontFamily: 'Petrona-Bold',
+  createDeckButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
