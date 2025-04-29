@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import generator
+from routers import generate
 
 app = FastAPI(
     title="Boredless API",
@@ -24,7 +24,11 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(generator.router)
+app.include_router(generate.router)
+
+# Add the backend directory to the Python path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, backend_dir)
 
 @app.get("/")
 async def root():
@@ -32,6 +36,8 @@ async def root():
 
 # Run the application with Uvicorn when this script is executed directly
 if __name__ == "__main__":
+    print(f"Starting Boredless API server...")
+    print(f"Python path: {sys.path}")
 
     uvicorn.run(
         "main:app",

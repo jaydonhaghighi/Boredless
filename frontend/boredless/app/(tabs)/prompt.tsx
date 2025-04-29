@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -17,6 +17,8 @@ export default function PromptScreen() {
   // Extract stable values from params to use in dependencies
   const promptId = params.id as string | undefined;
   const promptText = params.prompt as string | undefined;
+  const promptTitle = params.title as string | undefined;
+  const promptFollowups = params.followups as string | undefined; 
   const interactionType = params.interaction_type as string | undefined;
   const theme = params.theme as string | undefined;
   const mood = params.mood as string | undefined;
@@ -25,16 +27,36 @@ export default function PromptScreen() {
 
   // State for the prompt data
   const [promptData, setPromptData] = useState<{
-    prompt: string;
-    interaction_type: string | null;
-    raw_data: any | null;
+    title: string;
+    question: string;
+    followups: string[];
   } | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [shouldLoad, setShouldLoad] = useState<boolean>(true);
+
+  // Reset state when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      // Reset state to initial values when the screen is focused
+      setPromptData(null);
+      setIsLoading(true);
+      setError(null);
+      setShouldLoad(true);
+      
+      return () => {
+        // This cleanup function runs when the screen loses focus
+        setShouldLoad(false);
+      };
+    }, [])
+  );
 
   // Load the prompt data based on the ID or parameters
   useEffect(() => {
+    // If we shouldn't load, exit early
+    if (!shouldLoad) return;
+    
     // Flag to prevent state updates if the component unmounts
     let isMounted = true;
 
@@ -50,13 +72,33 @@ export default function PromptScreen() {
           const response = await axios.get(`${API_BASE_URL}/generator/${promptId}`);
           if (isMounted) setPromptData(response.data);
         }
-        // If we have prompt data passed directly
+        // If we have prompt data passed directly with all parameters
+        else if (promptText && promptTitle) {
+          if (isMounted) {
+            // Parse followups from JSON if available
+            let followups: string[] = [];
+            if (promptFollowups) {
+              try {
+                followups = JSON.parse(promptFollowups);
+              } catch (err) {
+                console.error('Error parsing followups:', err);
+              }
+            }
+            
+            setPromptData({
+              title: promptTitle,
+              question: promptText,
+              followups
+            });
+          }
+        }
+        // If we have just prompt text
         else if (promptText) {
           if (isMounted) {
             setPromptData({
-              prompt: promptText,
-              interaction_type: interactionType || null,
-              raw_data: null
+              title: interactionType || "Prompt",
+              question: promptText,
+              followups: []
             });
           }
         }
@@ -89,16 +131,22 @@ export default function PromptScreen() {
     return () => {
       isMounted = false;
     };
-  }, [promptId, promptText, interactionType, theme, mood, participants, relationship]);
+  }, [promptId, promptText, promptTitle, promptFollowups, interactionType, theme, mood, participants, relationship, shouldLoad]);
 
   // Share the prompt
   const sharePrompt = async () => {
     if (!promptData) return;
 
     try {
+      const message = `${promptData.title}\n\n${promptData.question}${
+        promptData.followups.length > 0 
+          ? `\n\nFollow-up questions:\n${promptData.followups.join('\n')}` 
+          : ''
+      }`;
+      
       await Share.share({
-        message: promptData.prompt,
-        title: 'Check out this conversation prompt!'
+        message: message,
+        title: promptData.title
       });
     } catch (err) {
       console.error('Error sharing prompt:', err);
@@ -115,6 +163,13 @@ export default function PromptScreen() {
 
   // Go back to the generator
   const goBack = () => {
+    // Clear state before navigating back
+    setPromptData(null);
+    setIsLoading(true);
+    setError(null);
+    setShouldLoad(false);
+    
+    // Navigate back
     router.back();
   };
 
@@ -161,19 +216,29 @@ export default function PromptScreen() {
             </View>
           ) : promptData ? (
             <>
-              {/* Prompt type badge */}
-              {promptData.interaction_type && (
-                <View style={styles.badgeContainer}>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{promptData.interaction_type}</Text>
-                  </View>
+              {/* Title */}
+              <View style={styles.badgeContainer}>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{promptData.title}</Text>
                 </View>
-              )}
+              </View>
 
               {/* Main prompt content */}
               <View style={styles.promptCard}>
-                <Text style={styles.promptText}>{promptData.prompt}</Text>
+                <Text style={styles.promptText}>{promptData.question}</Text>
               </View>
+              
+              {/* Follow-up questions */}
+              {promptData.followups && promptData.followups.length > 0 && (
+                <View style={styles.followupsContainer}>
+                  <Text style={styles.followupsTitle}>Follow-up Questions:</Text>
+                  {promptData.followups.map((followup, index) => (
+                    <View key={index} style={styles.followupItem}>
+                      <Text style={styles.followupText}>• {followup}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               {/* Action buttons */}
               <View style={styles.actionButtons}>
@@ -254,14 +319,14 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#5F5F5F',
     textAlign: 'center',
+    color: '#5F5F5F',
     marginBottom: 24,
   },
   retryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
     backgroundColor: '#5D5FEF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 8,
   },
   retryButtonText: {
@@ -274,7 +339,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   badge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#F0F0FF',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -286,26 +351,25 @@ const styles = StyleSheet.create({
   },
   promptCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 24,
-    borderWidth: 1,
-    borderColor: '#E2E2E2',
-    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
+    marginBottom: 24,
   },
   promptText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#000000',
+    fontSize: 18,
+    lineHeight: 28,
+    color: '#333333',
+    fontFamily: 'Petrona-Regular',
   },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   actionButton: {
     alignItems: 'center',
@@ -315,22 +379,50 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#5D5FEF',
     fontSize: 14,
-    fontWeight: '500',
   },
   generateAnotherButton: {
     backgroundColor: '#5D5FEF',
-    borderRadius: 8,
-    paddingVertical: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  buttonIcon: {
-    marginRight: 8,
+    paddingVertical: 14,
+    borderRadius: 8,
   },
   generateAnotherButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
   },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  followupsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 24,
+  },
+  followupsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 12,
+    fontFamily: 'Petrona-Bold',
+  },
+  followupItem: {
+    marginBottom: 10,
+    flexDirection: 'row',
+  },
+  followupText: {
+    color: '#333333',
+    fontSize: 15,
+    lineHeight: 24,
+    fontFamily: 'Petrona-Regular',
+    flex: 1,
+  }
 });

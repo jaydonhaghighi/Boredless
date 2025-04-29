@@ -99,16 +99,18 @@ export default function GenerateScreen() {
         relationship: selectedRelationship
       });
 
-      // We don't need to store the prompt text anymore since we're navigating to a new screen
-
-      // Navigate to the prompt screen
+      // Navigate to the prompt screen with all parameters
       router.push({
         pathname: '/prompt',
         params: {
-          prompt: response.data.prompt,
-          interaction_type: response.data.interaction_type || selectedInteraction,
-          // We could also pass the raw data, but it might be too large for URL params
-          // Instead, we could store it in a context or state management solution
+          prompt: response.data.question,
+          title: response.data.title,
+          followups: JSON.stringify(response.data.followups || []),
+          theme: selectedTheme,
+          interaction_type: response.data.title || selectedInteraction || "Prompt",
+          mood: selectedMood,
+          participants: selectedParticipants,
+          relationship: selectedRelationship
         }
       });
     } catch (err) {
