@@ -72,6 +72,19 @@ export default function PromptScreen() {
   const translateY = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
   
+  // State to track card flip
+  const [isFlipped, setIsFlipped] = useState(false);
+  
+  // Function to toggle card flip
+  const toggleFlip = () => {
+    // Reset any swipe translation when flipping
+    translateX.value = 0;
+    translateY.value = 0;
+    
+    // Toggle flip state
+    setIsFlipped(!isFlipped);
+  };
+
   // Function to handle when a card is swiped away
   const removeCard = useCallback(() => {
     if (currentCardIndex < cards.length - 1) {
@@ -297,10 +310,20 @@ export default function PromptScreen() {
   // Define the swipe gesture
   const swipeGesture = Gesture.Pan()
     .onUpdate((event) => {
-      translateX.value = event.translationX;
-      translateY.value = event.translationY;
+      // Only allow swipe when card isn't flipped
+      if (!isFlipped) {
+        translateX.value = event.translationX;
+        translateY.value = event.translationY;
+      }
     })
     .onEnd((event) => {
+      // Only process swipe end when card isn't flipped
+      if (isFlipped) {
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        return;
+      }
+      
       const shouldRemove = 
         Math.abs(event.translationX) > SWIPE_THRESHOLD || 
         Math.abs(event.velocityX) > 800;
@@ -322,7 +345,7 @@ export default function PromptScreen() {
   // Animated style for the card
   const cardAnimatedStyle = useAnimatedStyle(() => {
     // Calculate rotation based on horizontal movement
-    const rotation = interpolate(
+    const swipeRotation = interpolate(
       translateX.value,
       [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
       [-CARD_ROTATION_ANGLE, 0, CARD_ROTATION_ANGLE],
@@ -333,9 +356,31 @@ export default function PromptScreen() {
       transform: [
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { rotate: `${rotation}deg` },
+        { rotateZ: `${swipeRotation}deg` },
       ],
       opacity: cardOpacity.value,
+    };
+  });
+
+  // Animated style for content on the back of the card
+  const backCardContentStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotateY: `${isFlipped ? '0deg' : '180deg'}` },
+      ],
+      opacity: isFlipped ? 1 : 0,
+      display: isFlipped ? 'flex' : 'none',
+    };
+  });
+
+  // Animated style for content on the front of the card
+  const frontCardContentStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotateY: `${isFlipped ? '180deg' : '0deg'}` },
+      ],
+      opacity: isFlipped ? 0 : 1,
+      display: isFlipped ? 'none' : 'flex',
     };
   });
 
@@ -411,62 +456,90 @@ export default function PromptScreen() {
         {/* Current card (animated and swipeable) */}
         <GestureDetector gesture={swipeGesture}>
           <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
-            {/* Card content */}
-            <View style={styles.card}>
-              {/* Title */}
-              {promptData.title && (
-                <View style={styles.cardBadgeContainer}>
-                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
-                </View>
-              )}
+            <TouchableOpacity 
+              style={styles.card}
+              activeOpacity={0.9}
+              onPress={toggleFlip}
+            >
+              {!isFlipped ? (
+                // Front of card
+                <View style={styles.cardContentContainer}>
+                  {/* Title */}
+                  {promptData.title && (
+                    <View style={styles.cardBadgeContainer}>
+                      <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                    </View>
+                  )}
 
-              {/* Instructions if available */}
-              {promptData.instructions && (
-                <View style={styles.cardSection}>
-                  <Text style={styles.cardSectionTitle}>Instructions:</Text>
-                  <Text style={styles.cardSectionText}>{promptData.instructions}</Text>
-                </View>
-              )}
+                  {/* Instructions if available */}
+                  {promptData.instructions && (
+                    <View style={styles.cardSection}>
+                      <Text style={styles.cardSectionTitle}>Instructions:</Text>
+                      <Text style={styles.cardSectionText}>{promptData.instructions}</Text>
+                    </View>
+                  )}
 
-              {/* Main prompt content */}
-              {promptData.question && (
-                <View style={styles.cardMainContent}>
-                  <Text style={styles.cardMainText}>{promptData.question}</Text>
+                  {/* Main prompt content */}
+                  {promptData.question && (
+                    <View style={styles.cardMainContent}>
+                      <Text style={styles.cardMainText}>{promptData.question}</Text>
+                    </View>
+                  )}
+                  
+                  {/* Tap instruction */}
+                  <View style={styles.tapInstruction}>
+                    <Text style={styles.tapInstructionText}>Tap to see options & follow-ups</Text>
+                  </View>
                 </View>
-              )}
-              
-              {/* Options if available (for quizzes) */}
-              {promptData.options && promptData.options.length > 0 && (
-                <View style={styles.cardSection}>
-                  <Text style={styles.cardSectionTitle}>Options:</Text>
-                  {promptData.options.map((option, index) => (
-                    <Text key={index} style={styles.cardListItem}>
-                      {String.fromCharCode(65 + index)}. {option}
-                    </Text>
-                  ))}
-                </View>
-              )}
+              ) : (
+                // Back of card
+                <View style={styles.cardContentContainer}>
+                  {/* Title */}
+                  {promptData.title && (
+                    <View style={styles.cardBadgeContainer}>
+                      <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                    </View>
+                  )}
+                  
+                  {/* Options if available (for quizzes) */}
+                  {promptData.options && promptData.options.length > 0 && (
+                    <View style={styles.cardSection}>
+                      <Text style={styles.cardSectionTitle}>Options:</Text>
+                      {promptData.options.map((option, index) => (
+                        <Text key={index} style={styles.cardListItem}>
+                          {String.fromCharCode(65 + index)}. {option}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
 
-              {/* Stances if available (for debates) */}
-              {promptData.stances && promptData.stances.length > 0 && (
-                <View style={styles.cardSection}>
-                  <Text style={styles.cardSectionTitle}>Perspectives:</Text>
-                  {promptData.stances.map((stance, index) => (
-                    <Text key={index} style={styles.cardListItem}>• {stance}</Text>
-                  ))}
+                  {/* Stances if available (for debates) */}
+                  {promptData.stances && promptData.stances.length > 0 && (
+                    <View style={styles.cardSection}>
+                      <Text style={styles.cardSectionTitle}>Perspectives:</Text>
+                      {promptData.stances.map((stance, index) => (
+                        <Text key={index} style={styles.cardListItem}>• {stance}</Text>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Follow-up questions */}
+                  {promptData.followups && promptData.followups.length > 0 && (
+                    <View style={styles.cardSection}>
+                      <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
+                      {promptData.followups.map((followup, index) => (
+                        <Text key={index} style={styles.cardListItem}>• {followup}</Text>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Tap instruction */}
+                  <View style={styles.tapInstruction}>
+                    <Text style={styles.tapInstructionText}>Tap to return</Text>
+                  </View>
                 </View>
               )}
-              
-              {/* Follow-up questions */}
-              {promptData.followups && promptData.followups.length > 0 && (
-                <View style={styles.cardSection}>
-                  <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
-                  {promptData.followups.map((followup, index) => (
-                    <Text key={index} style={styles.cardListItem}>• {followup}</Text>
-                  ))}
-                </View>
-              )}
-            </View>
+            </TouchableOpacity>
           </Animated.View>
         </GestureDetector>
         
@@ -556,14 +629,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 32,
-    paddingTop: 24,
-    paddingBottom: 100,
   },
   // Card deck styles
   deckContainer: {
@@ -657,24 +722,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingLeft: 8,
   },
-  swipeInstructions: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: 'rgba(93, 95, 239, 0.8)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  swipeIcon: {
-    marginRight: 4,
-  },
-  swipeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-  },
   cardActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -689,44 +736,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#5D5FEF',
     fontSize: 14,
-  },
-  // Empty deck styles
-  emptyDeckContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  emptyDeckTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginTop: 16,
-    marginBottom: 8,
-    fontFamily: 'Petrona-Bold',
-  },
-  emptyDeckText: {
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    marginBottom: 24,
-    fontFamily: 'Petrona-Regular',
-  },
-  generateMoreButton: {
-    backgroundColor: '#5D5FEF',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  generateMoreButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  buttonIcon: {
-    marginRight: 8,
   },
   // Loading styles
   loadingContainer: {
@@ -765,184 +774,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  
-  // Keep existing styles for backward compatibility
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  navButton: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledNavButton: {
-    borderColor: '#F0F0F0',
-  },
-  navText: {
-    fontSize: 14,
-    color: '#5F5F5F',
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  badge: {
-    backgroundColor: '#F0F0FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  badgeText: {
-    color: '#5D5FEF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  instructionsContainer: {
-    backgroundColor: '#FFFBF2',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: '#FFD166',
-  },
-  instructionsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 8,
-    fontFamily: 'Petrona-Bold',
-  },
-  instructionsText: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#333333',
-    fontFamily: 'Petrona-Regular',
-  },
-  promptCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 24,
-  },
-  promptText: {
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#333333',
-    fontFamily: 'Petrona-Regular',
-  },
-  optionsContainer: {
-    backgroundColor: '#F0FEFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderLeftWidth: 3,
-    borderLeftColor: '#66D4FF',
-  },
-  optionsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 12,
-    fontFamily: 'Petrona-Bold',
-  },
-  optionItem: {
-    marginBottom: 10,
-    flexDirection: 'row',
-  },
-  optionText: {
-    color: '#333333',
-    fontSize: 15,
-    lineHeight: 24,
-    fontFamily: 'Petrona-Regular',
-    flex: 1,
-  },
-  stancesContainer: {
-    backgroundColor: '#F3F0FF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderLeftWidth: 3,
-    borderLeftColor: '#9F66FF',
-  },
-  stancesTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 12,
-    fontFamily: 'Petrona-Bold',
-  },
-  stanceItem: {
-    marginBottom: 10,
-    flexDirection: 'row',
-  },
-  stanceText: {
-    color: '#333333',
-    fontSize: 15,
-    lineHeight: 24,
-    fontFamily: 'Petrona-Regular',
-    flex: 1,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 24,
-  },
-  generateAnotherButton: {
-    backgroundColor: '#5D5FEF',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 8,
-  },
-  generateAnotherButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  followupsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 24,
-  },
-  followupsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 12,
-    fontFamily: 'Petrona-Bold',
-  },
-  followupItem: {
-    marginBottom: 10,
-    flexDirection: 'row',
-  },
-  followupText: {
-    color: '#333333',
-    fontSize: 15,
-    lineHeight: 24,
-    fontFamily: 'Petrona-Regular',
-    flex: 1,
-  },
   // No decks styles
   noDecksContainer: {
     alignItems: 'center',
@@ -973,6 +804,25 @@ const styles = StyleSheet.create({
   createDeckButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '500',
+  },
+  cardContentContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    position: 'relative',
+    paddingBottom: 40, // Space for tap instructions
+  },
+  tapInstruction: {
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+  },
+  tapInstructionText: {
+    color: '#5D5FEF',
+    fontSize: 14,
     fontWeight: '500',
   },
 });
