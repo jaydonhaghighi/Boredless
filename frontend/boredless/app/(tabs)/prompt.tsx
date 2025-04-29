@@ -1,14 +1,39 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Alert } from 'react-native';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import axios from 'axios';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withTiming, 
+  runOnJS,
+  interpolate,
+  Extrapolation
+} from 'react-native-reanimated';
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
+
+// Default prompt categories to show when opened from tab bar
+const DEFAULT_PROMPT_CATEGORIES = [
+  { title: "Conversation Starters", icon: "chatbubbles-outline" },
+  { title: "Interactive Games", icon: "game-controller-outline" },
+  { title: "Quizzes", icon: "help-circle-outline" },
+  { title: "Friendly Debates", icon: "people-outline" },
+  { title: "Icebreakers", icon: "ice-cream-outline" },
+  { title: "Thought-provoking Questions", icon: "bulb-outline" }
+];
+
+// Screen dimensions for card animations
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CARD_ROTATION_ANGLE = 60;
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 
 // Define types for the card data structure
 interface Card {
@@ -45,10 +70,39 @@ export default function PromptScreen() {
   const [cards, setCards] = useState<Card[]>([]);
   // Current card index being displayed
   const [currentCardIndex, setCurrentCardIndex] = useState<number>(0);
+  // State to track if all cards have been swiped
+  const [isFinished, setIsFinished] = useState<boolean>(false);
+  // State to determine if we're showing categories or cards
+  const [showCategories, setShowCategories] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [shouldLoad, setShouldLoad] = useState<boolean>(true);
+
+  // Animation values for swiping
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const cardOpacity = useSharedValue(1);
+  
+  // Function to handle when a card is swiped away
+  const removeCard = useCallback(() => {
+    if (currentCardIndex < cards.length - 1) {
+      // Move to next card
+      setCurrentCardIndex(prevIndex => {
+        const newIndex = prevIndex + 1;
+        setPromptData(cards[newIndex]);
+        return newIndex;
+      });
+    } else {
+      // No more cards
+      setIsFinished(true);
+    }
+    
+    // Reset animation values
+    translateX.value = 0;
+    translateY.value = 0;
+    cardOpacity.value = 1;
+  }, [currentCardIndex, cards, translateX, translateY, cardOpacity]);
 
   // Reset state when screen comes into focus
   useFocusEffect(
@@ -61,17 +115,22 @@ export default function PromptScreen() {
       setError(null);
       setShouldLoad(true);
       
+      // If we don't have any params, show categories view
+      const hasParams = promptId || promptText || promptCards || 
+                       (theme && mood && interactionType && participants && relationship);
+      setShowCategories(!hasParams);
+      
       return () => {
         // This cleanup function runs when the screen loses focus
         setShouldLoad(false);
       };
-    }, [])
+    }, [promptId, promptText, promptCards, theme, mood, interactionType, participants, relationship])
   );
 
   // Load the prompt data based on the ID or parameters
   useEffect(() => {
-    // If we shouldn't load, exit early
-    if (!shouldLoad) return;
+    // If we're showing categories or shouldn't load, exit early
+    if (showCategories || !shouldLoad) return;
     
     // Flag to prevent state updates if the component unmounts
     let isMounted = true;
@@ -203,14 +262,50 @@ export default function PromptScreen() {
     return () => {
       isMounted = false;
     };
-  }, [promptId, promptText, promptTitle, promptFollowups, promptInstructions, promptOptions, promptStances, promptCards, interactionType, theme, mood, participants, relationship, shouldLoad]);
+  }, [promptId, promptText, promptTitle, promptFollowups, promptInstructions, promptOptions, promptStances, promptCards, interactionType, theme, mood, participants, relationship, shouldLoad, showCategories]);
+
+  // Generate prompts for the selected category
+  const generatePromptsForCategory = (category: string) => {
+    setShowCategories(false);
+    setIsLoading(true);
+    
+    // Call the API to generate prompts for this category
+    axios.post(`${API_BASE_URL}/generator/`, {
+      interaction_type: category
+    })
+    .then(response => {
+      if (response.data.cards && Array.isArray(response.data.cards)) {
+        setCards(response.data.cards);
+        if (response.data.cards.length > 0) {
+          setPromptData(response.data.cards[0]);
+        }
+      } else {
+        // Fallback for old format
+        setPromptData(response.data);
+        setCards([response.data]);
+      }
+      setIsLoading(false);
+    })
+    .catch(err => {
+      console.error('Error generating prompts:', err);
+      setError('Failed to generate prompts. Please try again.');
+      setIsLoading(false);
+    });
+  };
+
+  // Handle generating more cards from the category selection
+  const handleGenerateMore = () => {
+    setShowCategories(true);
+    setIsFinished(false);
+  };
 
   // Navigate to next card
   const nextCard = () => {
-    if (cards.length > currentCardIndex + 1) {
-      setCurrentCardIndex(currentCardIndex + 1);
-      setPromptData(cards[currentCardIndex + 1]);
-    }
+    // Simulate a right swipe
+    translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 300 }, () => {
+      runOnJS(removeCard)();
+    });
+    cardOpacity.value = withTiming(0, { duration: 300 });
   };
 
   // Navigate to previous card
@@ -220,6 +315,51 @@ export default function PromptScreen() {
       setPromptData(cards[currentCardIndex - 1]);
     }
   };
+
+  // Define the swipe gesture
+  const swipeGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
+    })
+    .onEnd((event) => {
+      const shouldRemove = 
+        Math.abs(event.translationX) > SWIPE_THRESHOLD || 
+        Math.abs(event.velocityX) > 800;
+
+      if (shouldRemove) {
+        // Swipe the card out of the screen
+        const direction = event.translationX > 0 ? 1 : -1;
+        translateX.value = withTiming(direction * SCREEN_WIDTH * 1.5, { duration: 300 }, () => {
+          runOnJS(removeCard)();
+        });
+        cardOpacity.value = withTiming(0, { duration: 300 });
+      } else {
+        // Return the card to center
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+      }
+    });
+
+  // Animated style for the card
+  const cardAnimatedStyle = useAnimatedStyle(() => {
+    // Calculate rotation based on horizontal movement
+    const rotation = interpolate(
+      translateX.value,
+      [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+      [-CARD_ROTATION_ANGLE, 0, CARD_ROTATION_ANGLE],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { rotate: `${rotation}deg` },
+      ],
+      opacity: cardOpacity.value,
+    };
+  });
 
   // Share the prompt
   const sharePrompt = async () => {
@@ -257,6 +397,12 @@ export default function PromptScreen() {
 
   // Go back to the generator
   const goBack = () => {
+    // If we're showing categories, go back to home
+    if (showCategories) {
+      router.replace('/');
+      return;
+    }
+    
     // Clear state before navigating back
     setPromptData(null);
     setCards([]);
@@ -285,138 +431,180 @@ export default function PromptScreen() {
     return null;
   }
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={goBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Prompt</Text>
-        <View style={styles.headerRight} />
-      </View>
-
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#5D5FEF" />
-              <Text style={styles.loadingText}>Loading your prompt...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle-outline" size={48} color="#FF4D4D" />
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={goBack}>
-                <Text style={styles.retryButtonText}>Go Back</Text>
-              </TouchableOpacity>
-            </View>
-          ) : promptData ? (
-            <>
-              {/* Card Navigation */}
-              {cards.length > 1 && (
-                <View style={styles.navigation}>
-                  <TouchableOpacity 
-                    style={[styles.navButton, currentCardIndex === 0 && styles.disabledNavButton]}
-                    onPress={previousCard}
-                    disabled={currentCardIndex === 0}
-                  >
-                    <Ionicons name="chevron-back" size={20} color={currentCardIndex === 0 ? "#CCCCCC" : "#5D5FEF"} />
-                  </TouchableOpacity>
-                  <Text style={styles.navText}>
-                    {currentCardIndex + 1} of {cards.length}
-                  </Text>
-                  <TouchableOpacity 
-                    style={[styles.navButton, currentCardIndex === cards.length - 1 && styles.disabledNavButton]}
-                    onPress={nextCard}
-                    disabled={currentCardIndex === cards.length - 1}
-                  >
-                    <Ionicons name="chevron-forward" size={20} color={currentCardIndex === cards.length - 1 ? "#CCCCCC" : "#5D5FEF"} />
-                  </TouchableOpacity>
-                </View>
-              )}
-
+  // Card component to render a swipeable prompt card
+  const CardDeck = () => {
+    if (!promptData) return null;
+    
+    return (
+      <View style={styles.deckContainer}>
+        {/* Card count indicator */}
+        <View style={styles.cardCountContainer}>
+          <Text style={styles.cardCountText}>
+            {currentCardIndex + 1} of {cards.length}
+          </Text>
+        </View>
+        
+        {/* Current card (animated and swipeable) */}
+        <GestureDetector gesture={swipeGesture}>
+          <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
+            {/* Card content */}
+            <View style={styles.card}>
               {/* Title */}
               {promptData.title && (
-                <View style={styles.badgeContainer}>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{promptData.title}</Text>
-                  </View>
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
                 </View>
               )}
 
               {/* Instructions if available */}
               {promptData.instructions && (
-                <View style={styles.instructionsContainer}>
-                  <Text style={styles.instructionsTitle}>Instructions:</Text>
-                  <Text style={styles.instructionsText}>{promptData.instructions}</Text>
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Instructions:</Text>
+                  <Text style={styles.cardSectionText}>{promptData.instructions}</Text>
                 </View>
               )}
 
               {/* Main prompt content */}
               {promptData.question && (
-                <View style={styles.promptCard}>
-                  <Text style={styles.promptText}>{promptData.question}</Text>
+                <View style={styles.cardMainContent}>
+                  <Text style={styles.cardMainText}>{promptData.question}</Text>
                 </View>
               )}
               
               {/* Options if available (for quizzes) */}
               {promptData.options && promptData.options.length > 0 && (
-                <View style={styles.optionsContainer}>
-                  <Text style={styles.optionsTitle}>Options:</Text>
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Options:</Text>
                   {promptData.options.map((option, index) => (
-                    <View key={index} style={styles.optionItem}>
-                      <Text style={styles.optionText}>{String.fromCharCode(65 + index)}. {option}</Text>
-                    </View>
+                    <Text key={index} style={styles.cardListItem}>
+                      {String.fromCharCode(65 + index)}. {option}
+                    </Text>
                   ))}
                 </View>
               )}
 
               {/* Stances if available (for debates) */}
               {promptData.stances && promptData.stances.length > 0 && (
-                <View style={styles.stancesContainer}>
-                  <Text style={styles.stancesTitle}>Perspectives:</Text>
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Perspectives:</Text>
                   {promptData.stances.map((stance, index) => (
-                    <View key={index} style={styles.stanceItem}>
-                      <Text style={styles.stanceText}>• {stance}</Text>
-                    </View>
+                    <Text key={index} style={styles.cardListItem}>• {stance}</Text>
                   ))}
                 </View>
               )}
               
               {/* Follow-up questions */}
               {promptData.followups && promptData.followups.length > 0 && (
-                <View style={styles.followupsContainer}>
-                  <Text style={styles.followupsTitle}>Follow-up Questions:</Text>
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
                   {promptData.followups.map((followup, index) => (
-                    <View key={index} style={styles.followupItem}>
-                      <Text style={styles.followupText}>• {followup}</Text>
-                    </View>
+                    <Text key={index} style={styles.cardListItem}>• {followup}</Text>
                   ))}
                 </View>
               )}
+            </View>
+            
+            {/* Swipe instruction overlay */}
+            <View style={styles.swipeInstructions}>
+              <Ionicons name="arrow-forward" size={24} color="#FFFFFF" style={styles.swipeIcon} />
+              <Text style={styles.swipeText}>Swipe to see next</Text>
+            </View>
+          </Animated.View>
+        </GestureDetector>
+        
+        {/* Action buttons below the card */}
+        <View style={styles.cardActions}>
+          <TouchableOpacity style={styles.actionButton} onPress={saveToFavorites}>
+            <Ionicons name="heart-outline" size={24} color="#5D5FEF" />
+            <Text style={styles.actionButtonText}>Save</Text>
+          </TouchableOpacity>
 
-              {/* Action buttons */}
-              <View style={styles.actionButtons}>
-                <TouchableOpacity style={styles.actionButton} onPress={saveToFavorites}>
-                  <Ionicons name="heart-outline" size={24} color="#5D5FEF" />
-                  <Text style={styles.actionButtonText}>Save</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.actionButton} onPress={sharePrompt}>
-                  <Ionicons name="share-outline" size={24} color="#5D5FEF" />
-                  <Text style={styles.actionButtonText}>Share</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Generate another button */}
-              <TouchableOpacity style={styles.generateAnotherButton} onPress={goBack}>
-                <Ionicons name="refresh-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-                <Text style={styles.generateAnotherButtonText}>Generate Another</Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
+          <TouchableOpacity style={styles.actionButton} onPress={sharePrompt}>
+            <Ionicons name="share-outline" size={24} color="#5D5FEF" />
+            <Text style={styles.actionButtonText}>Share</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionButton} onPress={nextCard}>
+            <Ionicons name="chevron-forward-outline" size={24} color="#5D5FEF" />
+            <Text style={styles.actionButtonText}>Skip</Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
+    );
+  };
+
+  // Categories view component
+  const CategoriesView = () => (
+    <ScrollView style={styles.categoriesScrollView}>
+      <View style={styles.categoriesContainer}>
+        <Text style={styles.categoriesTitle}>Choose a Category</Text>
+        <Text style={styles.categoriesSubtitle}>Select a category to explore conversation prompts</Text>
+        
+        <View style={styles.categoriesGrid}>
+          {DEFAULT_PROMPT_CATEGORIES.map((category, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={styles.categoryCard}
+              onPress={() => generatePromptsForCategory(category.title)}
+            >
+              <View style={styles.categoryIconContainer}>
+                <Ionicons name={category.icon as any} size={24} color="#5D5FEF" />
+              </View>
+              <Text style={styles.categoryTitle}>{category.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  // Empty deck view when all cards are swiped
+  const EmptyDeck = () => (
+    <View style={styles.emptyDeckContainer}>
+      <Ionicons name="checkmark-circle-outline" size={64} color="#5D5FEF" />
+      <Text style={styles.emptyDeckTitle}>All Done!</Text>
+      <Text style={styles.emptyDeckText}>You've gone through all the prompts.</Text>
+      <TouchableOpacity style={styles.generateMoreButton} onPress={handleGenerateMore}>
+        <Ionicons name="refresh-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+        <Text style={styles.generateMoreButtonText}>Generate More</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={goBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {showCategories ? "Prompt Categories" : "Your Prompt"}
+        </Text>
+        <View style={styles.headerRight} />
+      </View>
+
+      <View style={styles.mainContainer}>
+        {showCategories ? (
+          <CategoriesView />
+        ) : isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#5D5FEF" />
+            <Text style={styles.loadingText}>Loading your prompt...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#FF4D4D" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={goBack}>
+              <Text style={styles.retryButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isFinished ? (
+          <EmptyDeck />
+        ) : promptData ? (
+          <CardDeck />
+        ) : null}
+      </View>
     </SafeAreaView>
   );
 }
@@ -446,6 +634,11 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 40, // To balance the header
   },
+  mainContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollView: {
     flex: 1,
   },
@@ -454,30 +647,170 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 100,
   },
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  navButton: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
+  // Card deck styles
+  deckContainer: {
+    flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
   },
-  disabledNavButton: {
-    borderColor: '#F0F0F0',
+  cardCountContainer: {
+    position: 'absolute',
+    top: 10,
+    alignSelf: 'center',
+    zIndex: 10,
   },
-  navText: {
+  cardCountText: {
     fontSize: 14,
     color: '#5F5F5F',
+    fontWeight: '500',
   },
+  cardContainer: {
+    width: SCREEN_WIDTH * 0.85,
+    height: SCREEN_HEIGHT * 0.6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  card: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  cardBadgeContainer: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F0F0FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  cardBadgeText: {
+    color: '#5D5FEF',
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: 'Petrona-Bold',
+  },
+  cardMainContent: {
+    flex: 1,
+    justifyContent: 'center',
+    marginVertical: 16,
+  },
+  cardMainText: {
+    fontSize: 22,
+    lineHeight: 32,
+    color: '#333333',
+    fontFamily: 'Petrona-Regular',
+    textAlign: 'center',
+  },
+  cardSection: {
+    marginVertical: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  cardSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 8,
+    fontFamily: 'Petrona-Bold',
+  },
+  cardSectionText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: '#333333',
+    fontFamily: 'Petrona-Regular',
+  },
+  cardListItem: {
+    color: '#333333',
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: 'Petrona-Regular',
+    marginBottom: 6,
+    paddingLeft: 8,
+  },
+  swipeInstructions: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: 'rgba(93, 95, 239, 0.8)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  swipeIcon: {
+    marginRight: 4,
+  },
+  swipeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingVertical: 20,
+  },
+  actionButton: {
+    alignItems: 'center',
+    padding: 12,
+  },
+  actionButtonText: {
+    marginTop: 8,
+    color: '#5D5FEF',
+    fontSize: 14,
+  },
+  // Empty deck styles
+  emptyDeckContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  emptyDeckTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginTop: 16,
+    marginBottom: 8,
+    fontFamily: 'Petrona-Bold',
+  },
+  emptyDeckText: {
+    fontSize: 16,
+    color: '#5F5F5F',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontFamily: 'Petrona-Regular',
+  },
+  generateMoreButton: {
+    backgroundColor: '#5D5FEF',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  generateMoreButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  // Loading styles
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -489,6 +822,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#5F5F5F',
   },
+  // Error styles
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -512,6 +846,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
+  },
+  
+  // Keep existing styles for backward compatibility
+  navigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  navButton: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabledNavButton: {
+    borderColor: '#F0F0F0',
+  },
+  navText: {
+    fontSize: 14,
+    color: '#5F5F5F',
   },
   badgeContainer: {
     flexDirection: 'row',
@@ -623,15 +983,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 24,
   },
-  actionButton: {
-    alignItems: 'center',
-    padding: 12,
-  },
-  actionButtonText: {
-    marginTop: 8,
-    color: '#5D5FEF',
-    fontSize: 14,
-  },
   generateAnotherButton: {
     backgroundColor: '#5D5FEF',
     flexDirection: 'row',
@@ -644,9 +995,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
-  },
-  buttonIcon: {
-    marginRight: 8,
   },
   followupsContainer: {
     backgroundColor: '#FFFFFF',
@@ -676,5 +1024,56 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontFamily: 'Petrona-Regular',
     flex: 1,
-  }
+  },
+  categoriesScrollView: {
+    flex: 1,
+  },
+  categoriesContainer: {
+    padding: 24,
+  },
+  categoriesTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 8,
+    fontFamily: 'Petrona-Bold',
+  },
+  categoriesSubtitle: {
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 32,
+    fontFamily: 'Petrona-Regular',
+  },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  categoryCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  categoryIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F0F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  categoryTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333333',
+    fontFamily: 'Petrona-Bold',
+  },
 });

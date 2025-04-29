@@ -19,32 +19,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ focused }) => (
             <Image
-              source={require('../../assets/images/nav/home.png')}
-              style={[styles.icon, { tintColor: color }]}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="generate"
-        options={{
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={require('../../assets/images/nav/generate.png')}
-              style={[styles.icon, { tintColor: color }]}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="favourites"
-        options={{
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={require('../../assets/images/nav/favourite.png')}
-              style={[styles.icon, { tintColor: color }]}
+              source={focused 
+                ? require('../../assets/images/nav/home_select.png')
+                : require('../../assets/images/nav/home_unselect.png')}
+              style={styles.icon}
             />
           ),
         }}
@@ -52,19 +32,51 @@ export default function TabLayout() {
       <Tabs.Screen
         name="prompt"
         options={{
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="document-text-outline" size={24} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={focused 
+                ? require('../../assets/images/nav/prompt_select.png')
+                : require('../../assets/images/nav/prompt_unselect.png')}
+              style={styles.icon}
+            />
           ),
-          href: null, // Hide from tab bar but keep accessible via direct navigation
+        }}
+      />
+      <Tabs.Screen
+        name="generate"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={focused 
+                ? require('../../assets/images/nav/generate_select.png')
+                : require('../../assets/images/nav/generate_unselect.png')}
+              style={styles.icon}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="favourites"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={focused 
+                ? require('../../assets/images/nav/favourite_select.png')
+                : require('../../assets/images/nav/favourite_unselect.png')}
+              style={styles.icon}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ focused }) => (
             <Image
-              source={require('../../assets/images/nav/profile.png')}
-              style={[styles.icon, { tintColor: color }]}
+              source={focused 
+                ? require('../../assets/images/nav/profile_select.png')
+                : require('../../assets/images/nav/profile_unselect.png')}
+              style={styles.icon}
             />
           ),
         }}

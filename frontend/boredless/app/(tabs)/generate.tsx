@@ -127,9 +127,9 @@ export default function GenerateScreen() {
         });
       } else {
         // Fallback for old format
-        router.push({
-          pathname: '/prompt',
-          params: {
+      router.push({
+        pathname: '/prompt',
+        params: {
             prompt: response.data.question || '',
             title: response.data.title || selectedInteraction || 'Prompt',
             followups: JSON.stringify(response.data.followups || []),
@@ -138,8 +138,8 @@ export default function GenerateScreen() {
             mood: selectedMood,
             participants: selectedParticipants,
             relationship: selectedRelationship
-          }
-        });
+        }
+      });
       }
     } catch (err) {
       console.error('Error generating prompt:', err);
