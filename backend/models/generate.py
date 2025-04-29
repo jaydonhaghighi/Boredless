@@ -8,7 +8,13 @@ class PromptRequest(BaseModel):
     participants: Optional[str] = None  
     relationship: Optional[str] = None
 
+class Card(BaseModel):
+    title: Optional[str]
+    instructions: Optional[str]
+    question: Optional[str]
+    options: Optional[List[str]]
+    stances: Optional[List[str]]
+    followups: Optional[List[str]]
+
 class PromptResponse(BaseModel):
-    title: str
-    question: str
-    followups: List[str]
+    cards: List[Card]

@@ -99,20 +99,48 @@ export default function GenerateScreen() {
         relationship: selectedRelationship
       });
 
-      // Navigate to the prompt screen with all parameters
-      router.push({
-        pathname: '/prompt',
-        params: {
-          prompt: response.data.question,
-          title: response.data.title,
-          followups: JSON.stringify(response.data.followups || []),
-          theme: selectedTheme,
-          interaction_type: response.data.title || selectedInteraction || "Prompt",
-          mood: selectedMood,
-          participants: selectedParticipants,
-          relationship: selectedRelationship
-        }
-      });
+      // Check if we have a cards array from the new API format
+      if (response.data.cards && Array.isArray(response.data.cards) && response.data.cards.length > 0) {
+        // Take the first card from the array
+        const card = response.data.cards[0];
+        
+        // Navigate to the prompt screen with all parameters
+        router.push({
+          pathname: '/prompt',
+          params: {
+            // Pass the cards data as JSON
+            cards: JSON.stringify(response.data.cards),
+            // Pass the first card's data directly
+            prompt: card.question || '',
+            title: card.title || selectedInteraction || 'Prompt',
+            followups: JSON.stringify(card.followups || []),
+            instructions: card.instructions || '',
+            options: JSON.stringify(card.options || []),
+            stances: JSON.stringify(card.stances || []),
+            // Also pass the original filter parameters
+            theme: selectedTheme,
+            interaction_type: selectedInteraction,
+            mood: selectedMood,
+            participants: selectedParticipants,
+            relationship: selectedRelationship
+          }
+        });
+      } else {
+        // Fallback for old format
+        router.push({
+          pathname: '/prompt',
+          params: {
+            prompt: response.data.question || '',
+            title: response.data.title || selectedInteraction || 'Prompt',
+            followups: JSON.stringify(response.data.followups || []),
+            theme: selectedTheme,
+            interaction_type: selectedInteraction,
+            mood: selectedMood,
+            participants: selectedParticipants,
+            relationship: selectedRelationship
+          }
+        });
+      }
     } catch (err) {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
