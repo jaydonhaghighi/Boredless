@@ -840,16 +840,6 @@ export default function PromptScreen() {
             <Ionicons name="heart-outline" size={24} color="#5D5FEF" />
             <Text style={styles.actionButtonText}>Save</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton} onPress={sharePrompt}>
-            <Ionicons name="share-outline" size={24} color="#5D5FEF" />
-            <Text style={styles.actionButtonText}>Share</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton} onPress={nextCard}>
-            <Ionicons name="arrow-forward-outline" size={24} color="#5D5FEF" />
-            <Text style={styles.actionButtonText}>Next</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
