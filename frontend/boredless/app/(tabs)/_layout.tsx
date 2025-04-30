@@ -30,19 +30,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="prompt"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={focused 
-                ? require('../../assets/images/nav/prompt_select.png')
-                : require('../../assets/images/nav/prompt_unselect.png')}
-              style={styles.icon}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="generate"
         options={{
           tabBarIcon: ({ focused }) => (

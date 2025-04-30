@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -471,8 +471,8 @@ export default function PromptScreen() {
 
   // Font loading
   const [fontsLoaded, fontError] = useFonts({
-    'Petrona-Bold': require('../../assets/fonts/Petrona-Bold.ttf'),
-    'Petrona-Regular': require('../../assets/fonts/Petrona-Regular.ttf'),
+    'Petrona-Bold': require('../assets/fonts/Petrona-Bold.ttf'),
+    'Petrona-Regular': require('../assets/fonts/Petrona-Regular.ttf'),
   });
 
   const onLayoutRootView = useCallback(async () => {
@@ -806,12 +806,12 @@ export default function PromptScreen() {
             >
               {isFavorite ? (
                 <Image 
-                  source={require('../../assets/images/prompt/favourite_select.png')} 
+                  source={require('../assets/images/prompt/favourite_select.png')} 
                   style={styles.favoriteIcon} 
                 />
               ) : (
                 <Image 
-                  source={require('../../assets/images/prompt/favourite_unselect.png')} 
+                  source={require('../assets/images/prompt/favourite_unselect.png')} 
                   style={styles.favoriteIcon} 
                 />
               )}
@@ -825,7 +825,7 @@ export default function PromptScreen() {
                 activeOpacity={0.7}
               >
                 <Image 
-                  source={require('../../assets/images/prompt/back_arrow.png')} 
+                  source={require('../assets/images/prompt/back_arrow.png')} 
                   style={styles.backArrowIcon} 
                 />
               </TouchableOpacity>
@@ -849,77 +849,76 @@ export default function PromptScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={goBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Prompt</Text>
-        <View style={styles.headerRight} />
-      </View>
-
-      <View style={styles.mainContainer}>
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#5D5FEF" />
-            <Text style={styles.loadingText}>Loading...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={48} color="#FF4D4D" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={checkForExistingDecks}>
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        ) : noDecksExist ? (
-          <NoDecksView />
-        ) : promptData ? (
-          <CardDeck />
-        ) : null}
-      </View>
-      
-      {/* Favorite Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={favoriteModalVisible}
-        onRequestClose={() => setFavoriteModalVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1}
-          onPress={() => setFavoriteModalVisible(false)}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Save Card</Text>
-              
-              <TouchableOpacity 
-                style={styles.modalOption} 
-                onPress={handleAddToExistingDeck}
-              >
-                <Text style={styles.modalOptionText}>Add to existing deck</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.modalOption}
-                onPress={handleCreateDeck}
-              >
-                <Text style={styles.modalOptionText}>Create new deck</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.modalCancelButton}
-                onPress={() => setFavoriteModalVisible(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+    <>
+      <Stack.Screen 
+        options={{
+          headerShown: false
+        }} 
+      />
+      <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
+        <View style={styles.mainContainer}>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#5D5FEF" />
+              <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={48} color="#FF4D4D" />
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={checkForExistingDecks}>
+                <Text style={styles.retryButtonText}>Try Again</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </SafeAreaView>
+          ) : noDecksExist ? (
+            <NoDecksView />
+          ) : promptData ? (
+            <CardDeck />
+          ) : null}
+        </View>
+        
+        {/* Favorite Modal */}
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={favoriteModalVisible}
+          onRequestClose={() => setFavoriteModalVisible(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1}
+            onPress={() => setFavoriteModalVisible(false)}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Save Card</Text>
+                
+                <TouchableOpacity 
+                  style={styles.modalOption} 
+                  onPress={handleAddToExistingDeck}
+                >
+                  <Text style={styles.modalOptionText}>Add to existing deck</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.modalOption}
+                  onPress={handleCreateDeck}
+                >
+                  <Text style={styles.modalOptionText}>Create new deck</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.modalCancelButton}
+                  onPress={() => setFavoriteModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -927,26 +926,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  headerRight: {
-    width: 40, // To balance the header
   },
   mainContainer: {
     flex: 1,
@@ -960,6 +939,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   cardCountContainer: {
     position: 'absolute',
@@ -978,6 +962,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    marginTop: -SCREEN_HEIGHT * 0.1, // Adjust this value to fine-tune vertical centering
   },
   card: {
     width: '100%',
