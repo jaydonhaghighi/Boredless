@@ -27,12 +27,15 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 
 // Define types for the card data structure
 interface Card {
+  card_type: string;
   title?: string;
   instructions?: string;
   question?: string;
   options?: string[];
   stances?: string[];
   followups?: string[];
+  action_prompt?: string;
+  correct_answer_index?: number;
 }
 
 export default function PromptScreen() {
@@ -264,13 +267,48 @@ export default function PromptScreen() {
         }
       }
       
+      // Determine card type based on parameters
+      let cardType = 'conversation_starter'; // Default type
+      
+      if (promptOptions && options.length > 0) {
+        cardType = 'quiz';
+      } else if (promptStances && stances.length > 0) {
+        cardType = 'debate';
+      } else if (promptInstructions && promptInstructions.includes("game") || promptInstructions?.includes("activity")) {
+        cardType = 'interactive_game';
+      } else if (interactionType) {
+        // Map interaction type to card type
+        switch (interactionType.toLowerCase()) {
+          case 'conversation starters':
+            cardType = 'conversation_starter';
+            break;
+          case 'interactive games':
+            cardType = 'interactive_game';
+            break;
+          case 'quizzes':
+            cardType = 'quiz';
+            break;
+          case 'friendly debates':
+            cardType = 'debate';
+            break;
+          case 'icebreakers':
+            cardType = 'icebreaker';
+            break;
+          case 'thought-provoking questions':
+            cardType = 'thought_provoking';
+            break;
+        }
+      }
+      
       const card: Card = {
+        card_type: cardType,
         title: promptTitle || interactionType || "Prompt",
         question: promptText || "",
         instructions: promptInstructions,
         options,
         stances,
-        followups
+        followups,
+        action_prompt: "", // Default empty for non-game cards
       };
       
       setPromptData(card);
@@ -389,17 +427,64 @@ export default function PromptScreen() {
     if (!promptData) return;
 
     try {
-      const message = `${promptData.title || ''}\n\n${promptData.question || ''}${
-        promptData.instructions ? `\n\nInstructions: ${promptData.instructions}` : ''
-      }${
-        promptData.options ? `\n\nOptions: ${promptData.options.join(', ')}` : ''
-      }${
-        promptData.stances ? `\n\nStances: ${promptData.stances.join(', ')}` : ''
-      }${
-        promptData.followups && promptData.followups.length > 0 
-          ? `\n\nFollow-up questions:\n${promptData.followups.join('\n')}` 
-          : ''
-      }`;
+      let message = "";
+      
+      // Build a message based on card type
+      switch(promptData.card_type) {
+        case 'conversation_starter':
+          message = `${promptData.title || 'Conversation Starter'}\n\n${promptData.question || ''}${
+            promptData.followups && promptData.followups.length > 0 
+              ? `\n\nFollow-up questions:\n${promptData.followups.join('\n')}` 
+              : ''
+          }`;
+          break;
+          
+        case 'interactive_game':
+          message = `${promptData.title || 'Game'}\n\nInstructions: ${promptData.instructions || ''}\n\nAction: ${promptData.action_prompt || ''}`;
+          break;
+          
+        case 'quiz':
+          message = `${promptData.title || 'Quiz'}\n\n${promptData.question || ''}${
+            promptData.options ? `\n\nOptions:\n${promptData.options.map((opt, i) => 
+              `${String.fromCharCode(65 + i)}. ${opt}${
+                promptData.correct_answer_index === i ? ' (Correct)' : ''
+              }`
+            ).join('\n')}` : ''
+          }`;
+          break;
+          
+        case 'debate':
+          message = `${promptData.title || 'Debate'}\n\n${promptData.question || ''}${
+            promptData.stances ? `\n\nPerspectives:\n${promptData.stances.map(s => `• ${s}`).join('\n')}` : ''
+          }`;
+          break;
+          
+        case 'icebreaker':
+          message = `${promptData.title || 'Icebreaker'}\n\n${promptData.question || ''}`;
+          break;
+          
+        case 'thought_provoking':
+          message = `${promptData.title || 'Thought Question'}\n\n${promptData.question || ''}${
+            promptData.followups && promptData.followups.length > 0 
+              ? `\n\nDeeper questions:\n${promptData.followups.join('\n')}` 
+              : ''
+          }`;
+          break;
+          
+        default:
+          // Fallback for any other type
+          message = `${promptData.title || ''}\n\n${promptData.question || ''}${
+            promptData.instructions ? `\n\nInstructions: ${promptData.instructions}` : ''
+          }${
+            promptData.options ? `\n\nOptions: ${promptData.options.join(', ')}` : ''
+          }${
+            promptData.stances ? `\n\nStances: ${promptData.stances.join(', ')}` : ''
+          }${
+            promptData.followups && promptData.followups.length > 0 
+              ? `\n\nFollow-up questions:\n${promptData.followups.join('\n')}` 
+              : ''
+          }`;
+      }
       
       await Share.share({
         message: message,
@@ -444,6 +529,279 @@ export default function PromptScreen() {
   const CardDeck = () => {
     if (!promptData) return null;
     
+    // Determine what content to show based on card type
+    const renderFrontContent = () => {
+      switch(promptData.card_type) {
+        case 'conversation_starter':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>{promptData.question}</Text>
+              </View>
+            </>
+          );
+        
+        case 'interactive_game':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>{promptData.action_prompt}</Text>
+              </View>
+            </>
+          );
+        
+        case 'quiz':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>{promptData.question}</Text>
+              </View>
+            </>
+          );
+        
+        case 'debate':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>{promptData.question}</Text>
+              </View>
+            </>
+          );
+        
+        case 'icebreaker':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>{promptData.question}</Text>
+              </View>
+            </>
+          );
+        
+        case 'thought_provoking':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>{promptData.question}</Text>
+              </View>
+            </>
+          );
+          
+        default:
+          // Fallback for legacy cards or unknown types
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              {promptData.instructions && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Instructions:</Text>
+                  <Text style={styles.cardSectionText}>{promptData.instructions}</Text>
+                </View>
+              )}
+              {promptData.question && (
+                <View style={styles.cardMainContent}>
+                  <Text style={styles.cardMainText}>{promptData.question}</Text>
+                </View>
+              )}
+            </>
+          );
+      }
+    };
+    
+    // Determine what content to show on the back based on card type
+    const renderBackContent = () => {
+      switch(promptData.card_type) {
+        case 'conversation_starter':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              {promptData.followups && promptData.followups.length > 0 && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
+                  {promptData.followups.map((followup, index) => (
+                    <Text key={index} style={styles.cardListItem}>• {followup}</Text>
+                  ))}
+                </View>
+              )}
+            </>
+          );
+        
+        case 'interactive_game':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Instructions:</Text>
+                <Text style={styles.cardSectionText}>{promptData.instructions}</Text>
+              </View>
+            </>
+          );
+        
+        case 'quiz':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              {promptData.options && promptData.options.length > 0 && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Options:</Text>
+                  {promptData.options.map((option, index) => (
+                    <Text 
+                      key={index} 
+                      style={[
+                        styles.cardListItem,
+                        promptData.correct_answer_index === index ? styles.correctAnswer : {}
+                      ]}
+                    >
+                      {String.fromCharCode(65 + index)}. {option}
+                      {promptData.correct_answer_index === index ? ' ✓' : ''}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </>
+          );
+        
+        case 'debate':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              {promptData.stances && promptData.stances.length > 0 && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Perspectives:</Text>
+                  {promptData.stances.map((stance, index) => (
+                    <Text key={index} style={styles.cardListItem}>• {stance}</Text>
+                  ))}
+                </View>
+              )}
+            </>
+          );
+        
+        case 'icebreaker':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Icebreaker Tips:</Text>
+                <Text style={styles.cardSectionText}>
+                  This light question is perfect for starting conversations in a casual setting.
+                  Keep responses brief and fun!
+                </Text>
+              </View>
+            </>
+          );
+        
+        case 'thought_provoking':
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              {promptData.followups && promptData.followups.length > 0 && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Deeper Questions:</Text>
+                  {promptData.followups.map((followup, index) => (
+                    <Text key={index} style={styles.cardListItem}>• {followup}</Text>
+                  ))}
+                </View>
+              )}
+            </>
+          );
+          
+        default:
+          // Fallback for legacy cards or unknown types
+          return (
+            <>
+              {promptData.title && (
+                <View style={styles.cardBadgeContainer}>
+                  <Text style={styles.cardBadgeText}>{promptData.title}</Text>
+                </View>
+              )}
+              {promptData.options && promptData.options.length > 0 && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Options:</Text>
+                  {promptData.options.map((option, index) => (
+                    <Text key={index} style={styles.cardListItem}>
+                      {String.fromCharCode(65 + index)}. {option}
+                    </Text>
+                  ))}
+                </View>
+              )}
+              {promptData.stances && promptData.stances.length > 0 && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Perspectives:</Text>
+                  {promptData.stances.map((stance, index) => (
+                    <Text key={index} style={styles.cardListItem}>• {stance}</Text>
+                  ))}
+                </View>
+              )}
+              {promptData.followups && promptData.followups.length > 0 && (
+                <View style={styles.cardSection}>
+                  <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
+                  {promptData.followups.map((followup, index) => (
+                    <Text key={index} style={styles.cardListItem}>• {followup}</Text>
+                  ))}
+                </View>
+              )}
+            </>
+          );
+      }
+    };
+    
     return (
       <View style={styles.deckContainer}>
         {/* Card count indicator */}
@@ -463,71 +821,14 @@ export default function PromptScreen() {
             >
               {!isFlipped ? (
                 // Front of card
-                <View style={styles.cardContentContainer}>
-                  {/* Title */}
-                  {promptData.title && (
-                    <View style={styles.cardBadgeContainer}>
-                      <Text style={styles.cardBadgeText}>{promptData.title}</Text>
-                    </View>
-                  )}
-
-                  {/* Instructions if available */}
-                  {promptData.instructions && (
-                    <View style={styles.cardSection}>
-                      <Text style={styles.cardSectionTitle}>Instructions:</Text>
-                      <Text style={styles.cardSectionText}>{promptData.instructions}</Text>
-                    </View>
-                  )}
-
-                  {/* Main prompt content */}
-                  {promptData.question && (
-                    <View style={styles.cardMainContent}>
-                      <Text style={styles.cardMainText}>{promptData.question}</Text>
-                    </View>
-                  )}
-                </View>
+                <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
+                  {renderFrontContent()}
+                </Animated.View>
               ) : (
                 // Back of card
-                <View style={styles.cardContentContainer}>
-                  {/* Title */}
-                  {promptData.title && (
-                    <View style={styles.cardBadgeContainer}>
-                      <Text style={styles.cardBadgeText}>{promptData.title}</Text>
-                    </View>
-                  )}
-                  
-                  {/* Options if available (for quizzes) */}
-                  {promptData.options && promptData.options.length > 0 && (
-                    <View style={styles.cardSection}>
-                      <Text style={styles.cardSectionTitle}>Options:</Text>
-                      {promptData.options.map((option, index) => (
-                        <Text key={index} style={styles.cardListItem}>
-                          {String.fromCharCode(65 + index)}. {option}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* Stances if available (for debates) */}
-                  {promptData.stances && promptData.stances.length > 0 && (
-                    <View style={styles.cardSection}>
-                      <Text style={styles.cardSectionTitle}>Perspectives:</Text>
-                      {promptData.stances.map((stance, index) => (
-                        <Text key={index} style={styles.cardListItem}>• {stance}</Text>
-                      ))}
-                    </View>
-                  )}
-                  
-                  {/* Follow-up questions */}
-                  {promptData.followups && promptData.followups.length > 0 && (
-                    <View style={styles.cardSection}>
-                      <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
-                      {promptData.followups.map((followup, index) => (
-                        <Text key={index} style={styles.cardListItem}>• {followup}</Text>
-                      ))}
-                    </View>
-                  )}
-                </View>
+                <Animated.View style={[styles.cardContentContainer, backCardContentStyle]}>
+                  {renderBackContent()}
+                </Animated.View>
               )}
             </TouchableOpacity>
           </Animated.View>
@@ -538,6 +839,16 @@ export default function PromptScreen() {
           <TouchableOpacity style={styles.actionButton} onPress={saveToFavorites}>
             <Ionicons name="heart-outline" size={24} color="#5D5FEF" />
             <Text style={styles.actionButtonText}>Save</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionButton} onPress={sharePrompt}>
+            <Ionicons name="share-outline" size={24} color="#5D5FEF" />
+            <Text style={styles.actionButtonText}>Share</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionButton} onPress={nextCard}>
+            <Ionicons name="arrow-forward-outline" size={24} color="#5D5FEF" />
+            <Text style={styles.actionButtonText}>Next</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -813,6 +1124,11 @@ const styles = StyleSheet.create({
   tapInstructionText: {
     color: '#5D5FEF',
     fontSize: 14,
+    fontWeight: '500',
+  },
+  // Add new styles for card types
+  correctAnswer: {
+    color: '#38B000',
     fontWeight: '500',
   },
 });
