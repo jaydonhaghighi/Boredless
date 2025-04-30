@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -80,6 +80,9 @@ export default function PromptScreen() {
   
   // State to track if current card is favorited
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
+  
+  // State to track if favorite modal is visible
+  const [favoriteModalVisible, setFavoriteModalVisible] = useState<boolean>(false);
   
   // Function to toggle card flip
   const toggleFlip = () => {
@@ -432,6 +435,34 @@ export default function PromptScreen() {
     console.log(`Card ${currentCardIndex} favorite status: ${!isFavorite}`);
   }, [isFavorite, currentCardIndex]);
 
+  // Function to toggle favorite modal
+  const showFavoriteModal = useCallback(() => {
+    setFavoriteModalVisible(true);
+  }, []);
+  
+  // Function to handle adding to existing deck
+  const handleAddToExistingDeck = useCallback(() => {
+    // Logic for adding to existing deck would go here
+    console.log('Adding card to existing deck:', promptData);
+    setFavoriteModalVisible(false);
+    
+    // Show confirmation
+    Alert.alert('Added', 'Card has been added to existing deck!');
+  }, [promptData]);
+  
+  // Function to handle creating a new deck
+  const handleCreateDeck = useCallback(() => {
+    // Logic for creating a new deck would go here
+    console.log('Creating new deck with card:', promptData);
+    setFavoriteModalVisible(false);
+    
+    // Navigate to create deck screen (this could be a new route)
+    // router.push('/create-deck');
+    
+    // For now, show confirmation
+    Alert.alert('New Deck', 'Started creating a new deck with this card!');
+  }, [promptData]);
+
   // Go back to the generator
   const goBack = () => {
     // Navigate to home
@@ -770,7 +801,7 @@ export default function PromptScreen() {
             {/* Favorite button */}
             <TouchableOpacity 
               style={styles.favoriteButton} 
-              onPress={toggleFavorite}
+              onPress={showFavoriteModal}
               activeOpacity={0.7}
             >
               {isFavorite ? (
@@ -847,6 +878,47 @@ export default function PromptScreen() {
           <CardDeck />
         ) : null}
       </View>
+      
+      {/* Favorite Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={favoriteModalVisible}
+        onRequestClose={() => setFavoriteModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setFavoriteModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Save Card</Text>
+              
+              <TouchableOpacity 
+                style={styles.modalOption} 
+                onPress={handleAddToExistingDeck}
+              >
+                <Text style={styles.modalOptionText}>Add to existing deck</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.modalOption}
+                onPress={handleCreateDeck}
+              >
+                <Text style={styles.modalOptionText}>Create new deck</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.modalCancelButton}
+                onPress={() => setFavoriteModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -925,7 +997,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   cardBadgeText: {
-
     fontSize: 14,
     fontWeight: '500',
     fontFamily: 'Petrona-Bold',
@@ -1072,5 +1143,59 @@ const styles = StyleSheet.create({
   backArrowIcon: {
     width: 28,
     height: 28,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderRadius: 20,
+    width: '80%',
+    maxHeight: '80%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 24,
+  },
+  modalOption: {
+    backgroundColor: '#5D5FEF',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalOptionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#F0F0F0',
+    padding: 12,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalCancelText: {
+    color: '#666666',
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
