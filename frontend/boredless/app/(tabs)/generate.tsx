@@ -380,8 +380,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   selectedFilterButton: {
-    backgroundColor: '#5D5FEF',
-    borderColor: '#5D5FEF',
+    backgroundColor: '#000',
+    borderColor: '#000',
   },
   filterButtonText: {
     fontSize: 13,
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   generateButton: {
-    backgroundColor: '#5D5FEF',
+    backgroundColor: '#000',
     borderRadius: 8,
     paddingVertical: 16,
     flexDirection: 'row',

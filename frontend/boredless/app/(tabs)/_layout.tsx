@@ -61,8 +61,8 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <Image
               source={focused 
-                ? require('../../assets/images/nav/favourite_select.png')
-                : require('../../assets/images/nav/favourite_unselect.png')}
+                ? require('../../assets/images/nav/bookmark_select.png')
+                : require('../../assets/images/nav/bookmark_unselect.png')}
               style={styles.icon}
             />
           ),

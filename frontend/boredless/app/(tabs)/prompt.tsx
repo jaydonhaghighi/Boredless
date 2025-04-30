@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,6 +77,9 @@ export default function PromptScreen() {
   
   // State to track card flip
   const [isFlipped, setIsFlipped] = useState(false);
+  
+  // State to track if current card is favorited
+  const [isFavorite, setIsFavorite] = useState<boolean>(false);
   
   // Function to toggle card flip
   const toggleFlip = () => {
@@ -329,19 +332,19 @@ export default function PromptScreen() {
     router.push('/generate');
   };
 
-  // Navigate to next card
-  const nextCard = () => {
-    // Simulate a right swipe
-    translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 300 }, () => {
-      runOnJS(removeCard)();
-    });
-    cardOpacity.value = withTiming(0, { duration: 300 });
-  };
-
   // Navigate to previous card
   const previousCard = () => {
     if (currentCardIndex > 0) {
-      setCurrentCardIndex(currentCardIndex - 1);
+      setCurrentCardIndex(prevIndex => {
+        const newIndex = prevIndex - 1;
+        setPromptData(cards[newIndex]);
+        return newIndex;
+      });
+      
+      // Reset animation values
+      translateX.value = 0;
+      translateY.value = 0;
+      cardOpacity.value = 1;
     }
   };
 
@@ -422,86 +425,12 @@ export default function PromptScreen() {
     };
   });
 
-  // Share the prompt
-  const sharePrompt = async () => {
-    if (!promptData) return;
-
-    try {
-      let message = "";
-      
-      // Build a message based on card type
-      switch(promptData.card_type) {
-        case 'conversation_starter':
-          message = `${promptData.title || 'Conversation Starter'}\n\n${promptData.question || ''}${
-            promptData.followups && promptData.followups.length > 0 
-              ? `\n\nFollow-up questions:\n${promptData.followups.join('\n')}` 
-              : ''
-          }`;
-          break;
-          
-        case 'interactive_game':
-          message = `${promptData.title || 'Game'}\n\nInstructions: ${promptData.instructions || ''}\n\nAction: ${promptData.action_prompt || ''}`;
-          break;
-          
-        case 'quiz':
-          message = `${promptData.title || 'Quiz'}\n\n${promptData.question || ''}${
-            promptData.options ? `\n\nOptions:\n${promptData.options.map((opt, i) => 
-              `${String.fromCharCode(65 + i)}. ${opt}${
-                promptData.correct_answer_index === i ? ' (Correct)' : ''
-              }`
-            ).join('\n')}` : ''
-          }`;
-          break;
-          
-        case 'debate':
-          message = `${promptData.title || 'Debate'}\n\n${promptData.question || ''}${
-            promptData.stances ? `\n\nPerspectives:\n${promptData.stances.map(s => `• ${s}`).join('\n')}` : ''
-          }`;
-          break;
-          
-        case 'icebreaker':
-          message = `${promptData.title || 'Icebreaker'}\n\n${promptData.question || ''}`;
-          break;
-          
-        case 'thought_provoking':
-          message = `${promptData.title || 'Thought Question'}\n\n${promptData.question || ''}${
-            promptData.followups && promptData.followups.length > 0 
-              ? `\n\nDeeper questions:\n${promptData.followups.join('\n')}` 
-              : ''
-          }`;
-          break;
-          
-        default:
-          // Fallback for any other type
-          message = `${promptData.title || ''}\n\n${promptData.question || ''}${
-            promptData.instructions ? `\n\nInstructions: ${promptData.instructions}` : ''
-          }${
-            promptData.options ? `\n\nOptions: ${promptData.options.join(', ')}` : ''
-          }${
-            promptData.stances ? `\n\nStances: ${promptData.stances.join(', ')}` : ''
-          }${
-            promptData.followups && promptData.followups.length > 0 
-              ? `\n\nFollow-up questions:\n${promptData.followups.join('\n')}` 
-              : ''
-          }`;
-      }
-      
-      await Share.share({
-        message: message,
-        title: promptData.title || 'Conversation Prompt'
-      });
-    } catch (err) {
-      console.error('Error sharing prompt:', err);
-      Alert.alert('Error', 'Failed to share the prompt. Please try again.');
-    }
-  };
-
-  // Save to favorites (placeholder function)
-  const saveToFavorites = () => {
-    // Implement saving to favorites functionality
-    console.log('Saving to favorites:', promptData);
-    // You would typically store this in AsyncStorage or your backend
-  };
+  // Function to toggle favorite status
+  const toggleFavorite = useCallback(() => {
+    setIsFavorite(!isFavorite);
+    // Here you would typically save this state to AsyncStorage or your backend
+    console.log(`Card ${currentCardIndex} favorite status: ${!isFavorite}`);
+  }, [isFavorite, currentCardIndex]);
 
   // Go back to the generator
   const goBack = () => {
@@ -652,12 +581,18 @@ export default function PromptScreen() {
                   <Text style={styles.cardBadgeText}>{promptData.title}</Text>
                 </View>
               )}
-              {promptData.followups && promptData.followups.length > 0 && (
+              {promptData.followups && promptData.followups.length > 0 ? (
                 <View style={styles.cardSection}>
                   <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
                   {promptData.followups.map((followup, index) => (
                     <Text key={index} style={styles.cardListItem}>• {followup}</Text>
                   ))}
+                </View>
+              ) : (
+                <View style={styles.cardMainContent}>
+                  <Text style={styles.cardMainText}>
+                    This conversation starter is designed to spark meaningful discussion. Take turns sharing your thoughts!
+                  </Text>
                 </View>
               )}
             </>
@@ -831,16 +766,41 @@ export default function PromptScreen() {
                 {currentCardIndex + 1} of {cards.length}
               </Text>
             </View>
+            
+            {/* Favorite button */}
+            <TouchableOpacity 
+              style={styles.favoriteButton} 
+              onPress={toggleFavorite}
+              activeOpacity={0.7}
+            >
+              {isFavorite ? (
+                <Image 
+                  source={require('../../assets/images/prompt/favourite_select.png')} 
+                  style={styles.favoriteIcon} 
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/images/prompt/favourite_unselect.png')} 
+                  style={styles.favoriteIcon} 
+                />
+              )}
+            </TouchableOpacity>
+            
+            {/* Back arrow button - only visible if not on first card */}
+            {currentCardIndex > 0 && (
+              <TouchableOpacity 
+                style={styles.backArrowButton} 
+                onPress={previousCard}
+                activeOpacity={0.7}
+              >
+                <Image 
+                  source={require('../../assets/images/prompt/back_arrow.png')} 
+                  style={styles.backArrowIcon} 
+                />
+              </TouchableOpacity>
+            )}
           </Animated.View>
         </GestureDetector>
-        
-        {/* Action buttons below the card */}
-        <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.actionButton} onPress={saveToFavorites}>
-            <Ionicons name="heart-outline" size={24} color="#5D5FEF" />
-            <Text style={styles.actionButtonText}>Save</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     );
   };
@@ -959,17 +919,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     overflow: 'hidden',
+    borderWidth: 1,
   },
   cardBadgeContainer: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F0F0FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginBottom: 16,
+    alignSelf: 'center',
   },
   cardBadgeText: {
-    color: '#5D5FEF',
+
     fontSize: 14,
     fontWeight: '500',
     fontFamily: 'Petrona-Bold',
@@ -1012,21 +968,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Petrona-Regular',
     marginBottom: 6,
     paddingLeft: 8,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingVertical: 20,
-  },
-  actionButton: {
-    alignItems: 'center',
-    padding: 12,
-  },
-  actionButtonText: {
-    marginTop: 8,
-    color: '#5D5FEF',
-    fontSize: 14,
   },
   // Loading styles
   loadingContainer: {
@@ -1106,19 +1047,30 @@ const styles = StyleSheet.create({
     position: 'relative',
     paddingBottom: 40, // Space for tap instructions
   },
-  tapInstruction: {
-    position: 'absolute',
-    bottom: 16,
-    alignSelf: 'center',
-  },
-  tapInstructionText: {
-    color: '#5D5FEF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  // Add new styles for card types
   correctAnswer: {
     color: '#38B000',
     fontWeight: '500',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    padding: 8,
+    zIndex: 10,
+  },
+  favoriteIcon: {
+    width: 28,
+    height: 28,
+  },
+  backArrowButton: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    padding: 8,
+    zIndex: 10,
+  },
+  backArrowIcon: {
+    width: 28,
+    height: 28,
   },
 });
