@@ -804,13 +804,6 @@ export default function PromptScreen() {
     
     return (
       <View style={styles.deckContainer}>
-        {/* Card count indicator */}
-        <View style={styles.cardCountContainer}>
-          <Text style={styles.cardCountText}>
-            {currentCardIndex + 1} of {cards.length}
-          </Text>
-        </View>
-        
         {/* Current card (animated and swipeable) */}
         <GestureDetector gesture={swipeGesture}>
           <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
@@ -831,6 +824,13 @@ export default function PromptScreen() {
                 </Animated.View>
               )}
             </TouchableOpacity>
+            
+            {/* Card count indicator */}
+            <View style={styles.cardCountContainer}>
+              <Text style={styles.cardCountText}>
+                {currentCardIndex + 1} of {cards.length}
+              </Text>
+            </View>
           </Animated.View>
         </GestureDetector>
         
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
   },
   cardCountContainer: {
     position: 'absolute',
-    top: 10,
+    bottom: 10,
     alignSelf: 'center',
     zIndex: 10,
   },
