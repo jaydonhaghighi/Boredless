@@ -485,11 +485,6 @@ export default function PromptScreen() {
                       <Text style={styles.cardMainText}>{promptData.question}</Text>
                     </View>
                   )}
-                  
-                  {/* Tap instruction */}
-                  <View style={styles.tapInstruction}>
-                    <Text style={styles.tapInstructionText}>Tap to see options & follow-ups</Text>
-                  </View>
                 </View>
               ) : (
                 // Back of card
@@ -532,11 +527,6 @@ export default function PromptScreen() {
                       ))}
                     </View>
                   )}
-                  
-                  {/* Tap instruction */}
-                  <View style={styles.tapInstruction}>
-                    <Text style={styles.tapInstructionText}>Tap to return</Text>
-                  </View>
                 </View>
               )}
             </TouchableOpacity>
