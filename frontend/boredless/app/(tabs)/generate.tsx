@@ -6,6 +6,8 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import { useBottomSheet } from '../context/BottomSheetContext';
+import { useGenerateContext } from './_layout';
 
 // Define filter options and their types
 const FILTER_OPTIONS = {
@@ -76,6 +78,8 @@ const API_BASE_URL = 'http://localhost:8000';
 
 export default function GenerateScreen() {
   const router = useRouter();
+  const { openBottomSheet } = useBottomSheet();
+  const { setGeneratePrompt } = useGenerateContext();
 
   // Filter states
   const [selectedTheme, setSelectedTheme] = useState<ConversationTheme | null>(null);
@@ -87,6 +91,7 @@ export default function GenerateScreen() {
   // Loading state
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Define the generate prompt function
   const generatePrompt = async () => {
     setIsLoading(true);
 
@@ -127,19 +132,19 @@ export default function GenerateScreen() {
         });
       } else {
         // Fallback for old format
-      router.push({
-        pathname: '/prompt',
-        params: {
-            prompt: response.data.question || '',
-            title: response.data.title || selectedInteraction || 'Prompt',
-            followups: JSON.stringify(response.data.followups || []),
-            theme: selectedTheme,
-            interaction_type: selectedInteraction,
-            mood: selectedMood,
-            participants: selectedParticipants,
-            relationship: selectedRelationship
-        }
-      });
+        router.push({
+          pathname: '/prompt',
+          params: {
+              prompt: response.data.question || '',
+              title: response.data.title || selectedInteraction || 'Prompt',
+              followups: JSON.stringify(response.data.followups || []),
+              theme: selectedTheme,
+              interaction_type: selectedInteraction,
+              mood: selectedMood,
+              participants: selectedParticipants,
+              relationship: selectedRelationship
+          }
+        });
       }
     } catch (err) {
       console.error('Error generating prompt:', err);
@@ -149,9 +154,14 @@ export default function GenerateScreen() {
     }
   };
 
+  // Register our generate function with the context
+  useEffect(() => {
+    setGeneratePrompt(generatePrompt);
+  }, [selectedTheme, selectedInteraction, selectedMood, selectedParticipants, selectedRelationship]);
+
+  // Open the bottom sheet when the Generate button is pressed
   const applyFilters = () => {
-    // Generate prompt with selected filters
-    generatePrompt();
+    openBottomSheet();
   };
 
   const resetFilters = () => {
