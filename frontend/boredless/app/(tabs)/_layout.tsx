@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Image, StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions } from 'react-native';
+import { Image, StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions, Alert } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useMemo, createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
@@ -16,16 +16,56 @@ import Animated, {
   withTiming,
   Easing 
 } from 'react-native-reanimated';
+import PromptComponent from '../components/PromptComponent';
+import { Ionicons } from '@expo/vector-icons';
 
 // Create a context for sharing the generate function
 type GenerateContextType = {
-  setGeneratePrompt: (fn: () => Promise<void>) => void;
-  generatePrompt: () => Promise<void>;
+  setGeneratePrompt: (fn: () => Promise<{
+    prompt: string;
+    title: string;
+    followups: string[];
+    cards?: Array<{
+      prompt: string;
+      title: string;
+      followups: string[];
+      theme?: string;
+      interaction_type?: string;
+      mood?: string;
+      participants?: string;
+      relationship?: string;
+    }>;
+    theme?: string;
+    interaction_type?: string;
+    mood?: string;
+    participants?: string;
+    relationship?: string;
+  } | null>) => void;
+  generatePrompt: () => Promise<{
+    prompt: string;
+    title: string;
+    followups: string[];
+    cards?: Array<{
+      prompt: string;
+      title: string;
+      followups: string[];
+      theme?: string;
+      interaction_type?: string;
+      mood?: string;
+      participants?: string;
+      relationship?: string;
+    }>;
+    theme?: string;
+    interaction_type?: string;
+    mood?: string;
+    participants?: string;
+    relationship?: string;
+  } | null>;
 };
 
 export const GenerateContext = createContext<GenerateContextType>({
   setGeneratePrompt: () => {},
-  generatePrompt: async () => {},
+  generatePrompt: async () => null,
 });
 
 export const useGenerateContext = () => useContext(GenerateContext);
@@ -33,14 +73,52 @@ export const useGenerateContext = () => useContext(GenerateContext);
 // Generate Context Provider
 const GenerateContextProvider = ({ children }: { children: React.ReactNode }) => {
   // We'll store the generatePrompt function here
-  const [generateFn, setGenerateFn] = useState<() => Promise<void>>(async () => {});
+  const [generateFn, setGenerateFn] = useState<() => Promise<{
+    prompt: string;
+    title: string;
+    followups: string[];
+    cards?: Array<{
+      prompt: string;
+      title: string;
+      followups: string[];
+      theme?: string;
+      interaction_type?: string;
+      mood?: string;
+      participants?: string;
+      relationship?: string;
+    }>;
+    theme?: string;
+    interaction_type?: string;
+    mood?: string;
+    participants?: string;
+    relationship?: string;
+  } | null>>(async () => null);
 
-  const setGeneratePrompt = (fn: () => Promise<void>) => {
+  const setGeneratePrompt = (fn: () => Promise<{
+    prompt: string;
+    title: string;
+    followups: string[];
+    cards?: Array<{
+      prompt: string;
+      title: string;
+      followups: string[];
+      theme?: string;
+      interaction_type?: string;
+      mood?: string;
+      participants?: string;
+      relationship?: string;
+    }>;
+    theme?: string;
+    interaction_type?: string;
+    mood?: string;
+    participants?: string;
+    relationship?: string;
+  } | null>) => {
     setGenerateFn(() => fn);
   };
 
   const generatePrompt = async () => {
-    await generateFn();
+    return await generateFn();
   };
 
   return (
@@ -57,6 +135,17 @@ function TabBottomSheet() {
   const { generatePrompt } = useGenerateContext();
   const [isLoading, setIsLoading] = useState(false);
   const { isVisible } = useBottomSheetVisibility();
+  const [cards, setCards] = useState<{
+    prompt: string;
+    title: string;
+    followups: string[];
+    theme?: string;
+    interaction_type?: string;
+    mood?: string;
+    participants?: string;
+    relationship?: string;
+  }[]>([]);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
   
   // Get screen dimensions to calculate the height excluding the tab bar
   const screenHeight = Dimensions.get('window').height;
@@ -103,16 +192,55 @@ function TabBottomSheet() {
   // Handle confirmation
   const handleConfirm = async () => {
     setIsLoading(true);
-    closeBottomSheet();
     
     try {
-      await generatePrompt();
+      console.log('Calling generatePrompt...');
+      const result = await generatePrompt();
+      console.log('generatePrompt result:', result);
+      
+      if (result) {
+        console.log('Setting prompt data:', result);
+        
+        // Extract cards data from response
+        if (result.cards) {
+          console.log('Setting all cards from result.cards:', result.cards.length);
+          setCards(result.cards);
+        } else {
+          // If no cards array, create one with the single result
+          console.log('Setting single card as array');
+          setCards([result]);
+        }
+        
+        setCurrentCardIndex(0); // Reset to first card
+        
+        if (bottomSheetRef.current) {
+          console.log('Snapping to index 1');
+          bottomSheetRef.current.snapToIndex(1);
+        }
+      } else {
+        console.log('No result from generatePrompt');
+        Alert.alert('Error', 'Failed to generate prompt. Please try again.');
+      }
     } catch (error) {
       console.error('Error generating prompt:', error);
+      Alert.alert('Error', 'Failed to generate prompt. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleClosePrompt = () => {
+    setCards([]);
+    setCurrentCardIndex(0);
+    if (bottomSheetRef.current) {
+      bottomSheetRef.current.snapToIndex(0);
+    }
+  };
+
+  const handleChangeCard = useCallback((newIndex: number) => {
+    console.log('Card changed to:', newIndex);
+    setCurrentCardIndex(newIndex);
+  }, []);
 
   if (!isVisible) {
     return null;
@@ -134,15 +262,23 @@ function TabBottomSheet() {
       handleComponent={() => (
         <View style={styles.customHandleContainer}>
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
-            <TouchableOpacity 
-              style={[styles.confirmButton, isLoading && styles.disabledButton]} 
-              onPress={handleConfirm}
-              disabled={isLoading}
-            >
-              <Text style={styles.confirmButtonText}>
-                {isLoading ? 'Loading...' : 'Confirm'}
-              </Text>
-            </TouchableOpacity>
+            {cards.length === 0 ? (
+              <TouchableOpacity 
+                style={[styles.confirmButton, isLoading && styles.disabledButton]} 
+                onPress={handleConfirm}
+                disabled={isLoading}
+              >
+                <Text style={styles.confirmButtonText}>
+                  {isLoading ? 'Loading...' : 'Confirm'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.cardIndicator}>
+                <Text style={styles.cardCount}>
+                  {currentCardIndex + 1} of {cards.length}
+                </Text>
+              </View>
+            )}
           </Animated.View>
         </View>
       )}
@@ -156,18 +292,27 @@ function TabBottomSheet() {
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       }}
       onClose={() => {
+        setCards([]);
+        setCurrentCardIndex(0);
         if (bottomSheetRef.current) {
           bottomSheetRef.current.snapToIndex(0);
         }
       }}
     >
-      <Animated.View style={animatedContentStyle}>
-        <BottomSheetView style={styles.sheetContainer}>
+      <BottomSheetView style={styles.sheetContainer}>
+        {cards.length > 0 ? (
+          <PromptComponent
+            cards={cards}
+            currentCardIndex={currentCardIndex}
+            onClose={handleClosePrompt}
+            onChangeCard={handleChangeCard}
+          />
+        ) : (
           <View>
-            {/* Button moved to the handle component */}
+            {/* Empty view when no cards */}
           </View>
-        </BottomSheetView>
-      </Animated.View>
+        )}
+      </BottomSheetView>
     </BottomSheet>
   );
 }
@@ -392,5 +537,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+  },
+  cardIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    height: 50,
+  },
+  cardCount: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000000',
   },
 });

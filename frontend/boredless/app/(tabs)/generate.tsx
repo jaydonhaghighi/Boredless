@@ -77,6 +77,11 @@ type Relationship = typeof FILTER_OPTIONS.relationships[number];
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
 
+// Remove the function to get the generated cards
+// export const getGeneratedCards = () => {
+//   return generatedCards;
+// };
+
 export default function GenerateScreen() {
   const router = useRouter();
   const { setGeneratePrompt } = useGenerateContext();
@@ -92,8 +97,41 @@ export default function GenerateScreen() {
   // Loading state
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Register our generate function with the context
+  useEffect(() => {
+    console.log('Setting up generatePrompt function');
+    setGeneratePrompt(generatePrompt);
+  }, [selectedTheme, selectedInteraction, selectedMood, selectedParticipants, selectedRelationship]);
+
   // Define the generate prompt function
-  const generatePrompt = async () => {
+  const generatePrompt = async (): Promise<{
+    prompt: string;
+    title: string;
+    followups: string[];
+    cards?: Array<{
+      prompt: string;
+      title: string;
+      followups: string[];
+      theme?: string;
+      interaction_type?: string;
+      mood?: string;
+      participants?: string;
+      relationship?: string;
+    }>;
+    theme?: string;
+    interaction_type?: string;
+    mood?: string;
+    participants?: string;
+    relationship?: string;
+  } | null> => {
+    console.log('Generating prompt with filters:', {
+      theme: selectedTheme,
+      interaction_type: selectedInteraction,
+      mood: selectedMood,
+      participants: selectedParticipants,
+      relationship: selectedRelationship
+    });
+
     setIsLoading(true);
 
     try {
@@ -105,60 +143,65 @@ export default function GenerateScreen() {
         relationship: selectedRelationship
       });
 
+      console.log('API Response:', response.data);
+
       // Check if we have a cards array from the new API format
       if (response.data.cards && Array.isArray(response.data.cards) && response.data.cards.length > 0) {
-        // Take the first card from the array
-        const card = response.data.cards[0];
+        // Map all cards to our format
+        const cards = response.data.cards.map((card: any) => ({
+          prompt: card.question || '',
+          title: card.title || selectedInteraction || 'Prompt',
+          followups: card.followups || [],
+          theme: selectedTheme || undefined,
+          interaction_type: selectedInteraction || undefined,
+          mood: selectedMood || undefined,
+          participants: selectedParticipants || undefined,
+          relationship: selectedRelationship || undefined
+        }));
         
-        // Navigate to the prompt screen with all parameters
-        router.push({
-          pathname: '/prompt',
-          params: {
-            // Pass the cards data as JSON
-            cards: JSON.stringify(response.data.cards),
-            // Pass the first card's data directly
-            prompt: card.question || '',
-            title: card.title || selectedInteraction || 'Prompt',
-            followups: JSON.stringify(card.followups || []),
-            instructions: card.instructions || '',
-            options: JSON.stringify(card.options || []),
-            stances: JSON.stringify(card.stances || []),
-            // Also pass the original filter parameters
-            theme: selectedTheme,
-            interaction_type: selectedInteraction,
-            mood: selectedMood,
-            participants: selectedParticipants,
-            relationship: selectedRelationship
-          }
-        });
+        // Return the first card as required by the interface, but include all cards directly
+        console.log('Returning mapped cards, total:', cards.length);
+        
+        // Include first card data + all cards array
+        return {
+          prompt: cards[0].prompt,
+          title: cards[0].title,
+          followups: cards[0].followups || [],
+          theme: selectedTheme || undefined,
+          interaction_type: selectedInteraction || undefined,
+          mood: selectedMood || undefined,
+          participants: selectedParticipants || undefined,
+          relationship: selectedRelationship || undefined,
+          cards: cards // Include all cards
+        };
       } else {
         // Fallback for old format
-        router.push({
-          pathname: '/prompt',
-          params: {
-              prompt: response.data.question || '',
-              title: response.data.title || selectedInteraction || 'Prompt',
-              followups: JSON.stringify(response.data.followups || []),
-              theme: selectedTheme,
-              interaction_type: selectedInteraction,
-              mood: selectedMood,
-              participants: selectedParticipants,
-              relationship: selectedRelationship
-          }
-        });
+        const result = {
+          prompt: response.data.question || '',
+          title: response.data.title || selectedInteraction || 'Prompt',
+          followups: response.data.followups || [],
+          theme: selectedTheme || undefined,
+          interaction_type: selectedInteraction || undefined,
+          mood: selectedMood || undefined,
+          participants: selectedParticipants || undefined,
+          relationship: selectedRelationship || undefined
+        };
+        console.log('Returning fallback data:', result);
+        
+        // Include as a single card array
+        return {
+          ...result,
+          cards: [result]
+        };
       }
     } catch (err) {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
+      return null;
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Register our generate function with the context
-  useEffect(() => {
-    setGeneratePrompt(generatePrompt);
-  }, [selectedTheme, selectedInteraction, selectedMood, selectedParticipants, selectedRelationship]);
 
   // Open the bottom sheet when the Generate button is pressed
   const applyFilters = () => {
