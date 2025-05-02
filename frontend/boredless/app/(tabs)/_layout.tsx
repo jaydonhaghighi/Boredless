@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   cardIndicator: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -549,5 +549,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#000000',
+  },
+  swipeHint: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 2,
   },
 });

@@ -75,19 +75,24 @@ export default function PromptComponent({
     }
   }, [currentCardIndex]);
 
-  // Function to handle card navigation
-  const navigateToCard = useCallback((direction: 'next' | 'prev') => {
-    if (direction === 'next' && currentCardIndex < cards.length - 1) {
+  // Function to go to next card
+  const goToNextCard = useCallback(() => {
+    if (currentCardIndex < cards.length - 1) {
       onChangeCard?.(currentCardIndex + 1);
-    } else if (direction === 'prev' && currentCardIndex > 0) {
-      onChangeCard?.(currentCardIndex - 1);
     }
   }, [cards.length, currentCardIndex, onChangeCard]);
+
+  // Function to go to previous card
+  const goToPreviousCard = useCallback(() => {
+    if (currentCardIndex > 0) {
+      onChangeCard?.(currentCardIndex - 1);
+    }
+  }, [currentCardIndex, onChangeCard]);
 
   // Function to toggle card flip
   const toggleFlip = () => {
     // Only flip if we're not in the middle of a swipe
-    if (Math.abs(translateX.value) < 10) {
+    if (Math.abs(translateX.value) < 10 && Math.abs(translateY.value) < 10) {
       // Reset any swipe translation when flipping
       translateX.value = 0;
       translateY.value = 0;
@@ -132,7 +137,7 @@ export default function PromptComponent({
     Alert.alert('New Deck', 'Started creating a new deck with this card!');
   }, [cards, currentCardIndex]);
 
-  // Define the swipe gesture for card navigation
+  // Define the swipe gesture - swipe in any direction to advance
   const swipeGesture = Gesture.Pan()
     .onBegin(() => {
       // Don't allow swiping when flipped
@@ -146,13 +151,9 @@ export default function PromptComponent({
     .onUpdate((event) => {
       // Only allow swipe when card isn't flipped
       if (!isFlipped) {
-        // Horizontal movement for navigation
+        // Allow movement in any direction
         translateX.value = event.translationX;
-        
-        // Limit vertical movement
-        const maxY = SCREEN_HEIGHT * 0.1;
-        const boundedY = Math.max(Math.min(event.translationY, maxY), -maxY);
-        translateY.value = boundedY;
+        translateY.value = event.translationY;
       }
     })
     .onEnd((event) => {
@@ -163,49 +164,64 @@ export default function PromptComponent({
         return;
       }
       
+      // Calculate total swipe distance (Pythagorean theorem)
+      const swipeDistance = Math.sqrt(
+        Math.pow(event.translationX, 2) + 
+        Math.pow(event.translationY, 2)
+      );
+      
+      // Calculate total velocity
+      const velocity = Math.sqrt(
+        Math.pow(event.velocityX, 2) + 
+        Math.pow(event.velocityY, 2)
+      );
+      
       const shouldSwipe = 
-        Math.abs(event.translationX) > SWIPE_THRESHOLD || 
-        Math.abs(event.velocityX) > 800;
+        swipeDistance > SWIPE_THRESHOLD || 
+        velocity > 800;
 
-      if (shouldSwipe) {
-        // Determine direction based on translation
-        const direction = event.translationX > 0 ? 'prev' : 'next';
+      if (shouldSwipe && currentCardIndex < cards.length - 1) {
+        // Determine the direction for the animation based on the existing movement
+        const angle = Math.atan2(event.translationY, event.translationX);
+        const distance = Math.max(SCREEN_WIDTH, SCREEN_HEIGHT) * 1.5;
+        const targetX = Math.cos(angle) * distance;
+        const targetY = Math.sin(angle) * distance;
         
-        // Check if we can navigate in this direction
-        const canNavigate = 
-          (direction === 'next' && currentCardIndex < cards.length - 1) ||
-          (direction === 'prev' && currentCardIndex > 0);
+        isSwipeAnimating.value = true;
         
-        if (canNavigate) {
-          // Swipe the card out of the screen
-          const targetX = direction === 'prev' ? SCREEN_WIDTH : -SCREEN_WIDTH;
-          isSwipeAnimating.value = true;
-          
-          translateX.value = withTiming(targetX, { 
-            duration: 250,
-            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-          }, (finished) => {
-            if (finished) {
-              // Reset position and navigate
-              translateX.value = 0;
-              translateY.value = 0;
-              cardOpacity.value = 1;
-              isSwipeAnimating.value = false;
-              runOnJS(navigateToCard)(direction);
-            }
-          });
-        } else {
-          // Bounce back if we can't navigate further
-          translateX.value = withSpring(0, {
-            stiffness: 200,
-            damping: 20
-          });
-          translateY.value = withSpring(0);
-        }
+        // Animate the card flying off in the direction of the swipe
+        translateX.value = withTiming(targetX, { 
+          duration: 250,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        });
+        
+        translateY.value = withTiming(targetY, { 
+          duration: 250,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        });
+        
+        cardOpacity.value = withTiming(0, { 
+          duration: 200 
+        }, (finished) => {
+          if (finished) {
+            // Reset position and navigate
+            translateX.value = 0;
+            translateY.value = 0;
+            cardOpacity.value = 1;
+            isSwipeAnimating.value = false;
+            runOnJS(goToNextCard)();
+          }
+        });
       } else {
-        // Return the card to center
-        translateX.value = withSpring(0);
-        translateY.value = withSpring(0);
+        // Return the card to center with a spring effect
+        translateX.value = withSpring(0, {
+          stiffness: 200,
+          damping: 20
+        });
+        translateY.value = withSpring(0, {
+          stiffness: 200,
+          damping: 20
+        });
       }
     });
 
@@ -279,6 +295,8 @@ export default function PromptComponent({
   return (
     <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
       <View style={styles.mainContainer}>
+        
+        
         <GestureDetector gesture={swipeGesture}>
           <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
             <TouchableOpacity 
@@ -286,6 +304,18 @@ export default function PromptComponent({
               activeOpacity={0.9}
               onPress={toggleFlip}
             >
+            {/* Back button - only show if we're not on the first card */}
+            {currentCardIndex > 0 && (
+            <TouchableOpacity 
+                style={styles.backButton} 
+                onPress={goToPreviousCard}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+                <Image 
+                source={require('../../assets/images/prompt/back_arrow.png')} 
+                style={styles.backArrowIcon} 
+                />
+            </TouchableOpacity>)}
               {!isFlipped ? (
                 // Front of card
                 <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
@@ -557,5 +587,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#5F5F5F',
     fontWeight: '500',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    padding: 8,
+    zIndex: 10,
+  },
+  backArrowIcon: {
+    width: 28,
+    height: 28,
   },
 }); 
