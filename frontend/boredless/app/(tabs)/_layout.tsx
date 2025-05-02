@@ -71,9 +71,9 @@ function TabBottomSheet() {
   const snapPoints = useMemo(() => {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
     // Convert to percentages of the screen
-    const initialSnapPoint = 10; // 10% initial snap point (changed from 5%)
+    const initialSnapPoint = 9; // 10% initial snap point
     const smallSnapPoint = Math.floor((availableHeight * 0.25) / screenHeight * 100);
-    const largeSnapPoint = Math.floor((availableHeight * 0.9) / screenHeight * 100);
+    const largeSnapPoint = 100; // Full screen height
     
     return [`${initialSnapPoint}%`, `${smallSnapPoint}%`, `${largeSnapPoint}%`];
   }, []);
@@ -98,7 +98,7 @@ function TabBottomSheet() {
   const animatedBackgroundStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       swipePositionValue.value,
-      [0, 100],
+      [17, 19],
       [0, 1],
       { extrapolateRight: 'clamp' }
     );
@@ -115,7 +115,7 @@ function TabBottomSheet() {
     // Use a wider range for smoother transition (10% to 25%)
     const opacity = interpolate(
       swipePositionValue.value,
-      [0, 18, 20],
+      [0, 17, 19],
       [1, 1, 0],
       { extrapolateRight: Extrapolation.CLAMP }
     );
@@ -191,7 +191,7 @@ function TabBottomSheet() {
       )}
       handleStyle={styles.sheetHandleStyle}
       bottomInset={TAB_BAR_HEIGHT}
-      detached={true}
+      detached={false}
       handleComponent={() => (
         <View style={styles.customHandleContainer}>
           {/* <View style={styles.indicator} />
@@ -388,6 +388,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+    width: '100%',
   },
   positionIndicatorContainer: {
     alignItems: 'center',
@@ -404,8 +405,7 @@ const styles = StyleSheet.create({
   },
   customHandleContainer: {
     width: '100%',
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 8,
   },
   handlePositionText: {
     fontSize: 14,
