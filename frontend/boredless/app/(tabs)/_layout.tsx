@@ -172,7 +172,7 @@ function TabBottomSheet() {
       borderRadius: 24,
     };
   });
-
+  
   // Simplified animated style for content
   const animatedContentStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
@@ -187,12 +187,21 @@ function TabBottomSheet() {
       width: '100%',
     };
   });
-
+  
+  // Clear cards when generation starts
+  useEffect(() => {
+    if (isGenerating) {
+      // Reset cards when a new generation is requested
+      setCards([]);
+      setCurrentCardIndex(0);
+    }
+  }, [isGenerating]);
+  
   // Update cards data when prompt is generated
   useEffect(() => {
     // Listen for result updates from generatePrompt
     const updateCardsFromPrompt = async () => {
-      if (isVisible && cards.length === 0 && isGenerating) {
+      if (isVisible && isGenerating) {
         try {
           // Instead of calling generatePrompt here, we just receive the result
           const result = await generatePrompt();
@@ -611,5 +620,10 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     marginTop: 16,
+  },
+  animatedContentStyle: {
+    opacity: 1,
+    flex: 1,
+    width: '100%',
   },
 });
