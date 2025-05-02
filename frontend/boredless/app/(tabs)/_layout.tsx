@@ -142,6 +142,17 @@ function TabBottomSheet() {
         </View>
       )}
       animatedPosition={animatedPosition}
+      enableOverDrag={false}
+      enableDynamicSizing={false}
+      enableContentPanningGesture={true}
+      enableHandlePanningGesture={true}
+      animationConfigs={{
+        duration: 300,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      }}
+      activeOffsetY={[-10, 10]}
+      failOffsetY={[-20, 20]}
+      gestureEnabled={true}
     >
       <Animated.View style={animatedContentStyle}>
         <BottomSheetView style={styles.sheetContainer}>
