@@ -1,9 +1,9 @@
 import React from "react";
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
-import { useBottomSheet } from '../context/BottomSheetContext';
+import { useBottomSheetVisibility } from './_layout';
 
 export default function FavouritesScreen() {
-  const { openBottomSheet } = useBottomSheet();
+  const { showBottomSheet } = useBottomSheetVisibility();
 
   return (
     <View style={styles.container}>
@@ -12,7 +12,7 @@ export default function FavouritesScreen() {
         
         <TouchableOpacity 
           style={styles.button} 
-          onPress={openBottomSheet}
+          onPress={showBottomSheet}
         >
           <Text style={styles.buttonText}>Open Bottom Sheet</Text>
         </TouchableOpacity>

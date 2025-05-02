@@ -56,6 +56,7 @@ function TabBottomSheet() {
   const router = useRouter();
   const { generatePrompt } = useGenerateContext();
   const [isLoading, setIsLoading] = useState(false);
+  const { isVisible } = useBottomSheetVisibility();
   
   // Get screen dimensions to calculate the height excluding the tab bar
   const screenHeight = Dimensions.get('window').height;
@@ -113,6 +114,10 @@ function TabBottomSheet() {
     }
   };
 
+  if (!isVisible) {
+    return null;
+  }
+
   return (
     <BottomSheet
       ref={bottomSheetRef}
@@ -167,76 +172,120 @@ function TabBottomSheet() {
   );
 }
 
+// Create a context for bottom sheet visibility control
+type BottomSheetVisibilityContextType = {
+  showBottomSheet: () => void;
+  hideBottomSheet: () => void;
+  bottomSheetRef: React.RefObject<BottomSheet>;
+  isVisible: boolean;
+};
+
+const BottomSheetVisibilityContext = createContext<BottomSheetVisibilityContextType | null>(null);
+
+export const useBottomSheetVisibility = () => {
+  const context = useContext(BottomSheetVisibilityContext);
+  if (!context) {
+    throw new Error('useBottomSheetVisibility must be used within a BottomSheetVisibilityProvider');
+  }
+  return context;
+};
+
 export default function TabLayout() {
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  const showBottomSheet = useCallback(() => {
+    setIsVisible(true);
+    if (bottomSheetRef.current) {
+      bottomSheetRef.current.snapToIndex(0);
+    }
+  }, []);
+
+  const hideBottomSheet = useCallback(() => {
+    setIsVisible(false);
+    if (bottomSheetRef.current) {
+      bottomSheetRef.current.close();
+    }
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <GenerateContextProvider>
         <BottomSheetProvider>
-          <Tabs
-            screenOptions={{
-              tabBarActiveTintColor: '#A97C63',
-              tabBarInactiveTintColor: '#402E22',
-              headerShown: false,
-              tabBarStyle: styles.tabBar,
-              tabBarShowLabel: false,
+          <BottomSheetVisibilityContext.Provider
+            value={{
+              showBottomSheet,
+              hideBottomSheet,
+              bottomSheetRef,
+              isVisible,
             }}
           >
-            <Tabs.Screen
-              name="index"
-              options={{
-                tabBarIcon: ({ focused }) => (
-                  <Image
-                    source={focused 
-                      ? require('../../assets/images/nav/home_select.png')
-                      : require('../../assets/images/nav/home_unselect.png')}
-                    style={styles.icon}
-                  />
-                ),
+            <Tabs
+              screenOptions={{
+                tabBarActiveTintColor: '#A97C63',
+                tabBarInactiveTintColor: '#402E22',
+                headerShown: false,
+                tabBarStyle: styles.tabBar,
+                tabBarShowLabel: false,
               }}
-            />
-            <Tabs.Screen
-              name="generate"
-              options={{
-                tabBarIcon: ({ focused }) => (
-                  <Image
-                    source={focused 
-                      ? require('../../assets/images/nav/generate_select.png')
-                      : require('../../assets/images/nav/generate_unselect.png')}
-                    style={styles.icon}
-                  />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="favourites"
-              options={{
-                tabBarIcon: ({ focused }) => (
-                  <Image
-                    source={focused 
-                      ? require('../../assets/images/nav/bookmark_select.png')
-                      : require('../../assets/images/nav/bookmark_unselect.png')}
-                    style={styles.icon}
-                  />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="profile"
-              options={{
-                tabBarIcon: ({ focused }) => (
-                  <Image
-                    source={focused 
-                      ? require('../../assets/images/nav/profile_select.png')
-                      : require('../../assets/images/nav/profile_unselect.png')}
-                    style={styles.icon}
-                  />
-                ),
-              }}
-            />
-          </Tabs>
-          
-          {/* Bottom Sheet */}
-          <TabBottomSheet />
+            >
+              <Tabs.Screen
+                name="index"
+                options={{
+                  tabBarIcon: ({ focused }) => (
+                    <Image
+                      source={focused 
+                        ? require('../../assets/images/nav/home_select.png')
+                        : require('../../assets/images/nav/home_unselect.png')}
+                      style={styles.icon}
+                    />
+                  ),
+                }}
+              />
+              <Tabs.Screen
+                name="generate"
+                options={{
+                  tabBarIcon: ({ focused }) => (
+                    <Image
+                      source={focused 
+                        ? require('../../assets/images/nav/generate_select.png')
+                        : require('../../assets/images/nav/generate_unselect.png')}
+                      style={styles.icon}
+                    />
+                  ),
+                }}
+              />
+              <Tabs.Screen
+                name="favourites"
+                options={{
+                  tabBarIcon: ({ focused }) => (
+                    <Image
+                      source={focused 
+                        ? require('../../assets/images/nav/bookmark_select.png')
+                        : require('../../assets/images/nav/bookmark_unselect.png')}
+                      style={styles.icon}
+                    />
+                  ),
+                }}
+              />
+              <Tabs.Screen
+                name="profile"
+                options={{
+                  tabBarIcon: ({ focused }) => (
+                    <Image
+                      source={focused 
+                        ? require('../../assets/images/nav/profile_select.png')
+                        : require('../../assets/images/nav/profile_unselect.png')}
+                      style={styles.icon}
+                    />
+                  ),
+                }}
+              />
+            </Tabs>
+            
+            {/* Bottom Sheet */}
+            <TabBottomSheet />
+          </BottomSheetVisibilityContext.Provider>
         </BottomSheetProvider>
       </GenerateContextProvider>
     </GestureHandlerRootView>
