@@ -72,10 +72,9 @@ function TabBottomSheet() {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
     // Convert to percentages of the screen
     const initialSnapPoint = 9; // 10% initial snap point
-    const smallSnapPoint = Math.floor((availableHeight * 0.25) / screenHeight * 100);
     const largeSnapPoint = 100; // Full screen height
     
-    return [`${initialSnapPoint}%`, `${smallSnapPoint}%`, `${largeSnapPoint}%`];
+    return [`${initialSnapPoint}%`, `${largeSnapPoint}%`];
   }, []);
 
   // Render backdrop
@@ -178,10 +177,14 @@ function TabBottomSheet() {
     <BottomSheet
       ref={bottomSheetRef}
       snapPoints={snapPoints}
-      enablePanDownToClose
+      enablePanDownToClose={false}
       index={0}
       onChange={handleSheetChanges}
       onClose={() => {
+        // Prevent actual closing by immediately resetting to initial position
+        if (bottomSheetRef.current) {
+          bottomSheetRef.current.snapToIndex(0);
+        }
         setSwipePosition("0%");
         swipePositionValue.value = 0;
       }}
