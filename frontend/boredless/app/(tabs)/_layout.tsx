@@ -5,7 +5,16 @@ import React, { useMemo, createContext, useContext, useState, useCallback, useRe
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { BottomSheetProvider, useBottomSheet } from '../context/BottomSheetContext';
 import { useRouter } from 'expo-router';
-import Animated, { useSharedValue, useAnimatedReaction, runOnJS, useAnimatedStyle, interpolate } from 'react-native-reanimated';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedReaction, 
+  runOnJS, 
+  useAnimatedStyle, 
+  interpolate,
+  Extrapolation,
+  withTiming,
+  Easing 
+} from 'react-native-reanimated';
 
 // Create a context for sharing the generate function
 type GenerateContextType = {
@@ -62,7 +71,7 @@ function TabBottomSheet() {
   const snapPoints = useMemo(() => {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
     // Convert to percentages of the screen
-    const initialSnapPoint = 20; // 10% initial snap point (changed from 5%)
+    const initialSnapPoint = 10; // 10% initial snap point (changed from 5%)
     const smallSnapPoint = Math.floor((availableHeight * 0.25) / screenHeight * 100);
     const largeSnapPoint = Math.floor((availableHeight * 0.9) / screenHeight * 100);
     
@@ -103,15 +112,22 @@ function TabBottomSheet() {
   // Animated style for content opacity
   const animatedContentStyle = useAnimatedStyle(() => {
     // Make content visible initially and fade out as sheet opens further
+    // Use a wider range for smoother transition (10% to 25%)
     const opacity = interpolate(
       swipePositionValue.value,
-      [0, 40, 70],
+      [0, 18, 20],
       [1, 1, 0],
-      { extrapolateRight: 'clamp' }
+      { extrapolateRight: Extrapolation.CLAMP }
     );
     
+    // Apply timing for smoother transitions
+    const smoothOpacity = withTiming(opacity, {
+      duration: 150,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
     return {
-      opacity,
+      opacity: smoothOpacity,
       flex: 1,
       width: '100%',
     };
@@ -180,7 +196,17 @@ function TabBottomSheet() {
         <View style={styles.customHandleContainer}>
           {/* <View style={styles.indicator} />
           <Text style={styles.handlePositionText}>{swipePosition}</Text> */}
-          
+          <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
+            <TouchableOpacity 
+              style={[styles.confirmButton, isLoading && styles.disabledButton]} 
+              onPress={handleConfirm}
+              disabled={isLoading}
+            >
+              <Text style={styles.confirmButtonText}>
+                {isLoading ? 'Loading...' : 'Confirm'}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       )}
       animatedPosition={animatedPosition}
@@ -200,16 +226,8 @@ function TabBottomSheet() {
     >
       <Animated.View style={animatedContentStyle}>
         <BottomSheetView style={styles.sheetContainer}>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity 
-              style={[styles.confirmButton, isLoading && styles.disabledButton]} 
-              onPress={handleConfirm}
-              disabled={isLoading}
-            >
-              <Text style={styles.confirmButtonText}>
-                {isLoading ? 'Loading...' : 'Confirm'}
-              </Text>
-            </TouchableOpacity>
+          <View>
+            {/* Button moved to the handle component */}
           </View>
         </BottomSheetView>
       </Animated.View>
@@ -329,15 +347,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginBottom: 16,
   },
   confirmButton: {
     backgroundColor: '#000',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    flex: 1,
-    marginLeft: 8,
+    width: '100%',
     alignItems: 'center',
   },
   confirmButtonText: {
@@ -386,9 +403,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   customHandleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
+    width: '100%',
+    padding: 16,
+    paddingBottom: 8,
   },
   handlePositionText: {
     fontSize: 14,
