@@ -2,9 +2,10 @@ import { Tabs } from 'expo-router';
 import { Image, StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React, { useMemo, createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { BottomSheetProvider, useBottomSheet } from '../context/BottomSheetContext';
 import { useRouter } from 'expo-router';
+import { CustomBackdrop } from '../components/CustomBackdrop';
 import Animated, { 
   useSharedValue, 
   useAnimatedReaction, 
@@ -55,111 +56,50 @@ function TabBottomSheet() {
   const router = useRouter();
   const { generatePrompt } = useGenerateContext();
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPosition, setCurrentPosition] = useState(-1);
-  
-  // For tracking real-time position
-  const [swipePosition, setSwipePosition] = useState("0%");
-  const swipePositionValue = useSharedValue(0);
   
   // Get screen dimensions to calculate the height excluding the tab bar
   const screenHeight = Dimensions.get('window').height;
-  // Approximate height of the tab bar (adjust if needed)
   const TAB_BAR_HEIGHT = 65;
   
   // Set snap points to percentages that leave space for the tab bar
-  // The calculation ensures the bottom sheet doesn't cover the tab bar
   const snapPoints = useMemo(() => {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
-    // Convert to percentages of the screen
-    const initialSnapPoint = 9; // 10% initial snap point
-    const largeSnapPoint = 100; // Full screen height
-    
-    return [`${initialSnapPoint}%`, `${largeSnapPoint}%`];
-  }, []);
-
-  // Render backdrop
-  const renderBackdrop = useMemo(
-    () => (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0}
-      />
-    ),
-    []
-  );
+    return [`9%`, `100%`];
+  }, [screenHeight]);
 
   // Shared value for tracking the sheet position
   const animatedPosition = useSharedValue(0);
 
-  // Animated style for background opacity
+  // Simplified animated style for background
   const animatedBackgroundStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
-      swipePositionValue.value,
-      [17, 19],
-      [0, 1],
-      { extrapolateRight: 'clamp' }
+      animatedPosition.value,
+      [screenHeight * 0.81, screenHeight * 0.83],
+      [1, 0],
+      Extrapolation.CLAMP
     );
-    
     return {
       backgroundColor: `rgba(255, 255, 255, ${opacity})`,
       borderRadius: 24,
     };
   });
-  
-  // Animated style for content opacity
+
+  // Simplified animated style for content
   const animatedContentStyle = useAnimatedStyle(() => {
-    // Make content visible initially and fade out as sheet opens further
-    // Use a wider range for smoother transition (10% to 25%)
     const opacity = interpolate(
-      swipePositionValue.value,
-      [0, 17, 19],
-      [1, 1, 0],
-      { extrapolateRight: Extrapolation.CLAMP }
+      animatedPosition.value,
+      [screenHeight * 0.81, screenHeight * 0.83],
+      [0, 1],
+      Extrapolation.CLAMP
     );
-    
-    // Apply timing for smoother transitions
-    const smoothOpacity = withTiming(opacity, {
-      duration: 150,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
-    
     return {
-      opacity: smoothOpacity,
+      opacity,
       flex: 1,
       width: '100%',
     };
   });
 
-  // Track bottom sheet position changes
-  const updatePositionState = useCallback((value: number) => {
-    // Convert value to percentage of screen height (0 = fully open, screenHeight = fully closed)
-    const percentValue = Math.min(
-      100, 
-      Math.max(
-        0, 
-        Math.round((1 - value / screenHeight) * 100)
-      )
-    );
-    setSwipePosition(`${percentValue}%`);
-    swipePositionValue.value = percentValue;
-  }, [screenHeight, swipePositionValue]);
-
-  // Monitor the animated position value and update the state
-  useAnimatedReaction(
-    () => animatedPosition.value,
-    (currentValue) => {
-      runOnJS(updatePositionState)(currentValue);
-    }
-  );
-
-  // Handle sheet position changes when snapping to a point
-  const handleSheetChanges = useCallback((index: number) => {
-    setCurrentPosition(index);
-  }, []);
-
-  // Handle confirmation - this will call the generate function
+  // Handle confirmation
   const handleConfirm = async () => {
     setIsLoading(true);
     closeBottomSheet();
@@ -179,16 +119,7 @@ function TabBottomSheet() {
       snapPoints={snapPoints}
       enablePanDownToClose={false}
       index={0}
-      onChange={handleSheetChanges}
-      onClose={() => {
-        // Prevent actual closing by immediately resetting to initial position
-        if (bottomSheetRef.current) {
-          bottomSheetRef.current.snapToIndex(0);
-        }
-        setSwipePosition("0%");
-        swipePositionValue.value = 0;
-      }}
-      backdropComponent={renderBackdrop}
+      backdropComponent={CustomBackdrop}
       backgroundComponent={({ style }) => (
         <Animated.View style={[style, animatedBackgroundStyle]} />
       )}
@@ -197,8 +128,6 @@ function TabBottomSheet() {
       detached={false}
       handleComponent={() => (
         <View style={styles.customHandleContainer}>
-          {/* <View style={styles.indicator} />
-          <Text style={styles.handlePositionText}>{swipePosition}</Text> */}
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
             <TouchableOpacity 
               style={[styles.confirmButton, isLoading && styles.disabledButton]} 
@@ -213,19 +142,6 @@ function TabBottomSheet() {
         </View>
       )}
       animatedPosition={animatedPosition}
-      onAnimate={(fromIndex, toIndex) => {
-        // This runs after the sheet has finished animating to a new snap point
-        if (toIndex >= 0 && toIndex < snapPoints.length) {
-          // Extract percentage value from the snap point string
-          const snapPoint = snapPoints[toIndex];
-          const percentageStr = snapPoint.replace('%', '');
-          setSwipePosition(`${percentageStr}%`);
-          swipePositionValue.value = parseFloat(percentageStr);
-        } else if (toIndex === -1) {
-          setSwipePosition("0%");
-          swipePositionValue.value = 0;
-        }
-      }}
     >
       <Animated.View style={animatedContentStyle}>
         <BottomSheetView style={styles.sheetContainer}>
