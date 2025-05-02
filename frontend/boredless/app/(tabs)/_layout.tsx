@@ -1,10 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Image, StyleSheet, View, Text, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import React, { useMemo, createContext, useContext, useState } from 'react';
+import React, { useMemo, createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { BottomSheetProvider, useBottomSheet } from '../context/BottomSheetContext';
 import { useRouter } from 'expo-router';
+import Animated, { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 
 // Create a context for sharing the generate function
 type GenerateContextType = {
@@ -45,6 +46,10 @@ function TabBottomSheet() {
   const router = useRouter();
   const { generatePrompt } = useGenerateContext();
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPosition, setCurrentPosition] = useState(-1);
+  
+  // For tracking real-time position
+  const [swipePosition, setSwipePosition] = useState("0%");
   
   // Get screen dimensions to calculate the height excluding the tab bar
   const screenHeight = Dimensions.get('window').height;
@@ -76,6 +81,35 @@ function TabBottomSheet() {
     []
   );
 
+  // Shared value for tracking the sheet position
+  const animatedPosition = useSharedValue(0);
+
+  // Track bottom sheet position changes
+  const updatePositionState = useCallback((value: number) => {
+    // Convert value to percentage of screen height (0 = fully open, screenHeight = fully closed)
+    const percentValue = Math.min(
+      100, 
+      Math.max(
+        0, 
+        Math.round((1 - value / screenHeight) * 100)
+      )
+    );
+    setSwipePosition(`${percentValue}%`);
+  }, [screenHeight]);
+
+  // Monitor the animated position value and update the state
+  useAnimatedReaction(
+    () => animatedPosition.value,
+    (currentValue) => {
+      runOnJS(updatePositionState)(currentValue);
+    }
+  );
+
+  // Handle sheet position changes when snapping to a point
+  const handleSheetChanges = useCallback((index: number) => {
+    setCurrentPosition(index);
+  }, []);
+
   // Handle confirmation - this will call the generate function
   const handleConfirm = async () => {
     setIsLoading(true);
@@ -96,12 +130,31 @@ function TabBottomSheet() {
       snapPoints={snapPoints}
       enablePanDownToClose
       index={-1}
+      onChange={handleSheetChanges}
+      onClose={() => setSwipePosition("0%")}
       backdropComponent={renderBackdrop}
-      handleIndicatorStyle={styles.indicator}
       backgroundStyle={styles.sheetBackgroundStyle}
       handleStyle={styles.sheetHandleStyle}
       bottomInset={TAB_BAR_HEIGHT}
       detached={true}
+      handleComponent={() => (
+        <View style={styles.customHandleContainer}>
+          <View style={styles.indicator} />
+          <Text style={styles.handlePositionText}>{swipePosition}</Text>
+        </View>
+      )}
+      animatedPosition={animatedPosition}
+      onAnimate={(fromIndex, toIndex) => {
+        // This runs after the sheet has finished animating to a new snap point
+        if (toIndex >= 0 && toIndex < snapPoints.length) {
+          // Extract percentage value from the snap point string
+          const snapPoint = snapPoints[toIndex];
+          const percentageStr = snapPoint.replace('%', '');
+          setSwipePosition(`${percentageStr}%`);
+        } else if (toIndex === -1) {
+          setSwipePosition("0%");
+        }
+      }}
     >
       <BottomSheetView style={styles.sheetContainer}>
         <Text style={styles.sheetTitle}>Generate Prompt</Text>
@@ -293,5 +346,28 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+  positionIndicatorContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: '#F5F5F5',
+    padding: 8,
+    borderRadius: 8,
+    width: '100%',
+  },
+  positionIndicator: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  customHandleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+  },
+  handlePositionText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });
