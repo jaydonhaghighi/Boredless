@@ -188,15 +188,6 @@ function TabBottomSheet() {
     };
   });
   
-  // Clear cards when generation starts
-  useEffect(() => {
-    if (isGenerating) {
-      // Reset cards when a new generation is requested
-      setCards([]);
-      setCurrentCardIndex(0);
-    }
-  }, [isGenerating]);
-  
   // Update cards data when prompt is generated
   useEffect(() => {
     // Listen for result updates from generatePrompt
@@ -210,20 +201,23 @@ function TabBottomSheet() {
             console.log('Setting prompt data:', result);
             
             // Extract cards data from response
+            let newCards;
             if (result.cards) {
               console.log('Setting all cards from result.cards:', result.cards.length);
-              setCards(result.cards);
+              newCards = result.cards;
             } else {
               // If no cards array, create one with the single result
               console.log('Setting single card as array');
-              setCards([result]);
+              newCards = [result];
             }
-            
-            setCurrentCardIndex(0); // Reset to first card
             
             // Add a slight delay before snapping the bottom sheet to index 1
             // This ensures the cards are fully rendered before showing them
             setTimeout(() => {
+              // Only update the cards and reset the index once we're ready to display them
+              setCards(newCards);
+              setCurrentCardIndex(0); // Reset to first card
+              
               if (bottomSheetRef.current) {
                 console.log('Snapping to index 1');
                 bottomSheetRef.current.snapToIndex(1);
@@ -282,22 +276,30 @@ function TabBottomSheet() {
       handleComponent={() => (
         <View style={styles.customHandleContainer}>
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
-            {isGenerating ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#000000" />
-                <Text style={styles.loadingText}>Generating prompts...</Text>
-              </View>
-            ) : cards.length > 0 ? (
-              <View style={styles.cardIndicator}>
-                <Text style={styles.cardCount}>
-                  {currentCardIndex + 1} of {cards.length}
-                </Text>
-                <Text style={styles.swipeHint}>Swipe up to view</Text>
-              </View>
+            {cards.length > 0 ? (
+              <TouchableOpacity style={styles.bottomSheetButton} onPress={() => {
+                if (bottomSheetRef.current && cards.length > 0) {
+                  bottomSheetRef.current.snapToIndex(1);
+                }
+              }}>
+                <View style={styles.cardPreviewContainer}>
+                  <View style={styles.cardPreviewInfoSection}>
+                    <View style={styles.cardPreviewHeaderRow}>
+                    <Text style={styles.cardPreviewTitle}>
+                        {cards[currentCardIndex]?.title || 'Prompt'}
+                      </Text>
+                      <Text style={styles.cardPreviewCount}>
+                        {currentCardIndex + 1} of {cards.length}
+                      </Text>
+                    </View>
+                    <Text style={styles.cardPreviewText} numberOfLines={1} ellipsizeMode="tail">
+                      {cards[currentCardIndex]?.prompt || ''}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
             ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Select filters and press Generate</Text>
-              </View>
+              <View style={styles.emptyContainer}/>
             )}
           </Animated.View>
         </View>
@@ -329,13 +331,9 @@ function TabBottomSheet() {
           />
         ) : (
           <View style={styles.emptyContentContainer}>
-            {isGenerating ? (
-              <ActivityIndicator size="large" color="#000000" />
-            ) : (
-              <Text style={styles.emptyContentText}>
-                Use the Generate button to create conversation prompts
-              </Text>
-            )}
+            <Text style={styles.emptyContentText}>
+              Use the Generate button to create conversation prompts
+            </Text>
           </View>
         )}
       </BottomSheetView>
@@ -533,7 +531,6 @@ const styles = StyleSheet.create({
     width: 40,
   },
   sheetBackgroundStyle: {
-    // This style is no longer used as we're using an animated background component
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
   },
@@ -576,10 +573,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 50,
   },
-  cardCount: {
+  cardPreviewCount: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
+    color: '#FFF',
   },
   swipeHint: {
     fontSize: 12,
@@ -587,18 +584,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '400',
     textAlign: 'center',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  loadingText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#333333',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -625,5 +610,37 @@ const styles = StyleSheet.create({
     opacity: 1,
     flex: 1,
     width: '100%',
+  },
+  bottomSheetButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#28282B',
+    borderRadius: 12,
+  },
+  cardPreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  cardPreviewInfoSection: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  cardPreviewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cardPreviewTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  cardPreviewText: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 14,
   },
 });
