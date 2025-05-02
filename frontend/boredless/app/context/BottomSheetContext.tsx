@@ -16,7 +16,7 @@ export const BottomSheetProvider = ({ children }: { children: ReactNode }) => {
   const bottomSheetRef = useRef<BottomSheet>(null);
 
   const openBottomSheet = useCallback(() => {
-    bottomSheetRef.current?.snapToIndex(1);
+    bottomSheetRef.current?.snapToIndex(0);
   }, []);
 
   const closeBottomSheet = useCallback(() => {

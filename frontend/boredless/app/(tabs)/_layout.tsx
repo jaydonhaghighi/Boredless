@@ -56,10 +56,11 @@ function TabBottomSheet() {
   const snapPoints = useMemo(() => {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
     // Convert to percentages of the screen
+    const initialSnapPoint = 5; // 5% initial snap point
     const smallSnapPoint = Math.floor((availableHeight * 0.25) / screenHeight * 100);
     const largeSnapPoint = Math.floor((availableHeight * 0.9) / screenHeight * 100);
     
-    return [`${smallSnapPoint}%`, `${largeSnapPoint}%`];
+    return [`${initialSnapPoint}%`, `${smallSnapPoint}%`, `${largeSnapPoint}%`];
   }, []);
 
   // Render backdrop
