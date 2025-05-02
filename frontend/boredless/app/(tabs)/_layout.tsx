@@ -17,7 +17,6 @@ import Animated, {
   Easing 
 } from 'react-native-reanimated';
 import PromptComponent from '../components/PromptComponent';
-import { Ionicons } from '@expo/vector-icons';
 
 // Create a context for sharing the generate function
 type GenerateContextType = {
@@ -148,12 +147,12 @@ function TabBottomSheet() {
   
   // Get screen dimensions to calculate the height excluding the tab bar
   const screenHeight = Dimensions.get('window').height;
-  const TAB_BAR_HEIGHT = 65;
+  const TAB_BAR_HEIGHT = 55;
   
   // Set snap points to percentages that leave space for the tab bar
   const snapPoints = useMemo(() => {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
-    return [`9%`, `100%`];
+    return [`12%`, `100%`];
   }, [screenHeight]);
 
   // Shared value for tracking the sheet position
@@ -163,7 +162,7 @@ function TabBottomSheet() {
   const animatedBackgroundStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       animatedPosition.value,
-      [screenHeight * 0.81, screenHeight * 0.83],
+      [screenHeight * 0.79, screenHeight * 0.81],
       [1, 0],
       Extrapolation.CLAMP
     );
@@ -177,7 +176,7 @@ function TabBottomSheet() {
   const animatedContentStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       animatedPosition.value,
-      [screenHeight * 0.81, screenHeight * 0.83],
+      [screenHeight * 0.79, screenHeight * 0.81],
       [0, 1],
       Extrapolation.CLAMP
     );
@@ -310,7 +309,7 @@ function TabBottomSheet() {
       enableContentPanningGesture={cards.length > 0}
       enableHandlePanningGesture={cards.length > 0}
       animationConfigs={{
-        duration: 300,
+        duration: 400,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       }}
       onClose={() => {
@@ -560,6 +559,7 @@ const styles = StyleSheet.create({
   customHandleContainer: {
     width: '100%',
     paddingHorizontal: 8,
+    marginTop: -10,
   },
   handlePositionText: {
     fontSize: 14,
@@ -617,6 +617,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#28282B',
     borderRadius: 12,
+    marginBottom: 8,
   },
   cardPreviewContainer: {
     flexDirection: 'row',
@@ -634,9 +635,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   cardPreviewTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFF',
+    marginRight: 10,
   },
   cardPreviewText: {
     flex: 1,
