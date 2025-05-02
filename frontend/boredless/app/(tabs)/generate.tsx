@@ -85,7 +85,7 @@ const API_BASE_URL = 'http://localhost:8000';
 export default function GenerateScreen() {
   const router = useRouter();
   const { setGeneratePrompt } = useGenerateContext();
-  const { showBottomSheet } = useBottomSheetVisibility();
+  const { showBottomSheet, setIsGenerating, isGenerating } = useBottomSheetVisibility();
 
   // Filter states
   const [selectedTheme, setSelectedTheme] = useState<ConversationTheme | null>(null);
@@ -93,9 +93,6 @@ export default function GenerateScreen() {
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
   const [selectedParticipants, setSelectedParticipants] = useState<Participants | null>(null);
   const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
-
-  // Loading state
-  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Register our generate function with the context
   useEffect(() => {
@@ -131,8 +128,6 @@ export default function GenerateScreen() {
       participants: selectedParticipants,
       relationship: selectedRelationship
     });
-
-    setIsLoading(true);
 
     try {
       const response = await axios.post(`${API_BASE_URL}/generator/`, {
@@ -198,14 +193,30 @@ export default function GenerateScreen() {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
       return null;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // Open the bottom sheet when the Generate button is pressed
-  const applyFilters = () => {
+  // Open the bottom sheet and immediately generate the prompt when the Generate button is pressed
+  const applyFilters = async () => {
+    setIsGenerating(true);
     showBottomSheet();
+    
+    try {
+      // We're calling generatePrompt directly here instead of in the bottom sheet
+      console.log('Generating prompt with filters...');
+      const result = await generatePrompt();
+      
+      if (!result) {
+        console.error('Failed to generate prompt');
+        Alert.alert('Error', 'Failed to generate prompt. Please try again.');
+        setIsGenerating(false); // Only set to false here if there's no result
+      }
+    } catch (error) {
+      console.error('Error generating prompt:', error);
+      Alert.alert('Error', 'Failed to generate prompt. Please try again.');
+      setIsGenerating(false); // Only set to false here if there's an error
+    }
+    // We don't set isGenerating to false on success - that will be handled in the bottom sheet component
   };
 
   const resetFilters = () => {
@@ -328,11 +339,11 @@ export default function GenerateScreen() {
           </View>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.generateButton, isLoading && styles.disabledButton]}
+              style={[styles.generateButton, isGenerating && styles.disabledButton]}
               onPress={applyFilters}
-              disabled={isLoading}
+              disabled={isGenerating}
             >
-              {isLoading ? (
+              {isGenerating ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
@@ -346,7 +357,7 @@ export default function GenerateScreen() {
           <TouchableOpacity
             style={styles.resetButton}
             onPress={resetFilters}
-            disabled={isLoading}
+            disabled={isGenerating}
           >
             <Text style={styles.resetButtonText}>Reset</Text>
           </TouchableOpacity>
