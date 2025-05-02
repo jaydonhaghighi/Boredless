@@ -150,9 +150,11 @@ function TabBottomSheet() {
         duration: 300,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       }}
-      activeOffsetY={[-10, 10]}
-      failOffsetY={[-20, 20]}
-      gestureEnabled={true}
+      onClose={() => {
+        if (bottomSheetRef.current) {
+          bottomSheetRef.current.snapToIndex(0);
+        }
+      }}
     >
       <Animated.View style={animatedContentStyle}>
         <BottomSheetView style={styles.sheetContainer}>
