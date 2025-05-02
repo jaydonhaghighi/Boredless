@@ -5,7 +5,7 @@ import React, { useMemo, createContext, useContext, useState, useCallback, useRe
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { BottomSheetProvider, useBottomSheet } from '../context/BottomSheetContext';
 import { useRouter } from 'expo-router';
-import Animated, { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedReaction, runOnJS, useAnimatedStyle, interpolate } from 'react-native-reanimated';
 
 // Create a context for sharing the generate function
 type GenerateContextType = {
@@ -50,6 +50,7 @@ function TabBottomSheet() {
   
   // For tracking real-time position
   const [swipePosition, setSwipePosition] = useState("0%");
+  const swipePositionValue = useSharedValue(0);
   
   // Get screen dimensions to calculate the height excluding the tab bar
   const screenHeight = Dimensions.get('window').height;
@@ -61,7 +62,7 @@ function TabBottomSheet() {
   const snapPoints = useMemo(() => {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
     // Convert to percentages of the screen
-    const initialSnapPoint = 5; // 5% initial snap point
+    const initialSnapPoint = 20; // 10% initial snap point (changed from 5%)
     const smallSnapPoint = Math.floor((availableHeight * 0.25) / screenHeight * 100);
     const largeSnapPoint = Math.floor((availableHeight * 0.9) / screenHeight * 100);
     
@@ -84,6 +85,38 @@ function TabBottomSheet() {
   // Shared value for tracking the sheet position
   const animatedPosition = useSharedValue(0);
 
+  // Animated style for background opacity
+  const animatedBackgroundStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      swipePositionValue.value,
+      [0, 100],
+      [0, 1],
+      { extrapolateRight: 'clamp' }
+    );
+    
+    return {
+      backgroundColor: `rgba(255, 255, 255, ${opacity})`,
+      borderRadius: 24,
+    };
+  });
+  
+  // Animated style for content opacity
+  const animatedContentStyle = useAnimatedStyle(() => {
+    // Make content visible initially and fade out as sheet opens further
+    const opacity = interpolate(
+      swipePositionValue.value,
+      [0, 40, 70],
+      [1, 1, 0],
+      { extrapolateRight: 'clamp' }
+    );
+    
+    return {
+      opacity,
+      flex: 1,
+      width: '100%',
+    };
+  });
+
   // Track bottom sheet position changes
   const updatePositionState = useCallback((value: number) => {
     // Convert value to percentage of screen height (0 = fully open, screenHeight = fully closed)
@@ -95,7 +128,8 @@ function TabBottomSheet() {
       )
     );
     setSwipePosition(`${percentValue}%`);
-  }, [screenHeight]);
+    swipePositionValue.value = percentValue;
+  }, [screenHeight, swipePositionValue]);
 
   // Monitor the animated position value and update the state
   useAnimatedReaction(
@@ -129,18 +163,24 @@ function TabBottomSheet() {
       ref={bottomSheetRef}
       snapPoints={snapPoints}
       enablePanDownToClose
-      index={-1}
+      index={0}
       onChange={handleSheetChanges}
-      onClose={() => setSwipePosition("0%")}
+      onClose={() => {
+        setSwipePosition("0%");
+        swipePositionValue.value = 0;
+      }}
       backdropComponent={renderBackdrop}
-      backgroundStyle={styles.sheetBackgroundStyle}
+      backgroundComponent={({ style }) => (
+        <Animated.View style={[style, animatedBackgroundStyle]} />
+      )}
       handleStyle={styles.sheetHandleStyle}
       bottomInset={TAB_BAR_HEIGHT}
       detached={true}
       handleComponent={() => (
         <View style={styles.customHandleContainer}>
-          <View style={styles.indicator} />
-          <Text style={styles.handlePositionText}>{swipePosition}</Text>
+          {/* <View style={styles.indicator} />
+          <Text style={styles.handlePositionText}>{swipePosition}</Text> */}
+          
         </View>
       )}
       animatedPosition={animatedPosition}
@@ -151,36 +191,28 @@ function TabBottomSheet() {
           const snapPoint = snapPoints[toIndex];
           const percentageStr = snapPoint.replace('%', '');
           setSwipePosition(`${percentageStr}%`);
+          swipePositionValue.value = parseFloat(percentageStr);
         } else if (toIndex === -1) {
           setSwipePosition("0%");
+          swipePositionValue.value = 0;
         }
       }}
     >
-      <BottomSheetView style={styles.sheetContainer}>
-        <Text style={styles.sheetTitle}>Generate Prompt</Text>
-        <Text style={styles.sheetText}>
-          Generate a conversation prompt based on your selected filters. This will create a prompt that you can share with others.
-        </Text>
-        
-        <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={styles.cancelButton} 
-            onPress={closeBottomSheet}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.confirmButton, isLoading && styles.disabledButton]} 
-            onPress={handleConfirm}
-            disabled={isLoading}
-          >
-            <Text style={styles.confirmButtonText}>
-              {isLoading ? 'Loading...' : 'Confirm'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </BottomSheetView>
+      <Animated.View style={animatedContentStyle}>
+        <BottomSheetView style={styles.sheetContainer}>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              style={[styles.confirmButton, isLoading && styles.disabledButton]} 
+              onPress={handleConfirm}
+              disabled={isLoading}
+            >
+              <Text style={styles.confirmButtonText}>
+                {isLoading ? 'Loading...' : 'Confirm'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </BottomSheetView>
+      </Animated.View>
     </BottomSheet>
   );
 }
@@ -313,15 +345,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-  cancelButton: {
-    backgroundColor: '#F0F0F0',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
-    alignItems: 'center',
-  },
+  
   cancelButtonText: {
     color: '#5F5F5F',
     fontWeight: '500',
@@ -335,6 +359,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   sheetBackgroundStyle: {
+    // This style is no longer used as we're using an animated background component
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
   },
