@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -24,7 +23,7 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 
 interface PromptComponentProps {
   cards: {
-    prompt: string;
+    question: string;
     title: string;
     followups: string[];
     theme?: string;
@@ -32,6 +31,12 @@ interface PromptComponentProps {
     mood?: string;
     participants?: string;
     relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
   }[];
   currentCardIndex: number;
   onClose: () => void;
@@ -44,7 +49,6 @@ export default function PromptComponent({
   onClose,
   onChangeCard 
 }: PromptComponentProps) {
-  const [isLoading, setIsLoading] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteModalVisible, setFavoriteModalVisible] = useState(false);
@@ -60,7 +64,7 @@ export default function PromptComponent({
 
   // Get the current card safely, with fallback
   const currentCard = cards[currentCardIndex] || {
-    prompt: 'No prompt available',
+    question: 'No question available',
     title: 'Prompt',
     followups: []
   };
@@ -288,6 +292,295 @@ export default function PromptComponent({
     }
   }, [fontsLoaded, fontError]);
 
+  // Determine what content to show based on card type
+  const renderFrontContent = () => {
+    switch(currentCard.card_type) {
+      case 'conversation_starter':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardMainContent}>
+              <Text style={styles.cardMainText}>{currentCard.question}</Text>
+            </View>
+          </>
+        );
+      
+      case 'interactive_game':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardMainContent}>
+              <Text style={styles.cardMainText}>{currentCard.action_prompt}</Text>
+            </View>
+          </>
+        );
+      
+      case 'quiz':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardMainContent}>
+              <Text style={styles.cardMainText}>{currentCard.question}</Text>
+            </View>
+          </>
+        );
+      
+      case 'debate':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardMainContent}>
+              <Text style={styles.cardMainText}>{currentCard.question}</Text>
+            </View>
+          </>
+        );
+      
+      case 'icebreaker':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardMainContent}>
+              <Text style={styles.cardMainText}>{currentCard.question}</Text>
+            </View>
+          </>
+        );
+      
+      case 'thought_provoking':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardMainContent}>
+              <Text style={styles.cardMainText}>{currentCard.question}</Text>
+            </View>
+          </>
+        );
+        
+      default:
+        // Fallback for legacy cards or unknown types
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            {currentCard.instructions && (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Instructions:</Text>
+                <Text style={styles.cardSectionText}>{currentCard.instructions}</Text>
+              </View>
+            )}
+            {currentCard.question && (
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>{currentCard.question}</Text>
+              </View>
+            )}
+          </>
+        );
+    }
+  };
+  
+  // Determine what content to show on the back based on card type
+  const renderBackContent = () => {
+    // Debug log to check followups
+    console.log('Current card:', JSON.stringify(currentCard, null, 2));
+    console.log('Has followups:', currentCard.followups ? `Yes (${currentCard.followups.length})` : 'No');
+    if (currentCard.followups) {
+      console.log('Followups:', JSON.stringify(currentCard.followups, null, 2));
+    }
+    
+    switch(currentCard.card_type) {
+      case 'conversation_starter':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            {currentCard.followups && currentCard.followups.length > 0 ? (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
+                {currentCard.followups.map((followup, index) => {
+                  console.log(`Rendering followup ${index}:`, followup);
+                  return (
+                    <Text key={index} style={styles.cardListItem}>• {followup}</Text>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.cardMainContent}>
+                <Text style={styles.cardMainText}>
+                  This conversation starter is designed to spark meaningful discussion. Take turns sharing your thoughts!
+                </Text>
+              </View>
+            )}
+          </>
+        );
+      
+      case 'interactive_game':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardSection}>
+              <Text style={styles.cardSectionTitle}>Instructions:</Text>
+              <Text style={styles.cardSectionText}>{currentCard.instructions}</Text>
+            </View>
+          </>
+        );
+      
+      case 'quiz':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            {currentCard.options && currentCard.options.length > 0 && (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Options:</Text>
+                {currentCard.options.map((option, index) => (
+                  <Text 
+                    key={index} 
+                    style={[
+                      styles.cardListItem,
+                      currentCard.correct_answer_index === index ? styles.correctAnswer : {}
+                    ]}
+                  >
+                    {String.fromCharCode(65 + index)}. {option}
+                    {currentCard.correct_answer_index === index ? ' ✓' : ''}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </>
+        );
+      
+      case 'debate':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            {currentCard.stances && currentCard.stances.length > 0 && (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Perspectives:</Text>
+                {currentCard.stances.map((stance, index) => (
+                  <Text key={index} style={styles.cardListItem}>• {stance}</Text>
+                ))}
+              </View>
+            )}
+          </>
+        );
+      
+      case 'icebreaker':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            <View style={styles.cardSection}>
+              <Text style={styles.cardSectionTitle}>Icebreaker Tips:</Text>
+              <Text style={styles.cardSectionText}>
+                This light question is perfect for starting conversations in a casual setting.
+                Keep responses brief and fun!
+              </Text>
+            </View>
+          </>
+        );
+      
+      case 'thought_provoking':
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            {currentCard.followups && currentCard.followups.length > 0 && (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Deeper Questions:</Text>
+                {currentCard.followups.map((followup, index) => (
+                  <Text key={index} style={styles.cardListItem}>• {followup}</Text>
+                ))}
+              </View>
+            )}
+          </>
+        );
+        
+      default:
+        // Fallback for legacy cards or unknown types
+        return (
+          <>
+            {currentCard.title && (
+              <View style={styles.cardBadgeContainer}>
+                <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
+              </View>
+            )}
+            {currentCard.options && currentCard.options.length > 0 && (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Options:</Text>
+                {currentCard.options.map((option, index) => (
+                  <Text key={index} style={styles.cardListItem}>
+                    {String.fromCharCode(65 + index)}. {option}
+                  </Text>
+                ))}
+              </View>
+            )}
+            {currentCard.stances && currentCard.stances.length > 0 && (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Perspectives:</Text>
+                {currentCard.stances.map((stance, index) => (
+                  <Text key={index} style={styles.cardListItem}>• {stance}</Text>
+                ))}
+              </View>
+            )}
+            {currentCard.followups && currentCard.followups.length > 0 && (
+              <View style={styles.cardSection}>
+                <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
+                {currentCard.followups.map((followup, index) => (
+                  <Text key={index} style={styles.cardListItem}>• {followup}</Text>
+                ))}
+              </View>
+            )}
+          </>
+        );
+    }
+  };
+
   if (!fontsLoaded && !fontError) {
     return null;
   }
@@ -317,41 +610,16 @@ export default function PromptComponent({
                 />
             </TouchableOpacity>)}
               {!isFlipped ? (
-                // Front of card
-                <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
-                  {currentCard.title && (
-                    <View style={styles.cardBadgeContainer}>
-                      <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
-                    </View>
-                  )}
-                  <View style={styles.cardMainContent}>
-                    <Text style={styles.cardMainText}>{currentCard.prompt}</Text>
-                  </View>
-                </Animated.View>
-              ) : (
-                // Back of card
-                <Animated.View style={[styles.cardContentContainer, backCardContentStyle]}>
-                  {currentCard.title && (
-                    <View style={styles.cardBadgeContainer}>
-                      <Text style={styles.cardBadgeText}>{currentCard.title}</Text>
-                    </View>
-                  )}
-                  {currentCard.followups && currentCard.followups.length > 0 ? (
-                    <View style={styles.cardSection}>
-                      <Text style={styles.cardSectionTitle}>Follow-up Questions:</Text>
-                      {currentCard.followups.map((followup, index) => (
-                        <Text key={index} style={styles.cardListItem}>• {followup}</Text>
-                      ))}
-                    </View>
-                  ) : (
-                    <View style={styles.cardMainContent}>
-                      <Text style={styles.cardMainText}>
-                        This conversation starter is designed to spark meaningful discussion. Take turns sharing your thoughts!
-                      </Text>
-                    </View>
-                  )}
-                </Animated.View>
-              )}
+                  // Front of card
+                  <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
+                    {renderFrontContent()}
+                  </Animated.View>
+                ) : (
+                  // Back of card
+                  <Animated.View style={[styles.cardContentContainer, backCardContentStyle]}>
+                    {renderBackContent()}
+                  </Animated.View>
+                )}
             </TouchableOpacity>
             
             {/* Card count indicator */}
@@ -492,6 +760,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: 'Petrona-Bold',
   },
+  cardSectionText: {
+    color: '#333333',
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: 'Petrona-Regular',
+  },
   cardListItem: {
     color: '#333333',
     fontSize: 14,
@@ -598,5 +872,8 @@ const styles = StyleSheet.create({
   backArrowIcon: {
     width: 28,
     height: 28,
+  },
+  correctAnswer: {
+    fontWeight: 'bold',
   },
 }); 

@@ -21,11 +21,11 @@ import PromptComponent from '../components/PromptComponent';
 // Create a context for sharing the generate function
 type GenerateContextType = {
   setGeneratePrompt: (fn: () => Promise<{
-    prompt: string;
+    question: string;
     title: string;
     followups: string[];
     cards?: Array<{
-      prompt: string;
+      question: string;
       title: string;
       followups: string[];
       theme?: string;
@@ -33,19 +33,31 @@ type GenerateContextType = {
       mood?: string;
       participants?: string;
       relationship?: string;
+      card_type?: string;
+      instructions?: string;
+      options?: string[];
+      stances?: string[];
+      action_prompt?: string;
+      correct_answer_index?: number;
     }>;
     theme?: string;
     interaction_type?: string;
     mood?: string;
     participants?: string;
     relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
   } | null>) => void;
   generatePrompt: () => Promise<{
-    prompt: string;
+    question: string;
     title: string;
     followups: string[];
     cards?: Array<{
-      prompt: string;
+      question: string;
       title: string;
       followups: string[];
       theme?: string;
@@ -53,12 +65,24 @@ type GenerateContextType = {
       mood?: string;
       participants?: string;
       relationship?: string;
+      card_type?: string;
+      instructions?: string;
+      options?: string[];
+      stances?: string[];
+      action_prompt?: string;
+      correct_answer_index?: number;
     }>;
     theme?: string;
     interaction_type?: string;
     mood?: string;
     participants?: string;
     relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
   } | null>;
 };
 
@@ -73,11 +97,11 @@ export const useGenerateContext = () => useContext(GenerateContext);
 const GenerateContextProvider = ({ children }: { children: React.ReactNode }) => {
   // We'll store the generatePrompt function here
   const [generateFn, setGenerateFn] = useState<() => Promise<{
-    prompt: string;
+    question: string;
     title: string;
     followups: string[];
     cards?: Array<{
-      prompt: string;
+      question: string;
       title: string;
       followups: string[];
       theme?: string;
@@ -85,20 +109,32 @@ const GenerateContextProvider = ({ children }: { children: React.ReactNode }) =>
       mood?: string;
       participants?: string;
       relationship?: string;
+      card_type?: string;
+      instructions?: string;
+      options?: string[];
+      stances?: string[];
+      action_prompt?: string;
+      correct_answer_index?: number;
     }>;
     theme?: string;
     interaction_type?: string;
     mood?: string;
     participants?: string;
     relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
   } | null>>(async () => null);
 
   const setGeneratePrompt = (fn: () => Promise<{
-    prompt: string;
+    question: string;
     title: string;
     followups: string[];
     cards?: Array<{
-      prompt: string;
+      question: string;
       title: string;
       followups: string[];
       theme?: string;
@@ -106,12 +142,24 @@ const GenerateContextProvider = ({ children }: { children: React.ReactNode }) =>
       mood?: string;
       participants?: string;
       relationship?: string;
+      card_type?: string;
+      instructions?: string;
+      options?: string[];
+      stances?: string[];
+      action_prompt?: string;
+      correct_answer_index?: number;
     }>;
     theme?: string;
     interaction_type?: string;
     mood?: string;
     participants?: string;
     relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
   } | null>) => {
     setGenerateFn(() => fn);
   };
@@ -134,7 +182,7 @@ function TabBottomSheet() {
   const { generatePrompt } = useGenerateContext();
   const { isVisible, isGenerating, setIsGenerating } = useBottomSheetVisibility();
   const [cards, setCards] = useState<{
-    prompt: string;
+    question: string;
     title: string;
     followups: string[];
     theme?: string;
@@ -142,6 +190,12 @@ function TabBottomSheet() {
     mood?: string;
     participants?: string;
     relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
   }[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   
@@ -292,7 +346,7 @@ function TabBottomSheet() {
                       </Text>
                     </View>
                     <Text style={styles.cardPreviewText} numberOfLines={1} ellipsizeMode="tail">
-                      {cards[currentCardIndex]?.prompt || ''}
+                      {cards[currentCardIndex]?.question || cards[currentCardIndex]?.action_prompt || ''}
                     </Text>
                   </View>
                 </View>

@@ -102,11 +102,11 @@ export default function GenerateScreen() {
 
   // Define the generate prompt function
   const generatePrompt = async (): Promise<{
-    prompt: string;
+    question: string;
     title: string;
     followups: string[];
     cards?: Array<{
-      prompt: string;
+      question: string;
       title: string;
       followups: string[];
       theme?: string;
@@ -114,12 +114,24 @@ export default function GenerateScreen() {
       mood?: string;
       participants?: string;
       relationship?: string;
+      card_type?: string;
+      instructions?: string;
+      options?: string[];
+      stances?: string[];
+      action_prompt?: string;
+      correct_answer_index?: number;
     }>;
     theme?: string;
     interaction_type?: string;
     mood?: string;
     participants?: string;
     relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
   } | null> => {
     console.log('Generating prompt with filters:', {
       theme: selectedTheme,
@@ -143,43 +155,77 @@ export default function GenerateScreen() {
       // Check if we have a cards array from the new API format
       if (response.data.cards && Array.isArray(response.data.cards) && response.data.cards.length > 0) {
         // Map all cards to our format
-        const cards = response.data.cards.map((card: any) => ({
-          prompt: card.question || '',
-          title: card.title || selectedInteraction || 'Prompt',
-          followups: card.followups || [],
-          theme: selectedTheme || undefined,
-          interaction_type: selectedInteraction || undefined,
-          mood: selectedMood || undefined,
-          participants: selectedParticipants || undefined,
-          relationship: selectedRelationship || undefined
-        }));
+        const cards = response.data.cards.map((card: any) => {
+          // Make sure we properly extract the followups array
+          let followups = [];
+          if (card.followups && Array.isArray(card.followups)) {
+            followups = card.followups;
+          }
+          
+          return {
+            question: card.question || '',
+            title: card.title || selectedInteraction || 'Prompt',
+            followups: followups,
+            theme: selectedTheme || undefined,
+            interaction_type: selectedInteraction || undefined,
+            mood: selectedMood || undefined,
+            participants: selectedParticipants || undefined,
+            relationship: selectedRelationship || undefined,
+            card_type: card.card_type || (selectedInteraction ? mapInteractionToCardType(selectedInteraction) : undefined),
+            instructions: card.instructions || undefined,
+            options: card.options || undefined,
+            stances: card.stances || undefined,
+            action_prompt: card.action_prompt || undefined,
+            correct_answer_index: card.correct_answer_index || undefined
+          };
+        });
         
         // Return the first card as required by the interface, but include all cards directly
         console.log('Returning mapped cards, total:', cards.length);
         
         // Include first card data + all cards array
         return {
-          prompt: cards[0].prompt,
+          question: cards[0].question,
           title: cards[0].title,
-          followups: cards[0].followups || [],
+          followups: cards[0].followups,
           theme: selectedTheme || undefined,
           interaction_type: selectedInteraction || undefined,
           mood: selectedMood || undefined,
           participants: selectedParticipants || undefined,
           relationship: selectedRelationship || undefined,
+          card_type: cards[0].card_type,
+          instructions: cards[0].instructions,
+          options: cards[0].options,
+          stances: cards[0].stances,
+          action_prompt: cards[0].action_prompt,
+          correct_answer_index: cards[0].correct_answer_index,
           cards: cards // Include all cards
         };
       } else {
         // Fallback for old format
+        const card_type = selectedInteraction ? mapInteractionToCardType(selectedInteraction) : 'conversation_starter';
+        
+        // Make sure we properly extract the followups array
+        let followups = [];
+        if (response.data.followups && Array.isArray(response.data.followups)) {
+          followups = response.data.followups;
+        }
+        
         const result = {
-          prompt: response.data.question || '',
+          question: response.data.question || '',
           title: response.data.title || selectedInteraction || 'Prompt',
-          followups: response.data.followups || [],
+          followups: followups,
           theme: selectedTheme || undefined,
           interaction_type: selectedInteraction || undefined,
           mood: selectedMood || undefined,
           participants: selectedParticipants || undefined,
-          relationship: selectedRelationship || undefined
+          relationship: selectedRelationship || undefined,
+          card_type: response.data.card_type || card_type,
+          instructions: response.data.instructions || undefined,
+          options: response.data.options || undefined,
+          stances: response.data.stances || undefined,
+          action_prompt: response.data.action_prompt || undefined,
+          correct_answer_index: response.data.correct_answer_index || undefined
         };
         console.log('Returning fallback data:', result);
         
@@ -193,6 +239,26 @@ export default function GenerateScreen() {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
       return null;
+    }
+  };
+
+  // Helper function to map interaction type to card type
+  const mapInteractionToCardType = (interactionType: InteractionType): string => {
+    switch(interactionType) {
+      case "Conversation Starters":
+        return "conversation_starter";
+      case "Interactive Games":
+        return "interactive_game";
+      case "Quizzes":
+        return "quiz";
+      case "Friendly Debates":
+        return "debate";
+      case "Icebreakers":
+        return "icebreaker";
+      case "Thought-provoking Questions":
+        return "thought_provoking";
+      default:
+        return "conversation_starter";
     }
   };
 
