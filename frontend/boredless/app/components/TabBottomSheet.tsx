@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useRouter } from 'expo-router';
 import Animated, { 
+  useSharedValue,
   useAnimatedStyle, 
   interpolate,
   Extrapolation,
@@ -15,6 +16,30 @@ import { useBottomSheetVisibility } from '../(tabs)/_layout';
 import PromptComponent from './PromptComponent';
 import { Card } from '../types/card';
 import { CustomBackdrop } from './CustomBackdrop';
+
+/**
+ * Gets the preview text to display in the bottom sheet based on card type
+ */
+const getCardPreviewText = (card: Card): string => {
+  if (!card) return '';
+  
+  switch(card.card_type) {
+    case 'deep_conversations':
+    case 'light_conversation':
+    case 'hot_takes':
+    case 'personality_quizzes':
+      return card.question || '';
+      
+    case 'fun_challenges':
+      return card.twist || card.question || '';
+      
+    case 'creative_prompts':
+      return card.question || '';
+      
+    default:
+      return card.question || '';
+  }
+};
 
 /**
  * TabBottomSheet component for displaying generated prompts
@@ -39,7 +64,7 @@ export const TabBottomSheet = () => {
   }, [screenHeight]);
 
   // Shared value for tracking the sheet position
-  const animatedPosition = React.useSharedValue(0);
+  const animatedPosition = useSharedValue(0);
 
   // Simplified animated style for background
   const animatedBackgroundStyle = useAnimatedStyle(() => {
@@ -175,7 +200,7 @@ export const TabBottomSheet = () => {
                       </Text>
                     </View>
                     <Text style={styles.cardPreviewText} numberOfLines={1} ellipsizeMode="tail">
-                      {cards[currentCardIndex]?.question || cards[currentCardIndex]?.action_prompt || ''}
+                      {getCardPreviewText(cards[currentCardIndex])}
                     </Text>
                   </View>
                 </View>

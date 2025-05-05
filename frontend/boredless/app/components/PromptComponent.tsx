@@ -277,11 +277,7 @@ export default function PromptComponent({
   // Determine what content to show based on card type
   const renderFrontContent = () => {
     switch(currentCard.card_type) {
-      case 'conversation_starter':
-      case 'quiz':
-      case 'debate':
-      case 'icebreaker':
-      case 'thought_provoking':
+      case 'deep_conversations':
         return (
           <>
             <CardTitle title={currentCard.title} />
@@ -289,11 +285,43 @@ export default function PromptComponent({
           </>
         );
       
-      case 'interactive_game':
+      case 'fun_challenges':
         return (
           <>
             <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.action_prompt} />
+            <CardMainContent text={currentCard.question} />
+          </>
+        );
+        
+      case 'creative_prompts':
+        return (
+          <>
+            <CardTitle title={currentCard.title} />
+            <CardMainContent text={currentCard.question} />
+          </>
+        );
+        
+      case 'light_conversation':
+        return (
+          <>
+            <CardTitle title={currentCard.title} />
+            <CardMainContent text={currentCard.question} />
+          </>
+        );
+        
+      case 'hot_takes':
+        return (
+          <>
+            <CardTitle title={currentCard.title} />
+            <CardMainContent text={currentCard.question} />
+          </>
+        );
+        
+      case 'personality_quizzes':
+        return (
+          <>
+            <CardTitle title={currentCard.title} />
+            <CardMainContent text={currentCard.question} />
           </>
         );
         
@@ -302,11 +330,6 @@ export default function PromptComponent({
         return (
           <>
             <CardTitle title={currentCard.title} />
-            {currentCard.instructions && (
-              <CardSection title="Instructions">
-                <Text style={styles.cardSectionText}>{currentCard.instructions}</Text>
-              </CardSection>
-            )}
             <CardMainContent text={currentCard.question} />
           </>
         );
@@ -315,98 +338,84 @@ export default function PromptComponent({
   
   // Determine what content to show on the back based on card type
   const renderBackContent = () => {
-    // Debug log to check followups
-    console.log('Current card:', JSON.stringify(currentCard, null, 2));
-    console.log('Has followups:', currentCard.followups ? `Yes (${currentCard.followups.length})` : 'No');
-    if (currentCard.followups) {
-      console.log('Followups:', JSON.stringify(currentCard.followups, null, 2));
-    }
-    
     switch(currentCard.card_type) {
-      case 'conversation_starter':
+      case 'deep_conversations':
         return (
           <>
             <CardTitle title={currentCard.title} />
-            {currentCard.followups && currentCard.followups.length > 0 ? (
+            <CardSection title="Reflection">
+              <Text style={styles.cardSectionText}>{currentCard.reflection}</Text>
+            </CardSection>
+            
+            {currentCard.followups && currentCard.followups.length > 0 && (
               <CardSection title="Follow-up Questions">
                 {currentCard.followups.map((followup, index) => (
                   <CardListItem key={index} text={followup} />
                 ))}
               </CardSection>
-            ) : (
-              <CardMainContent text="This conversation starter is designed to spark meaningful discussion. Take turns sharing your thoughts!" />
             )}
           </>
         );
       
-      case 'interactive_game':
+      case 'fun_challenges':
         return (
           <>
             <CardTitle title={currentCard.title} />
-            <CardSection title="Instructions">
-              <Text style={styles.cardSectionText}>{currentCard.instructions}</Text>
+            <CardSection title="Twist">
+              <Text style={styles.cardSectionText}>{currentCard.twist}</Text>
             </CardSection>
           </>
         );
       
-      case 'quiz':
+      case 'creative_prompts':
         return (
           <>
             <CardTitle title={currentCard.title} />
-            {currentCard.options && currentCard.options.length > 0 && (
-              <CardSection title="Options">
-                {currentCard.options.map((option, index) => (
-                  <CardListItem 
-                    key={index} 
-                    text={option} 
-                    isCorrect={currentCard.correct_answer_index === index}
-                    index={index}
-                    useLetters={true}
-                  />
-                ))}
-              </CardSection>
-            )}
-          </>
-        );
-      
-      case 'debate':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            {currentCard.stances && currentCard.stances.length > 0 && (
-              <CardSection title="Perspectives">
-                {currentCard.stances.map((stance, index) => (
-                  <CardListItem key={index} text={stance} />
-                ))}
-              </CardSection>
-            )}
-          </>
-        );
-      
-      case 'icebreaker':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardSection title="Icebreaker Tips">
-              <Text style={styles.cardSectionText}>
-                This light question is perfect for starting conversations in a casual setting.
-                Keep responses brief and fun!
-              </Text>
+            <CardSection title="Bonus">
+              <Text style={styles.cardSectionText}>{currentCard.bonus}</Text>
             </CardSection>
           </>
         );
       
-      case 'thought_provoking':
+      case 'light_conversation':
         return (
           <>
             <CardTitle title={currentCard.title} />
-            {currentCard.followups && currentCard.followups.length > 0 && (
-              <CardSection title="Deeper Questions">
-                {currentCard.followups.map((followup, index) => (
-                  <CardListItem key={index} text={followup} />
-                ))}
+            {currentCard.bonus && (
+              <CardSection title="Bonus">
+                <Text style={styles.cardSectionText}>{currentCard.bonus}</Text>
               </CardSection>
             )}
+          </>
+        );
+      
+      case 'hot_takes':
+        return (
+          <>
+            <CardTitle title={currentCard.title} />
+            <CardSection title="Perspectives">
+              <CardListItem text={currentCard.perspective1 || ''} />
+              <CardListItem text={currentCard.perspective2 || ''} />
+            </CardSection>
+            
+            {currentCard.debate_twist && (
+              <CardSection title="Debate Twist">
+                <Text style={styles.cardSectionText}>{currentCard.debate_twist}</Text>
+              </CardSection>
+            )}
+          </>
+        );
+      
+      case 'personality_quizzes':
+        return (
+          <>
+            <CardTitle title={currentCard.title} />
+            <CardSection title="Group Vote">
+              <Text style={styles.cardSectionText}>{currentCard.group_vote}</Text>
+            </CardSection>
+            <CardSection title="Reveal">
+              <Text style={styles.cardSectionText}>{currentCard.reveal}</Text>
+            </CardSection>
           </>
         );
         
@@ -415,22 +424,6 @@ export default function PromptComponent({
         return (
           <>
             <CardTitle title={currentCard.title} />
-            
-            {currentCard.options && currentCard.options.length > 0 && (
-              <CardSection title="Options">
-                {currentCard.options.map((option, index) => (
-                  <CardListItem key={index} text={option} index={index} useLetters={true} />
-                ))}
-              </CardSection>
-            )}
-            
-            {currentCard.stances && currentCard.stances.length > 0 && (
-              <CardSection title="Perspectives">
-                {currentCard.stances.map((stance, index) => (
-                  <CardListItem key={index} text={stance} />
-                ))}
-              </CardSection>
-            )}
             
             {currentCard.followups && currentCard.followups.length > 0 && (
               <CardSection title="Follow-up Questions">

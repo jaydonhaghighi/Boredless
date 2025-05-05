@@ -3,59 +3,117 @@
  */
 
 /**
- * Maps friendly interaction type names to their corresponding card types
+ * Card type definition and recommended filter mappings
  */
-export const INTERACTION_TYPE_MAPPING = {
-  "Conversation Starters": "conversation_starter",
-  "Interactive Games": "interactive_game",
-  "Quizzes": "quiz",
-  "Friendly Debates": "debate",
-  "Icebreakers": "icebreaker",
-  "Thought-provoking Questions": "thought_provoking"
+export const CARD_TYPES = {
+  "Deep Conversations": {
+    id: "deep_conversations",
+    structure: {
+      front: "Open-ended personal question",
+      back: "Reflection: [prompt to go deeper]"
+    },
+    topics: ["Relationships & Dating", "Personality & Self-discovery", "Family & Home", "Philosophy & Big Questions"],
+    tones: ["Thoughtful", "Reflective", "Romantic", "Calm", "Serious"],
+    participants: ["2", "3-5", "Solo"],
+    relationships: ["Close Friends", "Romantic Partners", "Friends", "Family"]
+  },
+  "Fun Challenges": {
+    id: "fun_challenges",
+    structure: {
+      front: "Daring or playful question",
+      back: "Twist: [game mechanic or rule]"
+    },
+    topics: ["Pop Culture & Entertainment", "Casual Chat", "Creativity & Imagination"],
+    tones: ["Playful", "Humourous", "Energetic"],
+    participants: ["3-5", "6+"],
+    relationships: ["Friends", "Aquaintances", "Mixed Group"]
+  },
+  "Creative Prompts": {
+    id: "creative_prompts",
+    structure: {
+      front: "Imaginative scenario",
+      back: "Bonus: [creative extension]"
+    },
+    topics: ["Creativity & Imagination", "Personality & Self-discovery", "Pop Culture & Entertainment", "Casual Chat"],
+    tones: ["Playful", "Friendly"],
+    participants: ["Solo", "2", "3-5"],
+    relationships: ["Friends", "Aquaintances", "Mixed Group"]
+  },
+  "Light Conversation": {
+    id: "light_conversation",
+    structure: {
+      front: "Casual or small-talk prompt",
+      back: "Bonus: [light follow-up]"
+    },
+    topics: ["Casual Chat", "Pop Culture & Entertainment", "Career & Goals", "Learning & Education"],
+    tones: ["Friendly", "Calm", "Humourous", "Thoughtful"],
+    participants: ["2", "3-5", "6+"],
+    relationships: ["Strangers", "Aquaintances", "Coworkers", "Friends"]
+  },
+  "Hot Takes": {
+    id: "hot_takes",
+    structure: {
+      front: "Debatable prompt",
+      back: "Perspective 1 / Perspective 2 / Debate twist"
+    },
+    topics: ["Pop Culture & Entertainment", "Philosophy & Big Questions", "Debates & Opinions", "Learning & Education"],
+    tones: ["Serious", "Humourous"],
+    participants: ["3-5", "6+"],
+    relationships: ["Friends", "Aquaintances", "Mixed Group"]
+  },
+  "Personality Quizzes": {
+    id: "personality_quizzes",
+    structure: {
+      front: "Group guessing prompt",
+      back: "Group vote / Reveal"
+    },
+    topics: ["Personality & Self-discovery", "Pop Culture & Entertainment", "Creativity & Imagination"],
+    tones: ["Playful", "Friendly"],
+    participants: ["3-5", "6+"],
+    relationships: ["Friends", "Aquaintances", "Close Friends"]
+  }
 } as const;
 
 // Define types based on the mappings
-export type InteractionType = keyof typeof INTERACTION_TYPE_MAPPING;
-export type CardType = typeof INTERACTION_TYPE_MAPPING[InteractionType];
+export type CardTypeName = keyof typeof CARD_TYPES;
+export type CardTypeId = typeof CARD_TYPES[CardTypeName]['id'];
 
 /**
  * Filter options for generating conversation prompts
  */
 export const FILTER_OPTIONS = {
-  themes: [
+  topics: [
     "Casual Chat",
-    "Fun & Games",
-    "Career & Goals",
+    "Career & Goals", 
     "Relationships & Dating",
     "Family & Home",
     "Personality & Self-discovery",
     "Debates & Opinions",
     "Learning & Education",
-    "Pop Culture & Entertainment",
+    "Pop Culture & Entertainment", 
     "Philosophy & Big Questions",
     "Creativity & Imagination"
   ] as const,
 
-  interactionTypes: [
-    "Conversation Starters",
-    "Interactive Games",
-    "Quizzes",
-    "Friendly Debates",
-    "Icebreakers",
-    "Thought-provoking Questions"
+  cardTypes: [
+    "Deep Conversations",
+    "Fun Challenges",
+    "Creative Prompts",
+    "Light Conversation",
+    "Hot Takes",
+    "Personality Quizzes"
   ] as const,
 
-  moods: [
+  tones: [
     "Romantic",
     "Playful",
     "Friendly",
-    "Thoughtful",
+    "Thoughtful", 
     "Reflective",
     "Energetic",
     "Serious",
     "Calm",
-    "Humourous",
-    "Adventurous"
+    "Humourous"
   ] as const,
 
   participants: [
@@ -78,15 +136,42 @@ export const FILTER_OPTIONS = {
 };
 
 // Define types based on the filter options
-export type ConversationTheme = typeof FILTER_OPTIONS.themes[number];
-export type Mood = typeof FILTER_OPTIONS.moods[number];
+export type Topic = typeof FILTER_OPTIONS.topics[number];
+export type Tone = typeof FILTER_OPTIONS.tones[number];
 export type Participants = typeof FILTER_OPTIONS.participants[number];
 export type Relationship = typeof FILTER_OPTIONS.relationships[number];
 
 /**
- * Maps interaction type to card type 
+ * Maps card type name to card type ID
  */
-export const mapInteractionToCardType = (interactionType: InteractionType | null): string => {
-  if (!interactionType) return "conversation_starter";
-  return INTERACTION_TYPE_MAPPING[interactionType] || "conversation_starter";
+export const mapCardTypeToId = (cardType: CardTypeName | null): string => {
+  if (!cardType) return "light_conversation"; // Default
+  return CARD_TYPES[cardType].id;
+};
+
+/**
+ * Gets recommended filter values for a specific card type
+ */
+export const getRecommendedFilters = (cardType: CardTypeName | null) => {
+  if (!cardType) return {
+    topics: FILTER_OPTIONS.topics,
+    tones: FILTER_OPTIONS.tones,
+    participants: FILTER_OPTIONS.participants,
+    relationships: FILTER_OPTIONS.relationships
+  };
+
+  return {
+    topics: CARD_TYPES[cardType].topics,
+    tones: CARD_TYPES[cardType].tones,
+    participants: CARD_TYPES[cardType].participants,
+    relationships: CARD_TYPES[cardType].relationships
+  };
+};
+
+/**
+ * Gets the card structure for a specific card type
+ */
+export const getCardStructure = (cardType: CardTypeName | null) => {
+  if (!cardType) return CARD_TYPES["Light Conversation"].structure;
+  return CARD_TYPES[cardType].structure;
 }; 

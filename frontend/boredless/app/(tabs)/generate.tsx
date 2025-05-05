@@ -11,12 +11,13 @@ import { useBottomSheetVisibility } from './_layout';
 import { Card, CardResponse } from '../types/card';
 import { 
   FILTER_OPTIONS, 
-  InteractionType, 
-  ConversationTheme, 
-  Mood, 
+  CARD_TYPES,
+  CardTypeName, 
+  Topic, 
+  Tone, 
   Participants, 
   Relationship,
-  mapInteractionToCardType
+  mapCardTypeToId
 } from '../constants/cardTypes';
 import { mapApiResponseToCards, FilterParams } from '../utils/cardUtils';
 import { useFontLoader } from '../hooks/useFontLoader';
@@ -35,33 +36,50 @@ export default function GenerateScreen() {
   const { showBottomSheet, setIsGenerating, isGenerating } = useBottomSheetVisibility();
 
   // Filter states
-  const [selectedTheme, setSelectedTheme] = useState<ConversationTheme | null>(null);
-  const [selectedInteraction, setSelectedInteraction] = useState<InteractionType | null>(null);
-  const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [selectedCardType, setSelectedCardType] = useState<CardTypeName | null>(null);
+  const [selectedTone, setSelectedTone] = useState<Tone | null>(null);
   const [selectedParticipants, setSelectedParticipants] = useState<Participants | null>(null);
   const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
+
+  // Update filter options when card type changes
+  useEffect(() => {
+    // Reset all filter values when card type changes
+    if (!selectedCardType) {
+      setSelectedTopic(null);
+      setSelectedTone(null);
+      setSelectedParticipants(null);
+      setSelectedRelationship(null);
+    }
+  }, [selectedCardType]);
 
   // Register our generate function with the context
   useEffect(() => {
     console.log('Setting up generatePrompt function');
     setGeneratePrompt(generatePrompt);
-  }, [selectedTheme, selectedInteraction, selectedMood, selectedParticipants, selectedRelationship]);
+  }, [selectedTopic, selectedCardType, selectedTone, selectedParticipants, selectedRelationship]);
 
   // Define the generate prompt function
   const generatePrompt = async (): Promise<CardResponse | null> => {
+    // Ensure card type is selected before allowing generation
+    if (!selectedCardType) {
+      Alert.alert('Card Type Required', 'Please select a card type before generating prompts.');
+      return null;
+    }
+    
     console.log('Generating prompt with filters:', {
-      theme: selectedTheme,
-      interaction_type: selectedInteraction,
-      mood: selectedMood,
+      topic: selectedTopic,
+      card_type: selectedCardType,
+      tone: selectedTone,
       participants: selectedParticipants,
       relationship: selectedRelationship
     });
 
     try {
       const response = await axios.post(`${API_BASE_URL}/generator/`, {
-        theme: selectedTheme,
-        interaction_type: selectedInteraction,
-        mood: selectedMood,
+        topic: selectedTopic,
+        card_type: selectedCardType,
+        tone: selectedTone,
         participants: selectedParticipants,
         relationship: selectedRelationship
       });
@@ -70,9 +88,9 @@ export default function GenerateScreen() {
 
       // Use the utility function to map the response
       const filters: FilterParams = {
-        theme: selectedTheme,
-        interaction_type: selectedInteraction,
-        mood: selectedMood,
+        topic: selectedTopic,
+        card_type: selectedCardType,
+        tone: selectedTone,
         participants: selectedParticipants,
         relationship: selectedRelationship
       };
@@ -95,6 +113,12 @@ export default function GenerateScreen() {
 
   // Open the bottom sheet and immediately generate the prompt when the Generate button is pressed
   const applyFilters = async () => {
+    // Ensure card type is selected
+    if (!selectedCardType) {
+      Alert.alert('Card Type Required', 'Please select a card type before generating prompts.');
+      return;
+    }
+    
     setIsGenerating(true);
     showBottomSheet();
     
@@ -117,9 +141,9 @@ export default function GenerateScreen() {
   };
 
   const resetFilters = () => {
-    setSelectedTheme(null);
-    setSelectedInteraction(null);
-    setSelectedMood(null);
+    setSelectedTopic(null);
+    setSelectedCardType(null);
+    setSelectedTone(null);
     setSelectedParticipants(null);
     setSelectedRelationship(null);
   };
@@ -130,6 +154,30 @@ export default function GenerateScreen() {
     return null;
   }
 
+  // Get only the filter options that are recommended for the selected card type
+  const getTopics = (): Topic[] => {
+    if (!selectedCardType) return [];
+    return [...CARD_TYPES[selectedCardType].topics];
+  };
+
+  const getTones = (): Tone[] => {
+    if (!selectedCardType) return [];
+    return [...CARD_TYPES[selectedCardType].tones];
+  };
+
+  const getParticipants = (): Participants[] => {
+    if (!selectedCardType) return [];
+    return [...CARD_TYPES[selectedCardType].participants];
+  };
+
+  const getRelationships = (): Relationship[] => {
+    if (!selectedCardType) return [];
+    return [...CARD_TYPES[selectedCardType].relationships];
+  };
+
+  // Check if other filters should be shown (only if card type is selected)
+  const shouldShowFilters = selectedCardType !== null;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
       <ScrollView style={styles.scrollView}>
@@ -137,37 +185,21 @@ export default function GenerateScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Prompt Generator</Text>
             <Text style={styles.subtitle}>
-              Find the perfect conversation prompt by customizing your filters
+              Start by selecting a card type, then customize with filters
             </Text>
           </View>
 
+          {/* Card Type Selection - Always Visible */}
           <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Theme</Text>
+            <Text style={styles.filterTitle}>Card Type (Required)</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.themes.map((theme) => (
-                <TouchableOpacity
-                  key={theme}
-                  style={[styles.filterButton, selectedTheme === theme && styles.selectedFilterButton]}
-                  onPress={() => setSelectedTheme(selectedTheme === theme ? null : theme)}
-                >
-                  <Text style={[styles.filterButtonText, selectedTheme === theme && styles.selectedFilterButtonText]}>
-                    {theme}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Interaction Type</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.interactionTypes.map((type) => (
+              {FILTER_OPTIONS.cardTypes.map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={[styles.filterButton, selectedInteraction === type && styles.selectedFilterButton]}
-                  onPress={() => setSelectedInteraction(selectedInteraction === type ? null : type)}
+                  style={[styles.filterButton, selectedCardType === type && styles.selectedFilterButton]}
+                  onPress={() => setSelectedCardType(selectedCardType === type ? null : type)}
                 >
-                  <Text style={[styles.filterButtonText, selectedInteraction === type && styles.selectedFilterButtonText]}>
+                  <Text style={[styles.filterButtonText, selectedCardType === type && styles.selectedFilterButtonText]}>
                     {type}
                   </Text>
                 </TouchableOpacity>
@@ -175,61 +207,97 @@ export default function GenerateScreen() {
             </ScrollView>
           </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Mood</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.moods.map((mood) => (
-                <TouchableOpacity
-                  key={mood}
-                  style={[styles.filterButton, selectedMood === mood && styles.selectedFilterButton]}
-                  onPress={() => setSelectedMood(selectedMood === mood ? null : mood)}
-                >
-                  <Text style={[styles.filterButtonText, selectedMood === mood && styles.selectedFilterButtonText]}>
-                    {mood}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Only show additional filters if a card type is selected */}
+          {shouldShowFilters && (
+            <>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Topic</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getTopics().map((topic) => (
+                    <TouchableOpacity
+                      key={topic}
+                      style={[styles.filterButton, selectedTopic === topic && styles.selectedFilterButton]}
+                      onPress={() => setSelectedTopic(selectedTopic === topic ? null : topic)}
+                    >
+                      <Text style={[styles.filterButtonText, selectedTopic === topic && styles.selectedFilterButtonText]}>
+                        {topic}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Participants</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.participants.map((count) => (
-                <TouchableOpacity
-                  key={count}
-                  style={[styles.filterButton, selectedParticipants === count && styles.selectedFilterButton]}
-                  onPress={() => setSelectedParticipants(selectedParticipants === count ? null : count)}
-                >
-                  <Text style={[styles.filterButtonText, selectedParticipants === count && styles.selectedFilterButtonText]}>
-                    {count}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Tone</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getTones().map((tone) => (
+                    <TouchableOpacity
+                      key={tone}
+                      style={[styles.filterButton, selectedTone === tone && styles.selectedFilterButton]}
+                      onPress={() => setSelectedTone(selectedTone === tone ? null : tone)}
+                    >
+                      <Text style={[styles.filterButtonText, selectedTone === tone && styles.selectedFilterButtonText]}>
+                        {tone}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Relationship</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.relationships.map((rel) => (
-                <TouchableOpacity
-                  key={rel}
-                  style={[styles.filterButton, selectedRelationship === rel && styles.selectedFilterButton]}
-                  onPress={() => setSelectedRelationship(selectedRelationship === rel ? null : rel)}
-                >
-                  <Text style={[styles.filterButtonText, selectedRelationship === rel && styles.selectedFilterButtonText]}>
-                    {rel}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Participants</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getParticipants().map((count) => (
+                    <TouchableOpacity
+                      key={count}
+                      style={[styles.filterButton, selectedParticipants === count && styles.selectedFilterButton]}
+                      onPress={() => setSelectedParticipants(selectedParticipants === count ? null : count)}
+                    >
+                      <Text style={[styles.filterButtonText, selectedParticipants === count && styles.selectedFilterButtonText]}>
+                        {count}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Relationship</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getRelationships().map((rel) => (
+                    <TouchableOpacity
+                      key={rel}
+                      style={[styles.filterButton, selectedRelationship === rel && styles.selectedFilterButton]}
+                      onPress={() => setSelectedRelationship(selectedRelationship === rel ? null : rel)}
+                    >
+                      <Text style={[styles.filterButtonText, selectedRelationship === rel && styles.selectedFilterButtonText]}>
+                        {rel}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </>
+          )}
+
+          {/* Message when no card type is selected */}
+          {!shouldShowFilters && (
+            <View style={styles.noCardTypeContainer}>
+              <Text style={styles.noCardTypeText}>
+                Please select a card type above to see recommended filters
+              </Text>
+            </View>
+          )}
+
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.generateButton, isGenerating && styles.disabledButton]}
+              style={[
+                styles.generateButton, 
+                isGenerating && styles.disabledButton,
+                !selectedCardType && styles.disabledButton
+              ]}
               onPress={applyFilters}
-              disabled={isGenerating}
+              disabled={isGenerating || !selectedCardType}
             >
               {isGenerating ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
@@ -293,7 +361,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   header: {
     marginBottom: 24,
@@ -371,6 +439,18 @@ const styles = StyleSheet.create({
     color: '#5F5F5F',
     fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
+  },
+  noCardTypeContainer: {
+    backgroundColor: '#F5F5F5',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  noCardTypeText: {
+    color: '#5F5F5F',
+    fontSize: 14,
     textAlign: 'center',
   },
 });

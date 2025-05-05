@@ -2,15 +2,23 @@
  * Utilities for processing and mapping cards
  */
 import { Card, CardResponse } from '../types/card';
-import { mapInteractionToCardType, InteractionType, ConversationTheme, Mood, Participants, Relationship } from '../constants/cardTypes';
+import { 
+  CARD_TYPES, 
+  CardTypeName, 
+  mapCardTypeToId, 
+  Topic, 
+  Tone, 
+  Participants, 
+  Relationship 
+} from '../constants/cardTypes';
 
 /**
  * Filter parameters for card generation
  */
 export interface FilterParams {
-  theme: ConversationTheme | null;
-  interaction_type: InteractionType | null;
-  mood: Mood | null;
+  topic: Topic | null;
+  card_type: CardTypeName | null;
+  tone: Tone | null;
   participants: Participants | null;
   relationship: Relationship | null;
 }
@@ -62,22 +70,90 @@ export const mapSingleCardData = (
   
   // Determine card type using shared utility
   const card_type = cardData.card_type || 
-    (filters.interaction_type ? mapInteractionToCardType(filters.interaction_type) : 'conversation_starter');
+    (filters.card_type ? mapCardTypeToId(filters.card_type) : 'light_conversation');
   
-  return {
+  // Create base card with common fields
+  const baseCard: Card = {
     question: cardData.question || '',
-    title: cardData.title || filters.interaction_type || 'Prompt',
-    followups: followups,
-    theme: filters.theme || undefined,
-    interaction_type: filters.interaction_type || undefined,
-    mood: filters.mood || undefined,
+    title: cardData.title || filters.card_type || 'Prompt',
+    card_type: card_type,
+    topic: filters.topic || undefined,
+    tone: filters.tone || undefined,
     participants: filters.participants || undefined,
     relationship: filters.relationship || undefined,
-    card_type: card_type,
-    instructions: cardData.instructions || undefined,
-    options: cardData.options || undefined,
-    stances: cardData.stances || undefined,
-    action_prompt: cardData.action_prompt || undefined,
-    correct_answer_index: cardData.correct_answer_index || undefined
+  };
+  
+  // Add card type specific fields based on the card type
+  switch (card_type) {
+    case 'deep_conversations':
+      return {
+        ...baseCard,
+        followups: followups,
+        reflection: cardData.reflection || 'Take a moment to reflect on this question.'
+      };
+      
+    case 'fun_challenges':
+      return {
+        ...baseCard,
+        twist: cardData.twist || 'Add your own twist to make this more fun!'
+      };
+      
+    case 'creative_prompts':
+      return {
+        ...baseCard,
+        bonus: cardData.bonus || 'Take it further by adding your own creative extension.'
+      };
+      
+    case 'light_conversation':
+      return {
+        ...baseCard,
+        bonus: cardData.bonus
+      };
+      
+    case 'hot_takes':
+      return {
+        ...baseCard,
+        perspective1: cardData.perspective1 || 'Perspective 1',
+        perspective2: cardData.perspective2 || 'Perspective 2',
+        debate_twist: cardData.debate_twist
+      };
+      
+    case 'personality_quizzes':
+      return {
+        ...baseCard,
+        group_vote: cardData.group_vote || 'Have the group vote on this.',
+        reveal: cardData.reveal || 'The person should reveal their answer.'
+      };
+      
+    default:
+      // Handle legacy or unknown card types
+      return {
+        ...baseCard,
+        followups: followups
+      };
+  }
+}; 
+
+/**
+ * Gets recommended filter options for a card type
+ * 
+ * @param cardType The selected card type
+ * @returns An object with arrays of recommended filter options
+ */
+export const getRecommendedOptions = (cardType: CardTypeName | null) => {
+  if (!cardType || !CARD_TYPES[cardType]) {
+    return {
+      topics: [],
+      tones: [],
+      participants: [],
+      relationships: []
+    };
+  }
+
+  return {
+    topics: CARD_TYPES[cardType].topics,
+    tones: CARD_TYPES[cardType].tones,
+    participants: CARD_TYPES[cardType].participants,
+    relationships: CARD_TYPES[cardType].relationships
   };
 }; 

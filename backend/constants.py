@@ -1,114 +1,181 @@
 # Constants shared across the backend
 
 # Maps friendly names to card type identifiers
-INTERACTION_TYPE_MAPPING = {
-    "Conversation Starters": "conversation_starter",
-    "Interactive Games": "interactive_game",
-    "Quizzes": "quiz",
-    "Friendly Debates": "debate",
-    "Icebreakers": "icebreaker",
-    "Thought-provoking Questions": "thought_provoking"
+CARD_TYPE_MAPPING = {
+    "Deep Conversations": "deep_conversations",
+    "Fun Challenges": "fun_challenges",
+    "Creative Prompts": "creative_prompts",
+    "Light Conversation": "light_conversation",
+    "Hot Takes": "hot_takes",
+    "Personality Quizzes": "personality_quizzes"
 }
 
 # Card field definitions based on card type
 CARD_FIELD_DEFINITIONS = {
-    "conversation_starter": """
-    • card_type: "conversation_starter"
+    "deep_conversations": """
+    • card_type: "deep_conversations"
     • title (string, optional)
     • question (string, required)
     • followups (array of strings, optional)
+    • reflection (string, required)
     """,
-    "interactive_game": """
-    • card_type: "interactive_game"
-    • title (string, optional)
-    • instructions (string, required)
-    • action_prompt (string, required)
-    """,
-    "quiz": """
-    • card_type: "quiz"
+    "fun_challenges": """
+    • card_type: "fun_challenges"
     • title (string, optional)
     • question (string, required)
-    • options (array of strings, required)
-    • correct_answer_index (integer, optional)
+    • twist (string, required)
     """,
-    "debate": """
-    • card_type: "debate"
+    "creative_prompts": """
+    • card_type: "creative_prompts"
     • title (string, optional)
     • question (string, required)
-    • stances (array of strings, required)
+    • bonus (string, required)
     """,
-    "icebreaker": """
-    • card_type: "icebreaker"
+    "light_conversation": """
+    • card_type: "light_conversation"
     • title (string, optional)
     • question (string, required)
+    • bonus (string, optional)
     """,
-    "thought_provoking": """
-    • card_type: "thought_provoking"
+    "hot_takes": """
+    • card_type: "hot_takes"
     • title (string, optional)
     • question (string, required)
-    • followups (array of strings, optional)
+    • perspective1 (string, required)
+    • perspective2 (string, required)
+    • debate_twist (string, optional)
+    """,
+    "personality_quizzes": """
+    • card_type: "personality_quizzes"
+    • title (string, optional)
+    • question (string, required)
+    • group_vote (string, required)
+    • reveal (string, required)
     """
 }
 
 # Import these here to avoid circular imports when importing constants
-# These imports needed for model types in INTERACTION_STRUCTURES
+# These imports needed for model types in CARD_TYPE_STRUCTURES
 from models.generate import (
-    ConversationStarterCard,
-    InteractiveGameCard,
-    QuizCard, 
-    DebateCard,
-    IcebreakerCard,
-    ThoughtProvokingCard
+    DeepConversationCard,
+    FunChallengeCard,
+    CreativePromptCard, 
+    LightConversationCard,
+    HotTakeCard,
+    PersonalityQuizCard
 )
 
-# Interaction-type specific card structures and instructions
-INTERACTION_STRUCTURES = {
-    "Conversation Starters": {
-        "structure": "Title (optional) + Open-ended Question",
+# Card type-specific structures and instructions
+CARD_TYPE_STRUCTURES = {
+    "Deep Conversations": {
+        "structure": {
+            "front": "Open-ended personal question",
+            "back": "Reflection: [prompt to go deeper]"
+        },
         "instructions": (
-            "Generate deep or fun questions that spark sharing and discussion. "
-            "Each prompt should be no more than 2 sentences."
+            "Create a card for a conversation game focused on personal depth, honesty, and emotional curiosity. "
+            "The card should feel open-ended, reflective, and meaningful — like a question that sparks a real "
+            "conversation late at night between close friends or partners."
         ),
-        "model_type": ConversationStarterCard
+        "model_type": DeepConversationCard
     },
-    "Interactive Games": {
-        "structure": "Title + Game Instructions + Action Prompt",
+    "Fun Challenges": {
+        "structure": {
+            "front": "Daring or playful question",
+            "back": "Twist: [game mechanic or rule]"
+        },
         "instructions": (
-            "Create short, easy-to-understand activities involving movement, guessing, or creativity. "
-            "Specify how participants should play."
+            "Generate a party game card designed to spark energy, laughter, or bold decisions. "
+            "The card should be funny, daring, or chaotic — meant for groups of friends or "
+            "strangers having drinks, playing games, or letting loose."
         ),
-        "model_type": InteractiveGameCard
+        "model_type": FunChallengeCard
     },
-    "Quizzes": {
-        "structure": "Title + Question + 2-4 Multiple-Choice Options",
+    "Creative Prompts": {
+        "structure": {
+            "front": "Imaginative scenario",
+            "back": "Bonus: [creative extension]"
+        },
         "instructions": (
-            "Provide a fun or surprising question with 2-4 answer options. "
-            "Indicate the correct answer as part of the structure or a separate field."
+            "Craft a light, imaginative prompt designed to spark storytelling, creativity, or surreal thinking. "
+            "The card should feel playful, visual, and open-ended, like a creative writing exercise for conversation."
         ),
-        "model_type": QuizCard
+        "model_type": CreativePromptCard
     },
-    "Friendly Debates": {
-        "structure": "Title + Provocative But Friendly Question + 2 Stances",
+    "Light Conversation": {
+        "structure": {
+            "front": "Casual or small-talk prompt",
+            "back": "Bonus: [light follow-up]"
+        },
         "instructions": (
-            "Generate a question inviting different opinions with two clear stances. "
-            "Ensure the debate remains light-hearted and respectful."
+            "Generate a casual conversation card suitable for any setting. "
+            "These are low-pressure, fun, or amusing prompts that help people start talking, "
+            "especially in mixed or new groups."
         ),
-        "model_type": DebateCard
+        "model_type": LightConversationCard
     },
-    "Icebreakers": {
-        "structure": "Fun Title + Very Easy/Light Question",
+    "Hot Takes": {
+        "structure": {
+            "front": "Debatable prompt",
+            "back": "Perspective 1 / Perspective 2 / Debate twist"
+        },
         "instructions": (
-            "Make it playful or silly, perfect for strangers or acquaintances. "
-            "Keep it low-pressure and welcoming."
+            "Create a card designed to spark a friendly debate or provocative opinion. "
+            "The goal is to surface contrasting perspectives and stir conversation, "
+            "even disagreement, but in a fun way."
         ),
-        "model_type": IcebreakerCard
+        "model_type": HotTakeCard
     },
-    "Thought-provoking Questions": {
-        "structure": "Short Title + Deep Question",
+    "Personality Quizzes": {
+        "structure": {
+            "front": "Group guessing prompt",
+            "back": "Group vote / Reveal"
+        },
         "instructions": (
-            "Ask reflective or philosophical questions matching a thoughtful tone. "
-            "Encourage introspection and meaningful discussion."
+            "Create a fun, social quiz-style card where players guess traits about each other. "
+            "The question should invite light judgment, identity guessing, or playful analysis. "
+            "It works best in group settings where people vote or label each other."
         ),
-        "model_type": ThoughtProvokingCard
+        "model_type": PersonalityQuizCard
+    }
+}
+
+# Filter mappings per card type
+CARD_TYPE_FILTER_MAPPINGS = {
+    "Deep Conversations": {
+        "topics": ["Relationships & Dating", "Personality & Self-discovery", "Family & Home", "Philosophy & Big Questions"],
+        "tones": ["Thoughtful", "Reflective", "Romantic", "Calm", "Serious"],
+        "participants": ["2", "3-5", "Solo"],
+        "relationships": ["Close Friends", "Romantic Partners", "Friends", "Family"]
+    },
+    "Fun Challenges": {
+        "topics": ["Pop Culture & Entertainment", "Casual Chat", "Creativity & Imagination"],
+        "tones": ["Playful", "Humourous", "Energetic"],
+        "participants": ["3-5", "6+"],
+        "relationships": ["Friends", "Aquaintances", "Mixed Group"]
+    },
+    "Creative Prompts": {
+        "topics": ["Creativity & Imagination", "Personality & Self-discovery", "Pop Culture & Entertainment", "Casual Chat"],
+        "tones": ["Playful", "Friendly"],
+        "participants": ["Solo", "2", "3-5"],
+        "relationships": ["Friends", "Aquaintances", "Mixed Group"]
+    },
+    "Light Conversation": {
+        "topics": ["Casual Chat", "Pop Culture & Entertainment", "Career & Goals", "Learning & Education"],
+        "tones": ["Friendly", "Calm", "Humourous", "Thoughtful"],
+        "participants": ["2", "3-5", "6+"],
+        "relationships": ["Strangers", "Aquaintances", "Coworkers", "Friends"]
+    },
+    "Hot Takes": {
+        "topics": ["Pop Culture & Entertainment", "Philosophy & Big Questions", "Debates & Opinions", "Learning & Education"],
+        "tones": ["Serious", "Humourous"],
+        "participants": ["3-5", "6+"],
+        "relationships": ["Friends", "Aquaintances", "Mixed Group"]
+    },
+    "Personality Quizzes": {
+        "topics": ["Personality & Self-discovery", "Pop Culture & Entertainment", "Creativity & Imagination"],
+        "tones": ["Playful", "Friendly"],
+        "participants": ["3-5", "6+"],
+        "relationships": ["Friends", "Aquaintances", "Close Friends"]
     }
 } 

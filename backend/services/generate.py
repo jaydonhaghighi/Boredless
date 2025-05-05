@@ -6,15 +6,15 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from models.generate import (
     PromptResponse, 
-    ConversationStarterCard,
-    InteractiveGameCard,
-    QuizCard, 
-    DebateCard,
-    IcebreakerCard,
-    ThoughtProvokingCard,
+    DeepConversationCard,
+    FunChallengeCard,
+    CreativePromptCard, 
+    LightConversationCard,
+    HotTakeCard,
+    PersonalityQuizCard,
     CardType
 )
-from constants import INTERACTION_TYPE_MAPPING, CARD_FIELD_DEFINITIONS, INTERACTION_STRUCTURES
+from constants import CARD_TYPE_MAPPING, CARD_FIELD_DEFINITIONS, CARD_TYPE_STRUCTURES
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path=os.path.join(
@@ -32,39 +32,44 @@ if not api_key:
 # Set up OpenAI API key
 openai.api_key = api_key
 
-async def generate_prompt(theme: str, interaction_type: str, mood: str, participants: str, relationship: str) -> PromptResponse:
+async def generate_prompt(topic: str, card_type: str, tone: str, participants: str, relationship: str) -> PromptResponse:
     
     # Fetch the specific structure and instructions
-    structure_info = INTERACTION_STRUCTURES.get(interaction_type, {})
-    structure = structure_info.get("structure", "")
+    structure_info = CARD_TYPE_STRUCTURES.get(card_type, {})
+    structure = structure_info.get("structure", {})
     specific_instructions = structure_info.get("instructions", "")
-    card_type_id = INTERACTION_TYPE_MAPPING.get(interaction_type, "conversation_starter")
+    card_type_id = CARD_TYPE_MAPPING.get(card_type, "light_conversation")
 
     # Get the field definitions for this card type
     field_definitions = CARD_FIELD_DEFINITIONS.get(card_type_id, "")
 
-    # Build the system prompt with dynamic, interaction-type-specific guidance
+    # Format the structure for display in the prompt
+    structure_text = f"Front: {structure.get('front', '')}\nBack: {structure.get('back', '')}"
+
+    # Build the system prompt with dynamic, card-type-specific guidance
     system_prompt = f"""
     You are an AI designed to generate engaging, fun, and context-aware conversation or interaction cards for a social conversation app.
 
     Each card must follow this structure:
-        - Theme: {theme}
-        - Interaction Type: {interaction_type}
-        - Mood: {mood}
-        - Participants: {participants}
-        - Relationship: {relationship}
+        - Topic: {topic or "Any topic"}
+        - Card Type: {card_type}
+        - Tone: {tone or "Any tone"}
+        - Participants: {participants or "Any number"}
+        - Relationship: {relationship or "Any relationship"}
 
-    For Interaction Type '{interaction_type}', use this card structure:
-        - {structure}
+    For Card Type '{card_type}', use this card structure:
+        {structure_text}
 
     Instructions:
-        - {specific_instructions}
-        - Match tone and complexity with the mood, relationship type, and number of participants.
+        {specific_instructions}
+        - Match tone and complexity with the tone, relationship type, and number of participants.
         - Avoid clichés, repetition, or insensitive content.
         - Output a single valid JSON object with a top-level key 'cards' whose value is a list of 8 card items.
     
     Each card item should be a JSON object containing the following fields:
     {field_definitions}
+    
+    IMPORTANT: Make sure to include "card_type": "{card_type_id}" in each card.
     """
 
     # A simple user prompt to trigger generation

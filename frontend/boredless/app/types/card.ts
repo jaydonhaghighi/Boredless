@@ -10,18 +10,32 @@
 export interface Card {
   question: string;
   title: string;
-  followups: string[];
-  theme?: string;
-  interaction_type?: string;
-  mood?: string;
+  card_type?: string;
+  
+  // Deep Conversations specific fields
+  reflection?: string;
+  followups?: string[];
+  
+  // Fun Challenges specific fields
+  twist?: string;
+  
+  // Creative Prompts specific fields
+  bonus?: string;
+  
+  // Hot Takes specific fields
+  perspective1?: string;
+  perspective2?: string;
+  debate_twist?: string;
+  
+  // Personality Quizzes specific fields
+  group_vote?: string;
+  reveal?: string;
+  
+  // Filter metadata
+  topic?: string;
+  tone?: string;
   participants?: string;
   relationship?: string;
-  card_type?: string;
-  instructions?: string;
-  options?: string[];
-  stances?: string[];
-  action_prompt?: string;
-  correct_answer_index?: number;
 }
 
 /**
@@ -30,17 +44,31 @@ export interface Card {
 export type CardResponse = {
   question: string;
   title: string;
-  followups: string[];
+  card_type?: string;
   cards?: Card[];
-  theme?: string;
-  interaction_type?: string;
-  mood?: string;
+  
+  // Deep Conversations specific fields
+  reflection?: string;
+  followups?: string[];
+  
+  // Fun Challenges specific fields
+  twist?: string;
+  
+  // Creative Prompts specific fields
+  bonus?: string;
+  
+  // Hot Takes specific fields
+  perspective1?: string;
+  perspective2?: string;
+  debate_twist?: string;
+  
+  // Personality Quizzes specific fields
+  group_vote?: string;
+  reveal?: string;
+  
+  // Filter metadata
+  topic?: string;
+  tone?: string;
   participants?: string;
   relationship?: string;
-  card_type?: string;
-  instructions?: string;
-  options?: string[];
-  stances?: string[];
-  action_prompt?: string;
-  correct_answer_index?: number;
 } 
