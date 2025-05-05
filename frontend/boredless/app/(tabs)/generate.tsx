@@ -10,70 +10,15 @@ import { useBottomSheet } from '../context/BottomSheetContext';
 import { useGenerateContext } from './_layout';
 import { useBottomSheetVisibility } from './_layout';
 import { Card, CardResponse } from '../types/card';
-
-// Define filter options and their types
-const FILTER_OPTIONS = {
-  themes: [
-    "Casual Chat",
-    "Fun & Games",
-    "Career & Goals",
-    "Relationships & Dating",
-    "Family & Home",
-    "Personality & Self-discovery",
-    "Debates & Opinions",
-    "Learning & Education",
-    "Pop Culture & Entertainment",
-    "Philosophy & Big Questions",
-    "Creativity & Imagination"
-  ] as const,
-
-  interactionTypes: [
-    "Conversation Starters",
-    "Interactive Games",
-    "Quizzes",
-    "Friendly Debates",
-    "Icebreakers",
-    "Thought-provoking Questions"
-  ] as const,
-
-  moods: [
-    "Romantic",
-    "Playful",
-    "Friendly",
-    "Thoughtful",
-    "Reflective",
-    "Energetic",
-    "Serious",
-    "Calm",
-    "Humourous",
-    "Adventurous"
-  ] as const,
-
-  participants: [
-    "Solo",
-    "2",
-    "3-5",
-    "6+"
-  ] as const,
-
-  relationships: [
-    "Strangers",
-    "Aquaintances",
-    "Friends",
-    "Close Friends",
-    "Family",
-    "Romantic Partners",
-    "Coworkers",
-    "Mixed Group"
-  ] as const
-};
-
-// Define types based on the options
-type ConversationTheme = typeof FILTER_OPTIONS.themes[number];
-type InteractionType = typeof FILTER_OPTIONS.interactionTypes[number];
-type Mood = typeof FILTER_OPTIONS.moods[number];
-type Participants = typeof FILTER_OPTIONS.participants[number];
-type Relationship = typeof FILTER_OPTIONS.relationships[number];
+import { 
+  FILTER_OPTIONS, 
+  InteractionType, 
+  ConversationTheme, 
+  Mood, 
+  Participants, 
+  Relationship,
+  mapInteractionToCardType
+} from '../constants/cardTypes';
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
@@ -209,26 +154,6 @@ export default function GenerateScreen() {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
       return null;
-    }
-  };
-
-  // Helper function to map interaction type to card type
-  const mapInteractionToCardType = (interactionType: InteractionType): string => {
-    switch(interactionType) {
-      case "Conversation Starters":
-        return "conversation_starter";
-      case "Interactive Games":
-        return "interactive_game";
-      case "Quizzes":
-        return "quiz";
-      case "Friendly Debates":
-        return "debate";
-      case "Icebreakers":
-        return "icebreaker";
-      case "Thought-provoking Questions":
-        return "thought_provoking";
-      default:
-        return "conversation_starter";
     }
   };
 

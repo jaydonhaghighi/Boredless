@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Card } from './types/card';
 import { CardTitle, CardSection, CardMainContent, CardListItem } from './components/CardElements';
+import { INTERACTION_TYPE_MAPPING, mapInteractionToCardType } from './constants/cardTypes';
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
@@ -285,27 +286,8 @@ export default function PromptScreen() {
       } else if (promptInstructions && promptInstructions.includes("game") || promptInstructions?.includes("activity")) {
         cardType = 'interactive_game';
       } else if (interactionType) {
-        // Map interaction type to card type
-        switch (interactionType.toLowerCase()) {
-          case 'conversation starters':
-            cardType = 'conversation_starter';
-            break;
-          case 'interactive games':
-            cardType = 'interactive_game';
-            break;
-          case 'quizzes':
-            cardType = 'quiz';
-            break;
-          case 'friendly debates':
-            cardType = 'debate';
-            break;
-          case 'icebreakers':
-            cardType = 'icebreaker';
-            break;
-          case 'thought-provoking questions':
-            cardType = 'thought_provoking';
-            break;
-        }
+        // Use the shared mapInteractionToCardType function
+        cardType = mapInteractionToCardType(interactionType as keyof typeof INTERACTION_TYPE_MAPPING);
       }
       
       const card: Card = {
