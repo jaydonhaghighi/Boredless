@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from "react";
 import { Text, View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { AntDesign, Ionicons, FontAwesome5, Entypo } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -19,6 +18,8 @@ import {
   Relationship,
   mapInteractionToCardType
 } from '../constants/cardTypes';
+import { mapApiResponseToCards, FilterParams } from '../utils/cardUtils';
+import { useFontLoader } from '../hooks/useFontLoader';
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
@@ -67,89 +68,24 @@ export default function GenerateScreen() {
 
       console.log('API Response:', response.data);
 
-      // Check if we have a cards array from the new API format
-      if (response.data.cards && Array.isArray(response.data.cards) && response.data.cards.length > 0) {
-        // Map all cards to our format
-        const cards = response.data.cards.map((card: any) => {
-          // Make sure we properly extract the followups array
-          let followups = [];
-          if (card.followups && Array.isArray(card.followups)) {
-            followups = card.followups;
-          }
-          
-          return {
-            question: card.question || '',
-            title: card.title || selectedInteraction || 'Prompt',
-            followups: followups,
-            theme: selectedTheme || undefined,
-            interaction_type: selectedInteraction || undefined,
-            mood: selectedMood || undefined,
-            participants: selectedParticipants || undefined,
-            relationship: selectedRelationship || undefined,
-            card_type: card.card_type || (selectedInteraction ? mapInteractionToCardType(selectedInteraction) : undefined),
-            instructions: card.instructions || undefined,
-            options: card.options || undefined,
-            stances: card.stances || undefined,
-            action_prompt: card.action_prompt || undefined,
-            correct_answer_index: card.correct_answer_index || undefined
-          };
-        });
-        
-        // Return the first card as required by the interface, but include all cards directly
-        console.log('Returning mapped cards, total:', cards.length);
-        
-        // Include first card data + all cards array
-        return {
-          question: cards[0].question,
-          title: cards[0].title,
-          followups: cards[0].followups,
-          theme: selectedTheme || undefined,
-          interaction_type: selectedInteraction || undefined,
-          mood: selectedMood || undefined,
-          participants: selectedParticipants || undefined,
-          relationship: selectedRelationship || undefined,
-          card_type: cards[0].card_type,
-          instructions: cards[0].instructions,
-          options: cards[0].options,
-          stances: cards[0].stances,
-          action_prompt: cards[0].action_prompt,
-          correct_answer_index: cards[0].correct_answer_index,
-          cards: cards // Include all cards
-        };
+      // Use the utility function to map the response
+      const filters: FilterParams = {
+        theme: selectedTheme,
+        interaction_type: selectedInteraction,
+        mood: selectedMood,
+        participants: selectedParticipants,
+        relationship: selectedRelationship
+      };
+      
+      const result = mapApiResponseToCards(response.data, filters);
+      
+      if (result.cards && result.cards.length > 0) {
+        console.log('Processed cards, total:', result.cards.length);
       } else {
-        // Fallback for old format
-        const card_type = selectedInteraction ? mapInteractionToCardType(selectedInteraction) : 'conversation_starter';
-        
-        // Make sure we properly extract the followups array
-        let followups = [];
-        if (response.data.followups && Array.isArray(response.data.followups)) {
-          followups = response.data.followups;
-        }
-        
-        const result = {
-          question: response.data.question || '',
-          title: response.data.title || selectedInteraction || 'Prompt',
-          followups: followups,
-          theme: selectedTheme || undefined,
-          interaction_type: selectedInteraction || undefined,
-          mood: selectedMood || undefined,
-          participants: selectedParticipants || undefined,
-          relationship: selectedRelationship || undefined,
-          card_type: response.data.card_type || card_type,
-          instructions: response.data.instructions || undefined,
-          options: response.data.options || undefined,
-          stances: response.data.stances || undefined,
-          action_prompt: response.data.action_prompt || undefined,
-          correct_answer_index: response.data.correct_answer_index || undefined
-        };
-        console.log('Returning fallback data:', result);
-        
-        // Include as a single card array
-        return {
-          ...result,
-          cards: [result]
-        };
+        console.log('No cards found in the response');
       }
+      
+      return result;
     } catch (err) {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
@@ -188,16 +124,7 @@ export default function GenerateScreen() {
     setSelectedRelationship(null);
   };
 
-  const [fontsLoaded, fontError] = useFonts({
-    'Petrona-Bold': require('../../assets/fonts/Petrona-Bold.ttf'),
-    'Petrona-Regular': require('../../assets/fonts/Petrona-Regular.ttf'),
-  });
-
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
 
   if (!fontsLoaded && !fontError) {
     return null;

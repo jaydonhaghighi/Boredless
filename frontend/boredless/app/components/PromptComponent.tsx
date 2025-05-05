@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { 
@@ -13,10 +12,11 @@ import Animated, {
   runOnJS,
   interpolate,
   Extrapolation,
-  Easing
+  Easing 
 } from 'react-native-reanimated';
 import { Card } from '../types/card';
 import { CardTitle, CardSection, CardMainContent, CardListItem } from './CardElements';
+import { useFontLoader } from '../hooks/useFontLoader';
 
 // Screen dimensions for card animations
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -268,16 +268,11 @@ export default function PromptComponent({
   });
 
   // Font loading
-  const [fontsLoaded, fontError] = useFonts({
-    'Petrona-Bold': require('../../assets/fonts/Petrona-Bold.ttf'),
-    'Petrona-Regular': require('../../assets/fonts/Petrona-Regular.ttf'),
-  });
+  const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
 
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   // Determine what content to show based on card type
   const renderFrontContent = () => {
@@ -448,10 +443,6 @@ export default function PromptComponent({
         );
     }
   };
-
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>

@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import PromptComponent from '../components/PromptComponent';
 import { Card, CardResponse } from '../types/card';
+import { useFontLoader } from '../hooks/useFontLoader';
 
 // Create a context for sharing the generate function
 type GenerateContextType = {
@@ -310,8 +311,14 @@ export default function TabLayout() {
     }
   }, []);
 
+  const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
       <GenerateContextProvider>
         <BottomSheetProvider>
           <BottomSheetVisibilityContext.Provider
