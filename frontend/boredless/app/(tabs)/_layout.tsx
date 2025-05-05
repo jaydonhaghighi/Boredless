@@ -17,73 +17,12 @@ import Animated, {
   Easing 
 } from 'react-native-reanimated';
 import PromptComponent from '../components/PromptComponent';
+import { Card, CardResponse } from '../types/card';
 
 // Create a context for sharing the generate function
 type GenerateContextType = {
-  setGeneratePrompt: (fn: () => Promise<{
-    question: string;
-    title: string;
-    followups: string[];
-    cards?: Array<{
-      question: string;
-      title: string;
-      followups: string[];
-      theme?: string;
-      interaction_type?: string;
-      mood?: string;
-      participants?: string;
-      relationship?: string;
-      card_type?: string;
-      instructions?: string;
-      options?: string[];
-      stances?: string[];
-      action_prompt?: string;
-      correct_answer_index?: number;
-    }>;
-    theme?: string;
-    interaction_type?: string;
-    mood?: string;
-    participants?: string;
-    relationship?: string;
-    card_type?: string;
-    instructions?: string;
-    options?: string[];
-    stances?: string[];
-    action_prompt?: string;
-    correct_answer_index?: number;
-  } | null>) => void;
-  generatePrompt: () => Promise<{
-    question: string;
-    title: string;
-    followups: string[];
-    cards?: Array<{
-      question: string;
-      title: string;
-      followups: string[];
-      theme?: string;
-      interaction_type?: string;
-      mood?: string;
-      participants?: string;
-      relationship?: string;
-      card_type?: string;
-      instructions?: string;
-      options?: string[];
-      stances?: string[];
-      action_prompt?: string;
-      correct_answer_index?: number;
-    }>;
-    theme?: string;
-    interaction_type?: string;
-    mood?: string;
-    participants?: string;
-    relationship?: string;
-    card_type?: string;
-    instructions?: string;
-    options?: string[];
-    stances?: string[];
-    action_prompt?: string;
-    correct_answer_index?: number;
-  } | null>;
+  setGeneratePrompt: (fn: () => Promise<CardResponse | null>) => void;
+  generatePrompt: () => Promise<CardResponse | null>;
 };
 
 export const GenerateContext = createContext<GenerateContextType>({
@@ -96,71 +35,9 @@ export const useGenerateContext = () => useContext(GenerateContext);
 // Generate Context Provider
 const GenerateContextProvider = ({ children }: { children: React.ReactNode }) => {
   // We'll store the generatePrompt function here
-  const [generateFn, setGenerateFn] = useState<() => Promise<{
-    question: string;
-    title: string;
-    followups: string[];
-    cards?: Array<{
-      question: string;
-      title: string;
-      followups: string[];
-      theme?: string;
-      interaction_type?: string;
-      mood?: string;
-      participants?: string;
-      relationship?: string;
-      card_type?: string;
-      instructions?: string;
-      options?: string[];
-      stances?: string[];
-      action_prompt?: string;
-      correct_answer_index?: number;
-    }>;
-    theme?: string;
-    interaction_type?: string;
-    mood?: string;
-    participants?: string;
-    relationship?: string;
-    card_type?: string;
-    instructions?: string;
-    options?: string[];
-    stances?: string[];
-    action_prompt?: string;
-    correct_answer_index?: number;
-  } | null>>(async () => null);
+  const [generateFn, setGenerateFn] = useState<() => Promise<CardResponse | null>>(async () => null);
 
-  const setGeneratePrompt = (fn: () => Promise<{
-    question: string;
-    title: string;
-    followups: string[];
-    cards?: Array<{
-      question: string;
-      title: string;
-      followups: string[];
-      theme?: string;
-      interaction_type?: string;
-      mood?: string;
-      participants?: string;
-      relationship?: string;
-      card_type?: string;
-      instructions?: string;
-      options?: string[];
-      stances?: string[];
-      action_prompt?: string;
-      correct_answer_index?: number;
-    }>;
-    theme?: string;
-    interaction_type?: string;
-    mood?: string;
-    participants?: string;
-    relationship?: string;
-    card_type?: string;
-    instructions?: string;
-    options?: string[];
-    stances?: string[];
-    action_prompt?: string;
-    correct_answer_index?: number;
-  } | null>) => {
+  const setGeneratePrompt = (fn: () => Promise<CardResponse | null>) => {
     setGenerateFn(() => fn);
   };
 

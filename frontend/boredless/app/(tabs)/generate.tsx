@@ -9,6 +9,7 @@ import axios from 'axios';
 import { useBottomSheet } from '../context/BottomSheetContext';
 import { useGenerateContext } from './_layout';
 import { useBottomSheetVisibility } from './_layout';
+import { Card, CardResponse } from '../types/card';
 
 // Define filter options and their types
 const FILTER_OPTIONS = {
@@ -101,38 +102,7 @@ export default function GenerateScreen() {
   }, [selectedTheme, selectedInteraction, selectedMood, selectedParticipants, selectedRelationship]);
 
   // Define the generate prompt function
-  const generatePrompt = async (): Promise<{
-    question: string;
-    title: string;
-    followups: string[];
-    cards?: Array<{
-      question: string;
-      title: string;
-      followups: string[];
-      theme?: string;
-      interaction_type?: string;
-      mood?: string;
-      participants?: string;
-      relationship?: string;
-      card_type?: string;
-      instructions?: string;
-      options?: string[];
-      stances?: string[];
-      action_prompt?: string;
-      correct_answer_index?: number;
-    }>;
-    theme?: string;
-    interaction_type?: string;
-    mood?: string;
-    participants?: string;
-    relationship?: string;
-    card_type?: string;
-    instructions?: string;
-    options?: string[];
-    stances?: string[];
-    action_prompt?: string;
-    correct_answer_index?: number;
-  } | null> => {
+  const generatePrompt = async (): Promise<CardResponse | null> => {
     console.log('Generating prompt with filters:', {
       theme: selectedTheme,
       interaction_type: selectedInteraction,

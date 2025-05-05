@@ -15,6 +15,7 @@ import Animated, {
   Extrapolation,
   Easing
 } from 'react-native-reanimated';
+import { Card } from '../types/card';
 
 // Screen dimensions for card animations
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -22,22 +23,7 @@ const CARD_ROTATION_ANGLE = 60;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 
 interface PromptComponentProps {
-  cards: {
-    question: string;
-    title: string;
-    followups: string[];
-    theme?: string;
-    interaction_type?: string;
-    mood?: string;
-    participants?: string;
-    relationship?: string;
-    card_type?: string;
-    instructions?: string;
-    options?: string[];
-    stances?: string[];
-    action_prompt?: string;
-    correct_answer_index?: number;
-  }[];
+  cards: Card[];
   currentCardIndex: number;
   onClose: () => void;
   onChangeCard?: (newIndex: number) => void;

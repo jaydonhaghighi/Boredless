@@ -46,3 +46,24 @@ venv/
 
 # Project specific
 frontend/boredless/.git/
+taskmaster/.roomodes
+taskmaster/.taskmasterconfig
+taskmaster/.windsurfrules
+taskmaster/.cursor/mcp.json
+taskmaster/.cursor/rules/cursor_rules.mdc
+taskmaster/.cursor/rules/dev_workflow.mdc
+taskmaster/.cursor/rules/self_improve.mdc
+taskmaster/.cursor/rules/taskmaster.mdc
+taskmaster/.roo/rules/dev_workflow.md
+taskmaster/.roo/rules/roo_rules.md
+taskmaster/.roo/rules/self_improve.md
+taskmaster/.roo/rules/taskmaster.md
+taskmaster/.roo/rules-architect/architect-rules
+taskmaster/.roo/rules-ask/ask-rules
+taskmaster/.roo/rules-boomerang/boomerang-rules
+taskmaster/.roo/rules-code/code-rules
+taskmaster/.roo/rules-debug/debug-rules
+taskmaster/.roo/rules-test/test-rules
+taskmaster/scripts/example_prd.txt
+taskmaster/scripts/PRD.txt
+taskmaster/scripts/task-complexity-report.json

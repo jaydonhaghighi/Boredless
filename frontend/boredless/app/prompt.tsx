@@ -16,6 +16,7 @@ import Animated, {
   interpolate,
   Extrapolation
 } from 'react-native-reanimated';
+import { Card } from './types/card';
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
@@ -26,17 +27,17 @@ const CARD_ROTATION_ANGLE = 60;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 
 // Define types for the card data structure
-interface Card {
-  card_type: string;
-  title?: string;
-  instructions?: string;
-  question?: string;
-  options?: string[];
-  stances?: string[];
-  followups?: string[];
-  action_prompt?: string;
-  correct_answer_index?: number;
-}
+// interface Card {
+//   card_type: string;
+//   title?: string;
+//   instructions?: string;
+//   question?: string;
+//   options?: string[];
+//   stances?: string[];
+//   followups?: string[];
+//   action_prompt?: string;
+//   correct_answer_index?: number;
+// }
 
 export default function PromptScreen() {
   const router = useRouter();
