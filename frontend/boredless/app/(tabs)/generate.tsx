@@ -6,6 +6,9 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import { useBottomSheet } from '../context/BottomSheetContext';
+import { useGenerateContext } from './_layout';
+import { useBottomSheetVisibility } from './_layout';
 
 // Define filter options and their types
 const FILTER_OPTIONS = {
@@ -74,8 +77,15 @@ type Relationship = typeof FILTER_OPTIONS.relationships[number];
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
 
+// Remove the function to get the generated cards
+// export const getGeneratedCards = () => {
+//   return generatedCards;
+// };
+
 export default function GenerateScreen() {
   const router = useRouter();
+  const { setGeneratePrompt } = useGenerateContext();
+  const { showBottomSheet, setIsGenerating, isGenerating } = useBottomSheetVisibility();
 
   // Filter states
   const [selectedTheme, setSelectedTheme] = useState<ConversationTheme | null>(null);
@@ -84,11 +94,52 @@ export default function GenerateScreen() {
   const [selectedParticipants, setSelectedParticipants] = useState<Participants | null>(null);
   const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
 
-  // Loading state
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Register our generate function with the context
+  useEffect(() => {
+    console.log('Setting up generatePrompt function');
+    setGeneratePrompt(generatePrompt);
+  }, [selectedTheme, selectedInteraction, selectedMood, selectedParticipants, selectedRelationship]);
 
-  const generatePrompt = async () => {
-    setIsLoading(true);
+  // Define the generate prompt function
+  const generatePrompt = async (): Promise<{
+    question: string;
+    title: string;
+    followups: string[];
+    cards?: Array<{
+      question: string;
+      title: string;
+      followups: string[];
+      theme?: string;
+      interaction_type?: string;
+      mood?: string;
+      participants?: string;
+      relationship?: string;
+      card_type?: string;
+      instructions?: string;
+      options?: string[];
+      stances?: string[];
+      action_prompt?: string;
+      correct_answer_index?: number;
+    }>;
+    theme?: string;
+    interaction_type?: string;
+    mood?: string;
+    participants?: string;
+    relationship?: string;
+    card_type?: string;
+    instructions?: string;
+    options?: string[];
+    stances?: string[];
+    action_prompt?: string;
+    correct_answer_index?: number;
+  } | null> => {
+    console.log('Generating prompt with filters:', {
+      theme: selectedTheme,
+      interaction_type: selectedInteraction,
+      mood: selectedMood,
+      participants: selectedParticipants,
+      relationship: selectedRelationship
+    });
 
     try {
       const response = await axios.post(`${API_BASE_URL}/generator/`, {
@@ -99,59 +150,139 @@ export default function GenerateScreen() {
         relationship: selectedRelationship
       });
 
+      console.log('API Response:', response.data);
+
       // Check if we have a cards array from the new API format
       if (response.data.cards && Array.isArray(response.data.cards) && response.data.cards.length > 0) {
-        // Take the first card from the array
-        const card = response.data.cards[0];
-        
-        // Navigate to the prompt screen with all parameters
-        router.push({
-          pathname: '/prompt',
-          params: {
-            // Pass the cards data as JSON
-            cards: JSON.stringify(response.data.cards),
-            // Pass the first card's data directly
-            prompt: card.question || '',
-            title: card.title || selectedInteraction || 'Prompt',
-            followups: JSON.stringify(card.followups || []),
-            instructions: card.instructions || '',
-            options: JSON.stringify(card.options || []),
-            stances: JSON.stringify(card.stances || []),
-            // Also pass the original filter parameters
-            theme: selectedTheme,
-            interaction_type: selectedInteraction,
-            mood: selectedMood,
-            participants: selectedParticipants,
-            relationship: selectedRelationship
+        // Map all cards to our format
+        const cards = response.data.cards.map((card: any) => {
+          // Make sure we properly extract the followups array
+          let followups = [];
+          if (card.followups && Array.isArray(card.followups)) {
+            followups = card.followups;
           }
+          
+          return {
+            question: card.question || '',
+            title: card.title || selectedInteraction || 'Prompt',
+            followups: followups,
+            theme: selectedTheme || undefined,
+            interaction_type: selectedInteraction || undefined,
+            mood: selectedMood || undefined,
+            participants: selectedParticipants || undefined,
+            relationship: selectedRelationship || undefined,
+            card_type: card.card_type || (selectedInteraction ? mapInteractionToCardType(selectedInteraction) : undefined),
+            instructions: card.instructions || undefined,
+            options: card.options || undefined,
+            stances: card.stances || undefined,
+            action_prompt: card.action_prompt || undefined,
+            correct_answer_index: card.correct_answer_index || undefined
+          };
         });
+        
+        // Return the first card as required by the interface, but include all cards directly
+        console.log('Returning mapped cards, total:', cards.length);
+        
+        // Include first card data + all cards array
+        return {
+          question: cards[0].question,
+          title: cards[0].title,
+          followups: cards[0].followups,
+          theme: selectedTheme || undefined,
+          interaction_type: selectedInteraction || undefined,
+          mood: selectedMood || undefined,
+          participants: selectedParticipants || undefined,
+          relationship: selectedRelationship || undefined,
+          card_type: cards[0].card_type,
+          instructions: cards[0].instructions,
+          options: cards[0].options,
+          stances: cards[0].stances,
+          action_prompt: cards[0].action_prompt,
+          correct_answer_index: cards[0].correct_answer_index,
+          cards: cards // Include all cards
+        };
       } else {
         // Fallback for old format
-      router.push({
-        pathname: '/prompt',
-        params: {
-            prompt: response.data.question || '',
-            title: response.data.title || selectedInteraction || 'Prompt',
-            followups: JSON.stringify(response.data.followups || []),
-            theme: selectedTheme,
-            interaction_type: selectedInteraction,
-            mood: selectedMood,
-            participants: selectedParticipants,
-            relationship: selectedRelationship
+        const card_type = selectedInteraction ? mapInteractionToCardType(selectedInteraction) : 'conversation_starter';
+        
+        // Make sure we properly extract the followups array
+        let followups = [];
+        if (response.data.followups && Array.isArray(response.data.followups)) {
+          followups = response.data.followups;
         }
-      });
+        
+        const result = {
+          question: response.data.question || '',
+          title: response.data.title || selectedInteraction || 'Prompt',
+          followups: followups,
+          theme: selectedTheme || undefined,
+          interaction_type: selectedInteraction || undefined,
+          mood: selectedMood || undefined,
+          participants: selectedParticipants || undefined,
+          relationship: selectedRelationship || undefined,
+          card_type: response.data.card_type || card_type,
+          instructions: response.data.instructions || undefined,
+          options: response.data.options || undefined,
+          stances: response.data.stances || undefined,
+          action_prompt: response.data.action_prompt || undefined,
+          correct_answer_index: response.data.correct_answer_index || undefined
+        };
+        console.log('Returning fallback data:', result);
+        
+        // Include as a single card array
+        return {
+          ...result,
+          cards: [result]
+        };
       }
     } catch (err) {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
-    } finally {
-      setIsLoading(false);
+      return null;
     }
   };
 
-  const applyFilters = () => {
-    // Generate prompt with selected filters
-    generatePrompt();
+  // Helper function to map interaction type to card type
+  const mapInteractionToCardType = (interactionType: InteractionType): string => {
+    switch(interactionType) {
+      case "Conversation Starters":
+        return "conversation_starter";
+      case "Interactive Games":
+        return "interactive_game";
+      case "Quizzes":
+        return "quiz";
+      case "Friendly Debates":
+        return "debate";
+      case "Icebreakers":
+        return "icebreaker";
+      case "Thought-provoking Questions":
+        return "thought_provoking";
+      default:
+        return "conversation_starter";
+    }
+  };
+
+  // Open the bottom sheet and immediately generate the prompt when the Generate button is pressed
+  const applyFilters = async () => {
+    setIsGenerating(true);
+    showBottomSheet();
+    
+    try {
+      // We're calling generatePrompt directly here instead of in the bottom sheet
+      console.log('Generating prompt with filters...');
+      const result = await generatePrompt();
+      
+      if (!result) {
+        console.error('Failed to generate prompt');
+        Alert.alert('Error', 'Failed to generate prompt. Please try again.');
+        setIsGenerating(false); // Only set to false here if there's no result
+      }
+    } catch (error) {
+      console.error('Error generating prompt:', error);
+      Alert.alert('Error', 'Failed to generate prompt. Please try again.');
+      setIsGenerating(false); // Only set to false here if there's an error
+    }
+    // We don't set isGenerating to false on success - that will be handled in the bottom sheet component
   };
 
   const resetFilters = () => {
@@ -274,11 +405,11 @@ export default function GenerateScreen() {
           </View>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.generateButton, isLoading && styles.disabledButton]}
+              style={[styles.generateButton, isGenerating && styles.disabledButton]}
               onPress={applyFilters}
-              disabled={isLoading}
+              disabled={isGenerating}
             >
-              {isLoading ? (
+              {isGenerating ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
@@ -292,7 +423,7 @@ export default function GenerateScreen() {
           <TouchableOpacity
             style={styles.resetButton}
             onPress={resetFilters}
-            disabled={isLoading}
+            disabled={isGenerating}
           >
             <Text style={styles.resetButtonText}>Reset</Text>
           </TouchableOpacity>
