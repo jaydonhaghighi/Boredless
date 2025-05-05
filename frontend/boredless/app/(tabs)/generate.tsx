@@ -45,13 +45,21 @@ export default function GenerateScreen() {
   // Update filter options when card type changes
   useEffect(() => {
     // Reset all filter values when card type changes
-    if (!selectedCardType) {
-      setSelectedTopic(null);
-      setSelectedTone(null);
-      setSelectedParticipants(null);
+    setSelectedTopic(null);
+    setSelectedTone(null);
+    setSelectedParticipants(null);
+    setSelectedRelationship(null);
+  }, [selectedCardType]);
+
+  // Update relationship based on participant count
+  useEffect(() => {
+    if (selectedParticipants === "Solo") {
+      setSelectedRelationship("Self");
+    } else if (selectedRelationship === "Self") {
+      // Reset relationship if it was "Self" and participant count is no longer "Solo"
       setSelectedRelationship(null);
     }
-  }, [selectedCardType]);
+  }, [selectedParticipants]);
 
   // Register our generate function with the context
   useEffect(() => {
@@ -172,7 +180,14 @@ export default function GenerateScreen() {
 
   const getRelationships = (): Relationship[] => {
     if (!selectedCardType) return [];
-    return [...CARD_TYPES[selectedCardType].relationships];
+    
+    // If "Solo" is selected as the participant count, only show "Self" as relationship option
+    if (selectedParticipants === "Solo") {
+      return ["Self"];
+    }
+    
+    // Filter out "Self" from relationships when participant count is not "Solo"
+    return [...CARD_TYPES[selectedCardType].relationships].filter(rel => rel !== "Self");
   };
 
   // Check if other filters should be shown (only if card type is selected)
@@ -197,7 +212,16 @@ export default function GenerateScreen() {
                 <TouchableOpacity
                   key={type}
                   style={[styles.filterButton, selectedCardType === type && styles.selectedFilterButton]}
-                  onPress={() => setSelectedCardType(selectedCardType === type ? null : type)}
+                  onPress={() => {
+                    // If user clicks the currently selected card type, deselect it
+                    if (selectedCardType === type) {
+                      setSelectedCardType(null);
+                    } else {
+                      // If user selects a different card type, update it
+                      // (filters will be reset by the useEffect)
+                      setSelectedCardType(type);
+                    }
+                  }}
                 >
                   <Text style={[styles.filterButtonText, selectedCardType === type && styles.selectedFilterButtonText]}>
                     {type}
@@ -267,15 +291,32 @@ export default function GenerateScreen() {
                   {getRelationships().map((rel) => (
                     <TouchableOpacity
                       key={rel}
-                      style={[styles.filterButton, selectedRelationship === rel && styles.selectedFilterButton]}
-                      onPress={() => setSelectedRelationship(selectedRelationship === rel ? null : rel)}
+                      style={[
+                        styles.filterButton, 
+                        selectedRelationship === rel && styles.selectedFilterButton,
+                        selectedParticipants === "Solo" && styles.disabledButton
+                      ]}
+                      onPress={() => {
+                        if (selectedParticipants !== "Solo") {
+                          setSelectedRelationship(selectedRelationship === rel ? null : rel);
+                        }
+                      }}
+                      disabled={selectedParticipants === "Solo"}
                     >
-                      <Text style={[styles.filterButtonText, selectedRelationship === rel && styles.selectedFilterButtonText]}>
+                      <Text style={[
+                        styles.filterButtonText, 
+                        selectedRelationship === rel && styles.selectedFilterButtonText
+                      ]}>
                         {rel}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+                {selectedParticipants === "Solo" && (
+                  <Text style={styles.helperText}>
+                    When Solo is selected, relationship is set to Self
+                  </Text>
+                )}
               </View>
             </>
           )}
@@ -452,5 +493,11 @@ const styles = StyleSheet.create({
     color: '#5F5F5F',
     fontSize: 14,
     textAlign: 'center',
+  },
+  helperText: {
+    color: '#5F5F5F',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

@@ -14,8 +14,8 @@ export const CARD_TYPES = {
     },
     topics: ["Relationships & Dating", "Personality & Self-discovery", "Family & Home", "Philosophy & Big Questions"],
     tones: ["Thoughtful", "Reflective", "Romantic", "Calm", "Serious"],
-    participants: ["2", "3-5", "Solo"],
-    relationships: ["Close Friends", "Romantic Partners", "Friends", "Family"]
+    participants: ["Solo", "2", "3-5"],
+    relationships: ["Self", "Close Friends", "Romantic Partners", "Friends", "Family"]
   },
   "Fun Challenges": {
     id: "fun_challenges",
@@ -25,7 +25,7 @@ export const CARD_TYPES = {
     },
     topics: ["Pop Culture & Entertainment", "Casual Chat", "Creativity & Imagination"],
     tones: ["Playful", "Humourous", "Energetic"],
-    participants: ["3-5", "6+"],
+    participants: ["2", "3-5", "6+"],
     relationships: ["Friends", "Aquaintances", "Mixed Group"]
   },
   "Creative Prompts": {
@@ -37,7 +37,7 @@ export const CARD_TYPES = {
     topics: ["Creativity & Imagination", "Personality & Self-discovery", "Pop Culture & Entertainment", "Casual Chat"],
     tones: ["Playful", "Friendly"],
     participants: ["Solo", "2", "3-5"],
-    relationships: ["Friends", "Aquaintances", "Mixed Group"]
+    relationships: ["Self", "Friends", "Aquaintances", "Mixed Group"]
   },
   "Light Conversation": {
     id: "light_conversation",
@@ -58,7 +58,7 @@ export const CARD_TYPES = {
     },
     topics: ["Pop Culture & Entertainment", "Philosophy & Big Questions", "Debates & Opinions", "Learning & Education"],
     tones: ["Serious", "Humourous"],
-    participants: ["3-5", "6+"],
+    participants: ["2", "3-5", "6+"],
     relationships: ["Friends", "Aquaintances", "Mixed Group"]
   },
   "Personality Quizzes": {
@@ -69,7 +69,7 @@ export const CARD_TYPES = {
     },
     topics: ["Personality & Self-discovery", "Pop Culture & Entertainment", "Creativity & Imagination"],
     tones: ["Playful", "Friendly"],
-    participants: ["3-5", "6+"],
+    participants: ["2", "3-5", "6+"],
     relationships: ["Friends", "Aquaintances", "Close Friends"]
   }
 } as const;
@@ -124,6 +124,7 @@ export const FILTER_OPTIONS = {
   ] as const,
 
   relationships: [
+    "Self",
     "Strangers",
     "Aquaintances",
     "Friends",

@@ -146,7 +146,7 @@ CARD_TYPE_FILTER_MAPPINGS = {
         "topics": ["Relationships & Dating", "Personality & Self-discovery", "Family & Home", "Philosophy & Big Questions"],
         "tones": ["Thoughtful", "Reflective", "Romantic", "Calm", "Serious"],
         "participants": ["2", "3-5", "Solo"],
-        "relationships": ["Close Friends", "Romantic Partners", "Friends", "Family"]
+        "relationships": ["Self", "Close Friends", "Romantic Partners", "Friends", "Family"]
     },
     "Fun Challenges": {
         "topics": ["Pop Culture & Entertainment", "Casual Chat", "Creativity & Imagination"],
@@ -158,7 +158,7 @@ CARD_TYPE_FILTER_MAPPINGS = {
         "topics": ["Creativity & Imagination", "Personality & Self-discovery", "Pop Culture & Entertainment", "Casual Chat"],
         "tones": ["Playful", "Friendly"],
         "participants": ["Solo", "2", "3-5"],
-        "relationships": ["Friends", "Aquaintances", "Mixed Group"]
+        "relationships": ["Self", "Friends", "Aquaintances", "Mixed Group"]
     },
     "Light Conversation": {
         "topics": ["Casual Chat", "Pop Culture & Entertainment", "Career & Goals", "Learning & Education"],
