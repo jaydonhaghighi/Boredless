@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert } from 'react-native';
+import BottomSheet, { BottomSheetView, BottomSheetBackgroundProps } from "@gorhom/bottom-sheet";
 import { useRouter } from 'expo-router';
 import Animated, { 
   useSharedValue,
@@ -174,8 +174,8 @@ export const TabBottomSheet = () => {
       enablePanDownToClose={false}
       index={0}
       backdropComponent={CustomBackdrop}
-      backgroundComponent={({ style }) => (
-        <Animated.View style={[style, animatedBackgroundStyle]} />
+      backgroundComponent={(props: BottomSheetBackgroundProps) => (
+        <Animated.View style={[props.style, animatedBackgroundStyle]} />
       )}
       handleStyle={styles.sheetHandleStyle}
       bottomInset={TAB_BAR_HEIGHT}
@@ -184,7 +184,7 @@ export const TabBottomSheet = () => {
         <View style={styles.customHandleContainer}>
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
             {cards.length > 0 ? (
-              <TouchableOpacity style={styles.bottomSheetButton} onPress={() => {
+              <TouchableWithoutFeedback style={styles.bottomSheetButton} onPress={() => {
                 if (bottomSheetRef.current && cards.length > 0) {
                   bottomSheetRef.current.snapToIndex(1);
                 }
@@ -204,7 +204,7 @@ export const TabBottomSheet = () => {
                     </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </TouchableWithoutFeedback>
             ) : (
               <View style={styles.emptyContainer}/>
             )}
@@ -239,7 +239,7 @@ export const TabBottomSheet = () => {
         ) : (
           <View style={styles.emptyContentContainer}>
             <Text style={styles.emptyContentText}>
-              Use the Generate button to create conversation prompts
+              Use the generate button to create conversation decks
             </Text>
           </View>
         )}

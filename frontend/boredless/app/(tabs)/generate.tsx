@@ -344,8 +344,7 @@ export default function GenerateScreen() {
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Ionicons name="sparkles-outline" size={16} color="#FFFFFF" style={styles.buttonIcon} />
-                  <Text style={styles.generateButtonText}>Generate</Text>
+                  <Text style={styles.generateButtonText}>Create Deck</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -498,6 +497,6 @@ const styles = StyleSheet.create({
     color: '#5F5F5F',
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 16,
   },
 });
