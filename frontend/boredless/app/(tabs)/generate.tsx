@@ -2,77 +2,25 @@ import { useState, useCallback, useEffect } from "react";
 import { Text, View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { AntDesign, Ionicons, FontAwesome5, Entypo } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { useBottomSheet } from '../context/BottomSheetContext';
 import { useGenerateContext } from './_layout';
 import { useBottomSheetVisibility } from './_layout';
-
-// Define filter options and their types
-const FILTER_OPTIONS = {
-  themes: [
-    "Casual Chat",
-    "Fun & Games",
-    "Career & Goals",
-    "Relationships & Dating",
-    "Family & Home",
-    "Personality & Self-discovery",
-    "Debates & Opinions",
-    "Learning & Education",
-    "Pop Culture & Entertainment",
-    "Philosophy & Big Questions",
-    "Creativity & Imagination"
-  ] as const,
-
-  interactionTypes: [
-    "Conversation Starters",
-    "Interactive Games",
-    "Quizzes",
-    "Friendly Debates",
-    "Icebreakers",
-    "Thought-provoking Questions"
-  ] as const,
-
-  moods: [
-    "Romantic",
-    "Playful",
-    "Friendly",
-    "Thoughtful",
-    "Reflective",
-    "Energetic",
-    "Serious",
-    "Calm",
-    "Humourous",
-    "Adventurous"
-  ] as const,
-
-  participants: [
-    "Solo",
-    "2",
-    "3-5",
-    "6+"
-  ] as const,
-
-  relationships: [
-    "Strangers",
-    "Aquaintances",
-    "Friends",
-    "Close Friends",
-    "Family",
-    "Romantic Partners",
-    "Coworkers",
-    "Mixed Group"
-  ] as const
-};
-
-// Define types based on the options
-type ConversationTheme = typeof FILTER_OPTIONS.themes[number];
-type InteractionType = typeof FILTER_OPTIONS.interactionTypes[number];
-type Mood = typeof FILTER_OPTIONS.moods[number];
-type Participants = typeof FILTER_OPTIONS.participants[number];
-type Relationship = typeof FILTER_OPTIONS.relationships[number];
+import { Card, CardResponse } from '../types/card';
+import { 
+  FILTER_OPTIONS, 
+  CARD_TYPES,
+  CardTypeName, 
+  Topic, 
+  Tone, 
+  Participants, 
+  Relationship,
+  mapCardTypeToId
+} from '../constants/cardTypes';
+import { mapApiResponseToCards, FilterParams } from '../utils/cardUtils';
+import { useFontLoader } from '../hooks/useFontLoader';
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
@@ -88,153 +36,82 @@ export default function GenerateScreen() {
   const { showBottomSheet, setIsGenerating, isGenerating } = useBottomSheetVisibility();
 
   // Filter states
-  const [selectedTheme, setSelectedTheme] = useState<ConversationTheme | null>(null);
-  const [selectedInteraction, setSelectedInteraction] = useState<InteractionType | null>(null);
-  const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [selectedCardType, setSelectedCardType] = useState<CardTypeName | null>(null);
+  const [selectedTone, setSelectedTone] = useState<Tone | null>(null);
   const [selectedParticipants, setSelectedParticipants] = useState<Participants | null>(null);
   const [selectedRelationship, setSelectedRelationship] = useState<Relationship | null>(null);
+
+  // Update filter options when card type changes
+  useEffect(() => {
+    // Reset all filter values when card type changes
+    setSelectedTopic(null);
+    setSelectedTone(null);
+    setSelectedParticipants(null);
+    setSelectedRelationship(null);
+  }, [selectedCardType]);
+
+  // Update relationship based on participant count
+  useEffect(() => {
+    if (selectedParticipants === "Solo") {
+      setSelectedRelationship("Self");
+    } else if (selectedRelationship === "Self") {
+      // Reset relationship if it was "Self" and participant count is no longer "Solo"
+      setSelectedRelationship(null);
+    }
+  }, [selectedParticipants]);
 
   // Register our generate function with the context
   useEffect(() => {
     console.log('Setting up generatePrompt function');
     setGeneratePrompt(generatePrompt);
-  }, [selectedTheme, selectedInteraction, selectedMood, selectedParticipants, selectedRelationship]);
+  }, [selectedTopic, selectedCardType, selectedTone, selectedParticipants, selectedRelationship]);
 
   // Define the generate prompt function
-  const generatePrompt = async (): Promise<{
-    question: string;
-    title: string;
-    followups: string[];
-    cards?: Array<{
-      question: string;
-      title: string;
-      followups: string[];
-      theme?: string;
-      interaction_type?: string;
-      mood?: string;
-      participants?: string;
-      relationship?: string;
-      card_type?: string;
-      instructions?: string;
-      options?: string[];
-      stances?: string[];
-      action_prompt?: string;
-      correct_answer_index?: number;
-    }>;
-    theme?: string;
-    interaction_type?: string;
-    mood?: string;
-    participants?: string;
-    relationship?: string;
-    card_type?: string;
-    instructions?: string;
-    options?: string[];
-    stances?: string[];
-    action_prompt?: string;
-    correct_answer_index?: number;
-  } | null> => {
+  const generatePrompt = async (): Promise<CardResponse | null> => {
+    // Ensure card type is selected before allowing generation
+    if (!selectedCardType) {
+      Alert.alert('Card Type Required', 'Please select a card type before generating prompts.');
+      return null;
+    }
+    
     console.log('Generating prompt with filters:', {
-      theme: selectedTheme,
-      interaction_type: selectedInteraction,
-      mood: selectedMood,
+      topic: selectedTopic,
+      card_type: selectedCardType,
+      tone: selectedTone,
       participants: selectedParticipants,
       relationship: selectedRelationship
     });
 
     try {
       const response = await axios.post(`${API_BASE_URL}/generator/`, {
-        theme: selectedTheme,
-        interaction_type: selectedInteraction,
-        mood: selectedMood,
+        topic: selectedTopic,
+        card_type: selectedCardType,
+        tone: selectedTone,
         participants: selectedParticipants,
         relationship: selectedRelationship
       });
 
       console.log('API Response:', response.data);
 
-      // Check if we have a cards array from the new API format
-      if (response.data.cards && Array.isArray(response.data.cards) && response.data.cards.length > 0) {
-        // Map all cards to our format
-        const cards = response.data.cards.map((card: any) => {
-          // Make sure we properly extract the followups array
-          let followups = [];
-          if (card.followups && Array.isArray(card.followups)) {
-            followups = card.followups;
-          }
-          
-          return {
-            question: card.question || '',
-            title: card.title || selectedInteraction || 'Prompt',
-            followups: followups,
-            theme: selectedTheme || undefined,
-            interaction_type: selectedInteraction || undefined,
-            mood: selectedMood || undefined,
-            participants: selectedParticipants || undefined,
-            relationship: selectedRelationship || undefined,
-            card_type: card.card_type || (selectedInteraction ? mapInteractionToCardType(selectedInteraction) : undefined),
-            instructions: card.instructions || undefined,
-            options: card.options || undefined,
-            stances: card.stances || undefined,
-            action_prompt: card.action_prompt || undefined,
-            correct_answer_index: card.correct_answer_index || undefined
-          };
-        });
-        
-        // Return the first card as required by the interface, but include all cards directly
-        console.log('Returning mapped cards, total:', cards.length);
-        
-        // Include first card data + all cards array
-        return {
-          question: cards[0].question,
-          title: cards[0].title,
-          followups: cards[0].followups,
-          theme: selectedTheme || undefined,
-          interaction_type: selectedInteraction || undefined,
-          mood: selectedMood || undefined,
-          participants: selectedParticipants || undefined,
-          relationship: selectedRelationship || undefined,
-          card_type: cards[0].card_type,
-          instructions: cards[0].instructions,
-          options: cards[0].options,
-          stances: cards[0].stances,
-          action_prompt: cards[0].action_prompt,
-          correct_answer_index: cards[0].correct_answer_index,
-          cards: cards // Include all cards
-        };
+      // Use the utility function to map the response
+      const filters: FilterParams = {
+        topic: selectedTopic,
+        card_type: selectedCardType,
+        tone: selectedTone,
+        participants: selectedParticipants,
+        relationship: selectedRelationship
+      };
+      
+      const result = mapApiResponseToCards(response.data, filters);
+      
+      if (result.cards && result.cards.length > 0) {
+        console.log('Processed cards, total:', result.cards.length);
       } else {
-        // Fallback for old format
-        const card_type = selectedInteraction ? mapInteractionToCardType(selectedInteraction) : 'conversation_starter';
-        
-        // Make sure we properly extract the followups array
-        let followups = [];
-        if (response.data.followups && Array.isArray(response.data.followups)) {
-          followups = response.data.followups;
-        }
-        
-        const result = {
-          question: response.data.question || '',
-          title: response.data.title || selectedInteraction || 'Prompt',
-          followups: followups,
-          theme: selectedTheme || undefined,
-          interaction_type: selectedInteraction || undefined,
-          mood: selectedMood || undefined,
-          participants: selectedParticipants || undefined,
-          relationship: selectedRelationship || undefined,
-          card_type: response.data.card_type || card_type,
-          instructions: response.data.instructions || undefined,
-          options: response.data.options || undefined,
-          stances: response.data.stances || undefined,
-          action_prompt: response.data.action_prompt || undefined,
-          correct_answer_index: response.data.correct_answer_index || undefined
-        };
-        console.log('Returning fallback data:', result);
-        
-        // Include as a single card array
-        return {
-          ...result,
-          cards: [result]
-        };
+        console.log('No cards found in the response');
       }
+      
+      return result;
     } catch (err) {
       console.error('Error generating prompt:', err);
       Alert.alert('Error', 'Failed to generate prompt. Please try again.');
@@ -242,28 +119,14 @@ export default function GenerateScreen() {
     }
   };
 
-  // Helper function to map interaction type to card type
-  const mapInteractionToCardType = (interactionType: InteractionType): string => {
-    switch(interactionType) {
-      case "Conversation Starters":
-        return "conversation_starter";
-      case "Interactive Games":
-        return "interactive_game";
-      case "Quizzes":
-        return "quiz";
-      case "Friendly Debates":
-        return "debate";
-      case "Icebreakers":
-        return "icebreaker";
-      case "Thought-provoking Questions":
-        return "thought_provoking";
-      default:
-        return "conversation_starter";
-    }
-  };
-
   // Open the bottom sheet and immediately generate the prompt when the Generate button is pressed
   const applyFilters = async () => {
+    // Ensure card type is selected
+    if (!selectedCardType) {
+      Alert.alert('Card Type Required', 'Please select a card type before generating prompts.');
+      return;
+    }
+    
     setIsGenerating(true);
     showBottomSheet();
     
@@ -286,27 +149,49 @@ export default function GenerateScreen() {
   };
 
   const resetFilters = () => {
-    setSelectedTheme(null);
-    setSelectedInteraction(null);
-    setSelectedMood(null);
+    setSelectedTopic(null);
+    setSelectedCardType(null);
+    setSelectedTone(null);
     setSelectedParticipants(null);
     setSelectedRelationship(null);
   };
 
-  const [fontsLoaded, fontError] = useFonts({
-    'Petrona-Bold': require('../../assets/fonts/Petrona-Bold.ttf'),
-    'Petrona-Regular': require('../../assets/fonts/Petrona-Regular.ttf'),
-  });
-
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
 
   if (!fontsLoaded && !fontError) {
     return null;
   }
+
+  // Get only the filter options that are recommended for the selected card type
+  const getTopics = (): Topic[] => {
+    if (!selectedCardType) return [];
+    return [...CARD_TYPES[selectedCardType].topics];
+  };
+
+  const getTones = (): Tone[] => {
+    if (!selectedCardType) return [];
+    return [...CARD_TYPES[selectedCardType].tones];
+  };
+
+  const getParticipants = (): Participants[] => {
+    if (!selectedCardType) return [];
+    return [...CARD_TYPES[selectedCardType].participants];
+  };
+
+  const getRelationships = (): Relationship[] => {
+    if (!selectedCardType) return [];
+    
+    // If "Solo" is selected as the participant count, only show "Self" as relationship option
+    if (selectedParticipants === "Solo") {
+      return ["Self"];
+    }
+    
+    // Filter out "Self" from relationships when participant count is not "Solo"
+    return [...CARD_TYPES[selectedCardType].relationships].filter(rel => rel !== "Self");
+  };
+
+  // Check if other filters should be shown (only if card type is selected)
+  const shouldShowFilters = selectedCardType !== null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
@@ -315,37 +200,30 @@ export default function GenerateScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Prompt Generator</Text>
             <Text style={styles.subtitle}>
-              Find the perfect conversation prompt by customizing your filters
+              Start by selecting a card type, then customize with filters
             </Text>
           </View>
 
+          {/* Card Type Selection - Always Visible */}
           <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Theme</Text>
+            <Text style={styles.filterTitle}>Card Type (Required)</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.themes.map((theme) => (
-                <TouchableOpacity
-                  key={theme}
-                  style={[styles.filterButton, selectedTheme === theme && styles.selectedFilterButton]}
-                  onPress={() => setSelectedTheme(selectedTheme === theme ? null : theme)}
-                >
-                  <Text style={[styles.filterButtonText, selectedTheme === theme && styles.selectedFilterButtonText]}>
-                    {theme}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Interaction Type</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.interactionTypes.map((type) => (
+              {FILTER_OPTIONS.cardTypes.map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={[styles.filterButton, selectedInteraction === type && styles.selectedFilterButton]}
-                  onPress={() => setSelectedInteraction(selectedInteraction === type ? null : type)}
+                  style={[styles.filterButton, selectedCardType === type && styles.selectedFilterButton]}
+                  onPress={() => {
+                    // If user clicks the currently selected card type, deselect it
+                    if (selectedCardType === type) {
+                      setSelectedCardType(null);
+                    } else {
+                      // If user selects a different card type, update it
+                      // (filters will be reset by the useEffect)
+                      setSelectedCardType(type);
+                    }
+                  }}
                 >
-                  <Text style={[styles.filterButtonText, selectedInteraction === type && styles.selectedFilterButtonText]}>
+                  <Text style={[styles.filterButtonText, selectedCardType === type && styles.selectedFilterButtonText]}>
                     {type}
                   </Text>
                 </TouchableOpacity>
@@ -353,68 +231,120 @@ export default function GenerateScreen() {
             </ScrollView>
           </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Mood</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.moods.map((mood) => (
-                <TouchableOpacity
-                  key={mood}
-                  style={[styles.filterButton, selectedMood === mood && styles.selectedFilterButton]}
-                  onPress={() => setSelectedMood(selectedMood === mood ? null : mood)}
-                >
-                  <Text style={[styles.filterButtonText, selectedMood === mood && styles.selectedFilterButtonText]}>
-                    {mood}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Only show additional filters if a card type is selected */}
+          {shouldShowFilters && (
+            <>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Topic</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getTopics().map((topic) => (
+                    <TouchableOpacity
+                      key={topic}
+                      style={[styles.filterButton, selectedTopic === topic && styles.selectedFilterButton]}
+                      onPress={() => setSelectedTopic(selectedTopic === topic ? null : topic)}
+                    >
+                      <Text style={[styles.filterButtonText, selectedTopic === topic && styles.selectedFilterButtonText]}>
+                        {topic}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Participants</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.participants.map((count) => (
-                <TouchableOpacity
-                  key={count}
-                  style={[styles.filterButton, selectedParticipants === count && styles.selectedFilterButton]}
-                  onPress={() => setSelectedParticipants(selectedParticipants === count ? null : count)}
-                >
-                  <Text style={[styles.filterButtonText, selectedParticipants === count && styles.selectedFilterButtonText]}>
-                    {count}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Tone</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getTones().map((tone) => (
+                    <TouchableOpacity
+                      key={tone}
+                      style={[styles.filterButton, selectedTone === tone && styles.selectedFilterButton]}
+                      onPress={() => setSelectedTone(selectedTone === tone ? null : tone)}
+                    >
+                      <Text style={[styles.filterButtonText, selectedTone === tone && styles.selectedFilterButtonText]}>
+                        {tone}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Relationship</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.relationships.map((rel) => (
-                <TouchableOpacity
-                  key={rel}
-                  style={[styles.filterButton, selectedRelationship === rel && styles.selectedFilterButton]}
-                  onPress={() => setSelectedRelationship(selectedRelationship === rel ? null : rel)}
-                >
-                  <Text style={[styles.filterButtonText, selectedRelationship === rel && styles.selectedFilterButtonText]}>
-                    {rel}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Participants</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getParticipants().map((count) => (
+                    <TouchableOpacity
+                      key={count}
+                      style={[styles.filterButton, selectedParticipants === count && styles.selectedFilterButton]}
+                      onPress={() => setSelectedParticipants(selectedParticipants === count ? null : count)}
+                    >
+                      <Text style={[styles.filterButtonText, selectedParticipants === count && styles.selectedFilterButtonText]}>
+                        {count}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Relationship</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+                  {getRelationships().map((rel) => (
+                    <TouchableOpacity
+                      key={rel}
+                      style={[
+                        styles.filterButton, 
+                        selectedRelationship === rel && styles.selectedFilterButton,
+                        selectedParticipants === "Solo" && styles.disabledButton
+                      ]}
+                      onPress={() => {
+                        if (selectedParticipants !== "Solo") {
+                          setSelectedRelationship(selectedRelationship === rel ? null : rel);
+                        }
+                      }}
+                      disabled={selectedParticipants === "Solo"}
+                    >
+                      <Text style={[
+                        styles.filterButtonText, 
+                        selectedRelationship === rel && styles.selectedFilterButtonText
+                      ]}>
+                        {rel}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                {selectedParticipants === "Solo" && (
+                  <Text style={styles.helperText}>
+                    When Solo is selected, relationship is set to Self
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+                )}
+              </View>
+            </>
+          )}
+
+          {/* Message when no card type is selected */}
+          {!shouldShowFilters && (
+            <View style={styles.noCardTypeContainer}>
+              <Text style={styles.noCardTypeText}>
+                Please select a card type above to see recommended filters
+              </Text>
+            </View>
+          )}
+
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.generateButton, isGenerating && styles.disabledButton]}
+              style={[
+                styles.generateButton, 
+                isGenerating && styles.disabledButton,
+                !selectedCardType && styles.disabledButton
+              ]}
               onPress={applyFilters}
-              disabled={isGenerating}
+              disabled={isGenerating || !selectedCardType}
             >
               {isGenerating ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <>
-                  <Ionicons name="sparkles-outline" size={16} color="#FFFFFF" style={styles.buttonIcon} />
-                  <Text style={styles.generateButtonText}>Generate</Text>
+                  <Text style={styles.generateButtonText}>Create Deck</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -471,7 +401,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   header: {
     marginBottom: 24,
@@ -550,5 +480,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  noCardTypeContainer: {
+    backgroundColor: '#F5F5F5',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  noCardTypeText: {
+    color: '#5F5F5F',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  helperText: {
+    color: '#5F5F5F',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 16,
   },
 });

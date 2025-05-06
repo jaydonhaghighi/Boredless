@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from models.generate import PromptRequest, PromptResponse
-from services.generate import generate_prompt  # You'll need to implement this
+from services.generate import generate_prompt
 
 router = APIRouter(prefix="/generator", tags=["generator"])
 
@@ -9,9 +9,9 @@ async def create_prompt(request: PromptRequest):
     try:
         # Call service that generates a prompt based on filters
         prompt_data = await generate_prompt(
-            theme=request.theme,
-            interaction_type=request.interaction_type,
-            mood=request.mood,
+            topic=request.topic,
+            card_type=request.card_type,
+            tone=request.tone,
             participants=request.participants,
             relationship=request.relationship
         )

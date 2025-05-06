@@ -1,49 +1,54 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Union, Literal
+from pydantic import BaseModel
+from typing import Optional, List, Union
 
 class PromptRequest(BaseModel):
-    theme: Optional[str] = None
-    interaction_type: Optional[str] = None
-    mood: Optional[str] = None
+    topic: Optional[str] = None
+    card_type: Optional[str] = None
+    tone: Optional[str] = None
     participants: Optional[str] = None  
     relationship: Optional[str] = None
 
 # Base card class
 class BaseCard(BaseModel):
     title: Optional[str] = None
+    card_type: Optional[str] = None
 
-class ConversationStarterCard(BaseCard):
+class DeepConversationCard(BaseCard):
     question: str
     followups: Optional[List[str]] = None
+    reflection: str
 
-class InteractiveGameCard(BaseCard):
-    instructions: str
-    action_prompt: str
-
-class QuizCard(BaseCard):
+class FunChallengeCard(BaseCard):
     question: str
-    options: List[str]
-    correct_answer_index: Optional[int] = None
+    twist: str
 
-class DebateCard(BaseCard):
+class CreativePromptCard(BaseCard):
     question: str
-    stances: List[str]
+    bonus: str
 
-class IcebreakerCard(BaseCard):
+class LightConversationCard(BaseCard):
     question: str
+    bonus: Optional[str] = None
 
-class ThoughtProvokingCard(BaseCard):
+class HotTakeCard(BaseCard):
     question: str
-    followups: Optional[List[str]] = None
+    perspective1: str
+    perspective2: str
+    debate_twist: Optional[str] = None
+
+class PersonalityQuizCard(BaseCard):
+    question: str
+    group_vote: str
+    reveal: str
 
 # Union type for all card types
 CardType = Union[
-    ConversationStarterCard,
-    InteractiveGameCard,
-    QuizCard,
-    DebateCard,
-    IcebreakerCard,
-    ThoughtProvokingCard
+    DeepConversationCard,
+    FunChallengeCard,
+    CreativePromptCard,
+    LightConversationCard,
+    HotTakeCard,
+    PersonalityQuizCard
 ]
 
 class PromptResponse(BaseModel):

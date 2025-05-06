@@ -2,18 +2,9 @@
 import openai
 import os
 import json
-from pydantic import BaseModel
 from dotenv import load_dotenv
-from models.generate import (
-    PromptResponse, 
-    ConversationStarterCard,
-    InteractiveGameCard,
-    QuizCard, 
-    DebateCard,
-    IcebreakerCard,
-    ThoughtProvokingCard,
-    CardType
-)
+from models.generate import PromptResponse
+from constants import CARD_TYPE_MAPPING, CARD_FIELD_DEFINITIONS, CARD_TYPE_STRUCTURES
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path=os.path.join(
@@ -31,143 +22,54 @@ if not api_key:
 # Set up OpenAI API key
 openai.api_key = api_key
 
-# Interaction-type specific card structures and instructions
-INTERACTION_STRUCTURES = {
-    "Conversation Starters": {
-        "structure": "Title (optional) + Open-ended Question",
-        "instructions": (
-            "Generate deep or fun questions that spark sharing and discussion. "
-            "Each prompt should be no more than 2 sentences."
-        ),
-        "model_type": ConversationStarterCard
-    },
-    "Interactive Games": {
-        "structure": "Title + Game Instructions + Action Prompt",
-        "instructions": (
-            "Create short, easy-to-understand activities involving movement, guessing, or creativity. "
-            "Specify how participants should play."
-        ),
-        "model_type": InteractiveGameCard
-    },
-    "Quizzes": {
-        "structure": "Title + Question + 2-4 Multiple-Choice Options",
-        "instructions": (
-            "Provide a fun or surprising question with 2-4 answer options. "
-            "Indicate the correct answer as part of the structure or a separate field."
-        ),
-        "model_type": QuizCard
-    },
-    "Friendly Debates": {
-        "structure": "Title + Provocative But Friendly Question + 2 Stances",
-        "instructions": (
-            "Generate a question inviting different opinions with two clear stances. "
-            "Ensure the debate remains light-hearted and respectful."
-        ),
-        "model_type": DebateCard
-    },
-    "Icebreakers": {
-        "structure": "Fun Title + Very Easy/Light Question",
-        "instructions": (
-            "Make it playful or silly, perfect for strangers or acquaintances. "
-            "Keep it low-pressure and welcoming."
-        ),
-        "model_type": IcebreakerCard
-    },
-    "Thought-provoking Questions": {
-        "structure": "Short Title + Deep Question",
-        "instructions": (
-            "Ask reflective or philosophical questions matching a thoughtful tone. "
-            "Encourage introspection and meaningful discussion."
-        ),
-        "model_type": ThoughtProvokingCard
-    }
-}
-
-# Map friendly names to card type identifiers
-INTERACTION_TYPE_MAPPING = {
-    "Conversation Starters": "conversation_starter",
-    "Interactive Games": "interactive_game",
-    "Quizzes": "quiz",
-    "Friendly Debates": "debate",
-    "Icebreakers": "icebreaker",
-    "Thought-provoking Questions": "thought_provoking"
-}
-
-async def generate_prompt(theme: str, interaction_type: str, mood: str, participants: str, relationship: str) -> PromptResponse:
+async def generate_prompt(topic: str, card_type: str, tone: str, participants: str, relationship: str) -> PromptResponse:
     
     # Fetch the specific structure and instructions
-    structure_info = INTERACTION_STRUCTURES.get(interaction_type, {})
-    structure = structure_info.get("structure", "")
+    structure_info = CARD_TYPE_STRUCTURES.get(card_type, {})
+    structure = structure_info.get("structure", {})
+    
+    # Validate that the structure contains the expected 'front' and 'back' keys
+    if not isinstance(structure, dict) or 'front' not in structure or 'back' not in structure:
+        raise ValueError(
+            f"Invalid structure for card type '{card_type}'. Expected keys 'front' and 'back' are missing."
+        )
+    
     specific_instructions = structure_info.get("instructions", "")
-    card_type_id = INTERACTION_TYPE_MAPPING.get(interaction_type, "conversation_starter")
+    card_type_id = CARD_TYPE_MAPPING.get(card_type, "light_conversation")
 
-    # Custom field definitions based on card type
-    field_definitions = ""
-    if card_type_id == "conversation_starter":
-        field_definitions = """
-        • card_type: "conversation_starter"
-        • title (string, optional)
-        • question (string, required)
-        • followups (array of strings, optional)
-        """
-    elif card_type_id == "interactive_game":
-        field_definitions = """
-        • card_type: "interactive_game"
-        • title (string, optional)
-        • instructions (string, required)
-        • action_prompt (string, required)
-        """
-    elif card_type_id == "quiz":
-        field_definitions = """
-        • card_type: "quiz"
-        • title (string, optional)
-        • question (string, required)
-        • options (array of strings, required)
-        • correct_answer_index (integer, optional)
-        """
-    elif card_type_id == "debate":
-        field_definitions = """
-        • card_type: "debate"
-        • title (string, optional)
-        • question (string, required)
-        • stances (array of strings, required)
-        """
-    elif card_type_id == "icebreaker":
-        field_definitions = """
-        • card_type: "icebreaker"
-        • title (string, optional)
-        • question (string, required)
-        """
-    elif card_type_id == "thought_provoking":
-        field_definitions = """
-        • card_type: "thought_provoking"
-        • title (string, optional)
-        • question (string, required)
-        • followups (array of strings, optional)
-        """
+    # Get the field definitions for this card type
+    field_definitions = CARD_FIELD_DEFINITIONS.get(card_type_id, "")
 
-    # Build the system prompt with dynamic, interaction-type-specific guidance
+    # Format the structure for display in the prompt
+    structure_text = f"Front: {structure.get('front', '')}\nBack: {structure.get('back', '')}"
+
+    # Build the system prompt with dynamic, card-type-specific guidance
     system_prompt = f"""
-    You are an AI designed to generate engaging, fun, and context-aware conversation or interaction cards for a social conversation app.
+    You are a creative assistant trained to generate high-quality, engaging, and context-aware card prompts for a social conversation app. 
+    Each card belongs to a specific deck and contains a front-facing prompt and a back-facing interaction based on the deck's logic. 
+    Cards must feel human, casual, clever, and fun — suitable for real-time conversation in groups, couples, or games.
+    Keep tone appropriate to each deck. Do not generate generic or repetitive content. Use creativity, humor, emotion, or surprise depending on context.
 
     Each card must follow this structure:
-        - Theme: {theme}
-        - Interaction Type: {interaction_type}
-        - Mood: {mood}
+        - Topic: {topic}
+        - Card Type: {card_type}
+        - Tone: {tone}
         - Participants: {participants}
         - Relationship: {relationship}
 
-    For Interaction Type '{interaction_type}', use this card structure:
-        - {structure}
+    For Card Type '{card_type}', use this card structure:
+        {structure_text}
 
     Instructions:
-        - {specific_instructions}
-        - Match tone and complexity with the mood, relationship type, and number of participants.
+        {specific_instructions}
+        - Match tone and complexity with the tone, relationship type, and number of participants.
         - Avoid clichés, repetition, or insensitive content.
         - Output a single valid JSON object with a top-level key 'cards' whose value is a list of 8 card items.
     
     Each card item should be a JSON object containing the following fields:
     {field_definitions}
+    
+    IMPORTANT: Make sure to include "card_type": "{card_type_id}" in each card.
     """
 
     # A simple user prompt to trigger generation
@@ -178,7 +80,7 @@ async def generate_prompt(theme: str, interaction_type: str, mood: str, particip
     
     # Make the API request
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1-nano",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
