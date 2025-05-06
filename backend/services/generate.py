@@ -27,6 +27,13 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
     # Fetch the specific structure and instructions
     structure_info = CARD_TYPE_STRUCTURES.get(card_type, {})
     structure = structure_info.get("structure", {})
+    
+    # Validate that the structure contains the expected 'front' and 'back' keys
+    if not isinstance(structure, dict) or 'front' not in structure or 'back' not in structure:
+        raise ValueError(
+            f"Invalid structure for card type '{card_type}'. Expected keys 'front' and 'back' are missing."
+        )
+    
     specific_instructions = structure_info.get("instructions", "")
     card_type_id = CARD_TYPE_MAPPING.get(card_type, "light_conversation")
 
