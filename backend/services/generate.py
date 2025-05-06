@@ -2,18 +2,8 @@
 import openai
 import os
 import json
-from pydantic import BaseModel
 from dotenv import load_dotenv
-from models.generate import (
-    PromptResponse, 
-    DeepConversationCard,
-    FunChallengeCard,
-    CreativePromptCard, 
-    LightConversationCard,
-    HotTakeCard,
-    PersonalityQuizCard,
-    CardType
-)
+from models.generate import PromptResponse
 from constants import CARD_TYPE_MAPPING, CARD_FIELD_DEFINITIONS, CARD_TYPE_STRUCTURES
 
 # Load environment variables from .env file
@@ -48,14 +38,17 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
 
     # Build the system prompt with dynamic, card-type-specific guidance
     system_prompt = f"""
-    You are an AI designed to generate engaging, fun, and context-aware conversation or interaction cards for a social conversation app.
+    You are a creative assistant trained to generate high-quality, engaging, and context-aware card prompts for a social conversation app. 
+    Each card belongs to a specific deck and contains a front-facing prompt and a back-facing interaction based on the deck's logic. 
+    Cards must feel human, casual, clever, and fun — suitable for real-time conversation in groups, couples, or games.
+    Keep tone appropriate to each deck. Do not generate generic or repetitive content. Use creativity, humor, emotion, or surprise depending on context.
 
     Each card must follow this structure:
-        - Topic: {topic or "Any topic"}
+        - Topic: {topic}
         - Card Type: {card_type}
-        - Tone: {tone or "Any tone"}
-        - Participants: {participants or "Any number"}
-        - Relationship: {relationship or "Any relationship"}
+        - Tone: {tone}
+        - Participants: {participants}
+        - Relationship: {relationship}
 
     For Card Type '{card_type}', use this card structure:
         {structure_text}
@@ -80,7 +73,7 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
     
     # Make the API request
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1-nano",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}

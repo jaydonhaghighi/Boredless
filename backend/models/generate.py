@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Union, Literal
+from pydantic import BaseModel
+from typing import Optional, List, Union
 
 class PromptRequest(BaseModel):
     topic: Optional[str] = None

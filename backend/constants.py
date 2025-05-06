@@ -1,4 +1,12 @@
-# Constants shared across the backend
+# Models for card types
+from models.generate import (
+    DeepConversationCard,
+    FunChallengeCard,
+    CreativePromptCard, 
+    LightConversationCard,
+    HotTakeCard,
+    PersonalityQuizCard
+)
 
 # Maps friendly names to card type identifiers
 CARD_TYPE_MAPPING = {
@@ -54,23 +62,12 @@ CARD_FIELD_DEFINITIONS = {
     """
 }
 
-# Import these here to avoid circular imports when importing constants
-# These imports needed for model types in CARD_TYPE_STRUCTURES
-from models.generate import (
-    DeepConversationCard,
-    FunChallengeCard,
-    CreativePromptCard, 
-    LightConversationCard,
-    HotTakeCard,
-    PersonalityQuizCard
-)
-
 # Card type-specific structures and instructions
 CARD_TYPE_STRUCTURES = {
     "Deep Conversations": {
         "structure": {
-            "front": "Open-ended personal question",
-            "back": "Reflection: [prompt to go deeper]"
+            "front": "A sincere, emotionally relevant question that invites reflection",
+            "back": "A short prompt encouraging the person to explain more deeply"
         },
         "instructions": (
             "Create a card for a conversation game focused on personal depth, honesty, and emotional curiosity. "
@@ -81,8 +78,8 @@ CARD_TYPE_STRUCTURES = {
     },
     "Fun Challenges": {
         "structure": {
-            "front": "Daring or playful question",
-            "back": "Twist: [game mechanic or rule]"
+            "front": "A playful, wild or daring challenge/question",
+            "back": "A rule that escalates the prompt (e.g. take a sip, switch, reveal more)"
         },
         "instructions": (
             "Generate a party game card designed to spark energy, laughter, or bold decisions. "
@@ -93,8 +90,8 @@ CARD_TYPE_STRUCTURES = {
     },
     "Creative Prompts": {
         "structure": {
-            "front": "Imaginative scenario",
-            "back": "Bonus: [creative extension]"
+            "front": "A creative scenario or question",
+            "back": "An extra twist that continues the scenario or adds a new creative element"
         },
         "instructions": (
             "Craft a light, imaginative prompt designed to spark storytelling, creativity, or surreal thinking. "
@@ -104,8 +101,8 @@ CARD_TYPE_STRUCTURES = {
     },
     "Light Conversation": {
         "structure": {
-            "front": "Casual or small-talk prompt",
-            "back": "Bonus: [light follow-up]"
+            "front": "A fun, easygoing, or observational question",
+            "back": "A light follow-up or activity to extend the moment"
         },
         "instructions": (
             "Generate a casual conversation card suitable for any setting. "
@@ -116,8 +113,12 @@ CARD_TYPE_STRUCTURES = {
     },
     "Hot Takes": {
         "structure": {
-            "front": "Debatable prompt",
-            "back": "Perspective 1 / Perspective 2 / Debate twist"
+            "front": "A polarizing or opinion-based question",
+            "back": """
+                    - Perspective 1: One common viewpoint 
+                    - Perspective 2: The opposing view 
+                    - Debate twist: A rule (e.g. defend the opposite, vote, time limit)
+                    """
         },
         "instructions": (
             "Create a card designed to spark a friendly debate or provocative opinion. "
@@ -128,8 +129,11 @@ CARD_TYPE_STRUCTURES = {
     },
     "Personality Quizzes": {
         "structure": {
-            "front": "Group guessing prompt",
-            "back": "Group vote / Reveal"
+            "front": "A personality-style label or guessing question ",
+            "back": """
+                    - Group vote: Instruction for the group to decide 
+                    - Reveal: Prompt for the person to reveal and react
+                    """
         },
         "instructions": (
             "Create a fun, social quiz-style card where players guess traits about each other. "
@@ -139,43 +143,3 @@ CARD_TYPE_STRUCTURES = {
         "model_type": PersonalityQuizCard
     }
 }
-
-# Filter mappings per card type
-CARD_TYPE_FILTER_MAPPINGS = {
-    "Deep Conversations": {
-        "topics": ["Relationships & Dating", "Personality & Self-discovery", "Family & Home", "Philosophy & Big Questions"],
-        "tones": ["Thoughtful", "Reflective", "Romantic", "Calm", "Serious"],
-        "participants": ["2", "3-5", "Solo"],
-        "relationships": ["Self", "Close Friends", "Romantic Partners", "Friends", "Family"]
-    },
-    "Fun Challenges": {
-        "topics": ["Pop Culture & Entertainment", "Casual Chat", "Creativity & Imagination"],
-        "tones": ["Playful", "Humourous", "Energetic"],
-        "participants": ["3-5", "6+"],
-        "relationships": ["Friends", "Aquaintances", "Mixed Group"]
-    },
-    "Creative Prompts": {
-        "topics": ["Creativity & Imagination", "Personality & Self-discovery", "Pop Culture & Entertainment", "Casual Chat"],
-        "tones": ["Playful", "Friendly"],
-        "participants": ["Solo", "2", "3-5"],
-        "relationships": ["Self", "Friends", "Aquaintances", "Mixed Group"]
-    },
-    "Light Conversation": {
-        "topics": ["Casual Chat", "Pop Culture & Entertainment", "Career & Goals", "Learning & Education"],
-        "tones": ["Friendly", "Calm", "Humourous", "Thoughtful"],
-        "participants": ["2", "3-5", "6+"],
-        "relationships": ["Strangers", "Aquaintances", "Coworkers", "Friends"]
-    },
-    "Hot Takes": {
-        "topics": ["Pop Culture & Entertainment", "Philosophy & Big Questions", "Debates & Opinions", "Learning & Education"],
-        "tones": ["Serious", "Humourous"],
-        "participants": ["3-5", "6+"],
-        "relationships": ["Friends", "Aquaintances", "Mixed Group"]
-    },
-    "Personality Quizzes": {
-        "topics": ["Personality & Self-discovery", "Pop Culture & Entertainment", "Creativity & Imagination"],
-        "tones": ["Playful", "Friendly"],
-        "participants": ["3-5", "6+"],
-        "relationships": ["Friends", "Aquaintances", "Close Friends"]
-    }
-} 

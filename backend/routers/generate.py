@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from models.generate import PromptRequest, PromptResponse
-from services.generate import generate_prompt  # You'll need to implement this
+from services.generate import generate_prompt
 
 router = APIRouter(prefix="/generator", tags=["generator"])
 
