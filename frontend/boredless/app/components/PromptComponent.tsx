@@ -45,6 +45,10 @@ export default function PromptComponent({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const cardOpacity = useSharedValue(1);
+  const direction = useSharedValue(0);
+  
+  // Shared value for card stack animation
+  const stackAnimValue = useSharedValue(0);
   
   // Track if we're currently animating a swipe
   const isSwipeAnimating = useSharedValue(false);
@@ -55,6 +59,11 @@ export default function PromptComponent({
     title: 'Prompt',
     followups: []
   };
+  
+  // Get the next card (if available)
+  const nextCard = currentCardIndex < cards.length - 1 
+    ? cards[currentCardIndex + 1] 
+    : null;
 
   // Reset animations when currentCardIndex changes
   useEffect(() => {
@@ -62,6 +71,7 @@ export default function PromptComponent({
       translateX.value = 0;
       translateY.value = 0;
       cardOpacity.value = 1;
+      stackAnimValue.value = 0;
       setIsFlipped(false);
     }
   }, [currentCardIndex]);
@@ -121,14 +131,11 @@ export default function PromptComponent({
     console.log('Creating new deck with card:', cards[currentCardIndex]);
     setFavoriteModalVisible(false);
     
-    // Navigate to create deck screen (this could be a new route)
-    // router.push('/create-deck');
-    
-    // For now, show confirmation
+    // Show confirmation
     Alert.alert('New Deck', 'Started creating a new deck with this card!');
   }, [cards, currentCardIndex]);
 
-  // Define the swipe gesture - swipe in any direction to advance
+  // Enhanced swipe gesture based on the Card Swipe implementation
   const swipeGesture = Gesture.Pan()
     .onBegin(() => {
       // Don't allow swiping when flipped
@@ -139,72 +146,86 @@ export default function PromptComponent({
       isSwipeAnimating.value = false;
       return true;
     })
-    .onUpdate((event) => {
+    .onUpdate((e) => {
       // Only allow swipe when card isn't flipped
       if (!isFlipped) {
+        // Set direction based on swipe direction (positive = right, negative = left)
+        const isSwipeRight = e.translationX > 0;
+        direction.value = isSwipeRight ? 1 : -1;
+        
         // Allow movement in any direction
-        translateX.value = event.translationX;
-        translateY.value = event.translationY;
+        translateX.value = e.translationX;
+        translateY.value = e.translationY;
+        
+        // Update stack animation value based on swipe progress
+        stackAnimValue.value = Math.min(
+          1, 
+          Math.abs(e.translationX) / (SCREEN_WIDTH * 0.6)
+        );
       }
     })
-    .onEnd((event) => {
+    .onEnd((e) => {
       // Only process swipe end when card isn't flipped
       if (isFlipped) {
         translateX.value = withSpring(0);
         translateY.value = withSpring(0);
+        stackAnimValue.value = withTiming(0);
         return;
       }
       
-      // Calculate total swipe distance (Pythagorean theorem)
-      const swipeDistance = Math.sqrt(
-        Math.pow(event.translationX, 2) + 
-        Math.pow(event.translationY, 2)
-      );
-      
-      // Calculate total velocity
-      const velocity = Math.sqrt(
-        Math.pow(event.velocityX, 2) + 
-        Math.pow(event.velocityY, 2)
-      );
-      
-      const shouldSwipe = 
-        swipeDistance > SWIPE_THRESHOLD || 
-        velocity > 800;
-
-      if (shouldSwipe && currentCardIndex < cards.length - 1) {
-        // Determine the direction for the animation based on the existing movement
-        const angle = Math.atan2(event.translationY, event.translationX);
-        const distance = Math.max(SCREEN_WIDTH, SCREEN_HEIGHT) * 1.5;
-        const targetX = Math.cos(angle) * distance;
-        const targetY = Math.sin(angle) * distance;
-        
-        isSwipeAnimating.value = true;
-        
-        // Animate the card flying off in the direction of the swipe
-        translateX.value = withTiming(targetX, { 
-          duration: 250,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-        });
-        
-        translateY.value = withTiming(targetY, { 
-          duration: 250,
-          easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-        });
-        
-        cardOpacity.value = withTiming(0, { 
-          duration: 200 
-        }, (finished) => {
-          if (finished) {
-            // Reset position and navigate
-            translateX.value = 0;
-            translateY.value = 0;
-            cardOpacity.value = 1;
-            isSwipeAnimating.value = false;
-            runOnJS(goToNextCard)();
-          }
-        });
+      // Determine if the swipe should complete based on distance or velocity
+      // This logic is enhanced from Card.tsx implementation
+      if (Math.abs(e.translationX) > SWIPE_THRESHOLD || Math.abs(e.velocityX) > 1000) {
+        if (currentCardIndex < cards.length - 1) {
+          isSwipeAnimating.value = true;
+          
+          // Animate the stack card to move forward
+          stackAnimValue.value = withTiming(1, {
+            duration: 300,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          });
+          
+          // Animate the card flying off in the direction of the swipe
+          // Using width as the target for consistent animation regardless of actual swipe distance
+          translateX.value = withTiming(SCREEN_WIDTH * 1.5 * direction.value, {
+            duration: 300,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          });
+          
+          // Add a slight vertical component to the animation for a more natural feel
+          translateY.value = withTiming(direction.value * 50, {
+            duration: 300,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+          });
+          
+          // Fade out the card
+          cardOpacity.value = withTiming(0, { 
+            duration: 200 
+          }, (finished) => {
+            if (finished) {
+              // Reset position and navigate
+              translateX.value = 0;
+              translateY.value = 0;
+              cardOpacity.value = 1;
+              stackAnimValue.value = 0;
+              isSwipeAnimating.value = false;
+              runOnJS(goToNextCard)();
+            }
+          });
+        } else {
+          // If it's the last card, bounce back
+          translateX.value = withSpring(0, {
+            stiffness: 200,
+            damping: 20
+          });
+          translateY.value = withSpring(0, {
+            stiffness: 200,
+            damping: 20
+          });
+          stackAnimValue.value = withTiming(0);
+        }
       } else {
-        // Return the card to center with a spring effect
+        // Return the card to center with a spring effect if the swipe wasn't far enough
         translateX.value = withSpring(0, {
           stiffness: 200,
           damping: 20
@@ -213,24 +234,26 @@ export default function PromptComponent({
           stiffness: 200,
           damping: 20
         });
+        stackAnimValue.value = withTiming(0);
       }
     });
 
-  // Animated style for the card - IMPROVED for smoother animation
+  // Enhanced animated style for the card - based on Card Swipe implementation
   const cardAnimatedStyle = useAnimatedStyle(() => {
-    // Calculate rotation based on horizontal movement - less extreme rotation
-    const swipeRotation = interpolate(
+    // Calculate rotation based on horizontal movement
+    // This provides a more natural rotation effect similar to Card.tsx
+    const rotateZ = interpolate(
       translateX.value,
-      [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-      [-CARD_ROTATION_ANGLE / 2, 0, CARD_ROTATION_ANGLE / 2],
+      [-SCREEN_WIDTH, 0, SCREEN_WIDTH],
+      [-CARD_ROTATION_ANGLE / 3, 0, CARD_ROTATION_ANGLE / 3],
       Extrapolation.CLAMP
     );
 
-    // Add subtle scale effect based on movement
+    // Add subtle scale effect based on movement distance
     const scale = interpolate(
       Math.abs(translateX.value),
       [0, SCREEN_WIDTH / 4],
-      [1, 0.95],
+      [1, 0.97],
       Extrapolation.CLAMP
     );
 
@@ -238,10 +261,40 @@ export default function PromptComponent({
       transform: [
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { rotateZ: `${swipeRotation}deg` },
+        { rotateZ: `${rotateZ}deg` },
         { scale },
       ],
       opacity: cardOpacity.value,
+      zIndex: 2,
+    };
+  });
+  
+  // Animated style for the next card in the stack
+  const nextCardAnimatedStyle = useAnimatedStyle(() => {
+    // As the current card moves away, the next card should:
+    // 1. Scale up to become the new primary card
+    // 2. Move up slightly to take the position of the current card
+    const scale = interpolate(
+      stackAnimValue.value,
+      [0, 1],
+      [0.92, 1],
+      Extrapolation.CLAMP
+    );
+    
+    const translateY = interpolate(
+      stackAnimValue.value,
+      [0, 1],
+      [20, 0],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      transform: [
+        { scale },
+        { translateY },
+      ],
+      opacity: nextCard ? 1 : 0, // Only show if there's a next card
+      zIndex: 1,
     };
   });
 
@@ -274,174 +327,202 @@ export default function PromptComponent({
     return null;
   }
 
-  // Determine what content to show based on card type
-  const renderFrontContent = () => {
-    switch(currentCard.card_type) {
-      case 'deep_conversations':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
-          </>
-        );
-      
-      case 'fun_challenges':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
-          </>
-        );
+  // Render card content based on card type
+  const renderCardContent = (card: Card | null, isFront = true) => {
+    if (!card) return null;
+    
+    if (isFront) {
+      switch(card.card_type) {
+        case 'deep_conversations':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardMainContent text={card.question} />
+            </>
+          );
         
-      case 'creative_prompts':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
-          </>
-        );
+        case 'fun_challenges':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardMainContent text={card.question} />
+            </>
+          );
+          
+        case 'creative_prompts':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardMainContent text={card.question} />
+            </>
+          );
+          
+        case 'light_conversation':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardMainContent text={card.question} />
+            </>
+          );
+          
+        case 'hot_takes':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardMainContent text={card.question} />
+            </>
+          );
+          
+        case 'personality_quizzes':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardMainContent text={card.question} />
+            </>
+          );
+          
+        default:
+          // Fallback for legacy cards or unknown types
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardMainContent text={card.question} />
+            </>
+          );
+      }
+    } else {
+      // Back side content
+      switch(card.card_type) {
+        case 'deep_conversations':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardSection title="Reflection">
+                <Text style={styles.cardSectionText}>{card.reflection}</Text>
+              </CardSection>
+              
+              {card.followups && card.followups.length > 0 && (
+                <CardSection title="Follow-up Questions">
+                  {card.followups.map((followup: string, index: number) => (
+                    <CardListItem key={index} text={followup} />
+                  ))}
+                </CardSection>
+              )}
+            </>
+          );
         
-      case 'light_conversation':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
-          </>
-        );
+        case 'fun_challenges':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardSection title="Twist">
+                <Text style={styles.cardSectionText}>{card.twist}</Text>
+              </CardSection>
+            </>
+          );
         
-      case 'hot_takes':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
-          </>
-        );
+        case 'creative_prompts':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardSection title="Bonus">
+                <Text style={styles.cardSectionText}>{card.bonus}</Text>
+              </CardSection>
+            </>
+          );
         
-      case 'personality_quizzes':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
-          </>
-        );
+        case 'light_conversation':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              {card.bonus && (
+                <CardSection title="Bonus">
+                  <Text style={styles.cardSectionText}>{card.bonus}</Text>
+                </CardSection>
+              )}
+            </>
+          );
         
-      default:
-        // Fallback for legacy cards or unknown types
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
-          </>
-        );
+        case 'hot_takes':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardSection title="Perspectives">
+                <CardListItem text={card.perspective1 || ''} />
+                <CardListItem text={card.perspective2 || ''} />
+              </CardSection>
+              
+              {card.debate_twist && (
+                <CardSection title="Debate Twist">
+                  <Text style={styles.cardSectionText}>{card.debate_twist}</Text>
+                </CardSection>
+              )}
+            </>
+          );
+        
+        case 'personality_quizzes':
+          return (
+            <>
+              <CardTitle title={card.title} />
+              <CardSection title="Group Vote">
+                <Text style={styles.cardSectionText}>{card.group_vote}</Text>
+              </CardSection>
+              <CardSection title="Reveal">
+                <Text style={styles.cardSectionText}>{card.reveal}</Text>
+              </CardSection>
+            </>
+          );
+        
+        default:
+          // Fallback for legacy cards or unknown types
+          return (
+            <>
+              <CardTitle title={card.title} />
+              
+              {card.followups && card.followups.length > 0 && (
+                <CardSection title="Follow-up Questions">
+                  {card.followups.map((followup: string, index: number) => (
+                    <CardListItem key={index} text={followup} />
+                  ))}
+                </CardSection>
+              )}
+            </>
+          );
+      }
     }
   };
+
+  // Determine what content to show based on card type for the current card
+  const renderFrontContent = () => renderCardContent(currentCard, true);
   
-  // Determine what content to show on the back based on card type
-  const renderBackContent = () => {
-    switch(currentCard.card_type) {
-      case 'deep_conversations':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardSection title="Reflection">
-              <Text style={styles.cardSectionText}>{currentCard.reflection}</Text>
-            </CardSection>
-            
-            {currentCard.followups && currentCard.followups.length > 0 && (
-              <CardSection title="Follow-up Questions">
-                {currentCard.followups.map((followup, index) => (
-                  <CardListItem key={index} text={followup} />
-                ))}
-              </CardSection>
-            )}
-          </>
-        );
-      
-      case 'fun_challenges':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardSection title="Twist">
-              <Text style={styles.cardSectionText}>{currentCard.twist}</Text>
-            </CardSection>
-          </>
-        );
-      
-      case 'creative_prompts':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardSection title="Bonus">
-              <Text style={styles.cardSectionText}>{currentCard.bonus}</Text>
-            </CardSection>
-          </>
-        );
-      
-      case 'light_conversation':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            {currentCard.bonus && (
-              <CardSection title="Bonus">
-                <Text style={styles.cardSectionText}>{currentCard.bonus}</Text>
-              </CardSection>
-            )}
-          </>
-        );
-      
-      case 'hot_takes':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardSection title="Perspectives">
-              <CardListItem text={currentCard.perspective1 || ''} />
-              <CardListItem text={currentCard.perspective2 || ''} />
-            </CardSection>
-            
-            {currentCard.debate_twist && (
-              <CardSection title="Debate Twist">
-                <Text style={styles.cardSectionText}>{currentCard.debate_twist}</Text>
-              </CardSection>
-            )}
-          </>
-        );
-      
-      case 'personality_quizzes':
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            <CardSection title="Group Vote">
-              <Text style={styles.cardSectionText}>{currentCard.group_vote}</Text>
-            </CardSection>
-            <CardSection title="Reveal">
-              <Text style={styles.cardSectionText}>{currentCard.reveal}</Text>
-            </CardSection>
-          </>
-        );
-        
-      default:
-        // Fallback for legacy cards or unknown types
-        return (
-          <>
-            <CardTitle title={currentCard.title} />
-            
-            {currentCard.followups && currentCard.followups.length > 0 && (
-              <CardSection title="Follow-up Questions">
-                {currentCard.followups.map((followup, index) => (
-                  <CardListItem key={index} text={followup} />
-                ))}
-              </CardSection>
-            )}
-          </>
-        );
+  // Determine what content to show on the back based on card type for the current card
+  const renderBackContent = () => renderCardContent(currentCard, false);
+
+  // Add a hint text for user guidance
+  const renderSwipeHint = () => {
+    if (currentCardIndex < cards.length - 1 && !isFlipped) {
+      return (
+        <View style={styles.swipeHintContainer}>
+          <Text style={styles.swipeHintText}>Swipe to see next prompt</Text>
+        </View>
+      );
     }
+    return null;
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
       <View style={styles.mainContainer}>
+        {/* Stack Card (Next Card) */}
+        {nextCard && !isFlipped && (
+          <Animated.View style={[styles.nextCardContainer, nextCardAnimatedStyle]}>
+            <View style={styles.nextCard}>
+              {renderCardContent(nextCard, true)}
+            </View>
+          </Animated.View>
+        )}
         
-        
+        {/* Current Card with Gesture */}
         <GestureDetector gesture={swipeGesture}>
           <Animated.View style={[styles.cardContainer, cardAnimatedStyle]}>
             <TouchableOpacity 
@@ -449,29 +530,31 @@ export default function PromptComponent({
               activeOpacity={0.9}
               onPress={toggleFlip}
             >
-            {/* Back button - only show if we're not on the first card */}
-            {currentCardIndex > 0 && (
-            <TouchableOpacity 
-                style={styles.backButton} 
-                onPress={goToPreviousCard}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-            >
-                <Image 
-                source={require('../../assets/images/prompt/back_arrow.png')} 
-                style={styles.backArrowIcon} 
-                />
-            </TouchableOpacity>)}
+              {/* Back button - only show if we're not on the first card */}
+              {currentCardIndex > 0 && (
+                <TouchableOpacity 
+                  style={styles.backButton} 
+                  onPress={goToPreviousCard}
+                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                >
+                  <Image 
+                    source={require('../../assets/images/prompt/back_arrow.png')} 
+                    style={styles.backArrowIcon} 
+                  />
+                </TouchableOpacity>
+              )}
+              
               {!isFlipped ? (
-                  // Front of card
-                  <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
-                    {renderFrontContent()}
-                  </Animated.View>
-                ) : (
-                  // Back of card
-                  <Animated.View style={[styles.cardContentContainer, backCardContentStyle]}>
-                    {renderBackContent()}
-                  </Animated.View>
-                )}
+                // Front of card
+                <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
+                  {renderFrontContent()}
+                </Animated.View>
+              ) : (
+                // Back of card
+                <Animated.View style={[styles.cardContentContainer, backCardContentStyle]}>
+                  {renderBackContent()}
+                </Animated.View>
+              )}
             </TouchableOpacity>
             
             {/* Card count indicator */}
@@ -501,6 +584,9 @@ export default function PromptComponent({
             </TouchableOpacity>
           </Animated.View>
         </GestureDetector>
+        
+        {/* Swipe hint */}
+        {renderSwipeHint()}
       </View>
       
       {/* Favorite Modal */}
@@ -578,6 +664,42 @@ const styles = StyleSheet.create({
     elevation: 5,
     overflow: 'hidden',
     borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  nextCardContainer: {
+    width: SCREEN_WIDTH * 0.85,
+    height: SCREEN_HEIGHT * 0.6,
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -SCREEN_HEIGHT * 0.1,
+  },
+  nextCard: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    overflow: 'hidden',
+  },
+  swipeHintContainer: {
+    position: 'absolute',
+    bottom: SCREEN_HEIGHT * 0.12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  swipeHintText: {
+    fontSize: 14,
+    color: '#888888',
+    fontFamily: 'Petrona-Regular',
   },
   cardBadgeContainer: {
     alignSelf: 'center',
