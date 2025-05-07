@@ -27,6 +27,7 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const MAX_VISIBLE_CARDS = 3;
 const FLY_OFF_DURATION = 600;
 const REVERSE_DURATION = 350; // Duration for reverse animation
+const INTERACTION_UNLOCK_PERCENT = 0.6; // Allow interactions after 60% of animation
 
 interface AnimatedCardStackProps {
   cards: Card[];
@@ -71,20 +72,36 @@ export default function AnimatedCardStack({
     toIndex: 0
   });
   
+  // Separate states for visual animation and interaction blocking
+  const [visuallyAnimating, setVisuallyAnimating] = useState(false);
+  const [interactionBlocked, setInteractionBlocked] = useState(false);
+  
   // Content caching to prevent jumps
   const [cachedPrevCard, setCachedPrevCard] = useState<Card | null>(null);
   const [cachedCurrentCard, setCachedCurrentCard] = useState<Card | null>(null);
   
-  // Reset animation state after animation completes
+  // Reset animation state after animation completes, but enable interactions earlier
   useEffect(() => {
     if (animationState.type !== 'none') {
-      const timer = setTimeout(() => {
+      setVisuallyAnimating(true);
+      setInteractionBlocked(true);
+      
+      // Enable interactions earlier while animations continue
+      const interactionTimer = setTimeout(() => {
+        setInteractionBlocked(false);
+      }, REVERSE_DURATION * INTERACTION_UNLOCK_PERCENT);
+      
+      const animationTimer = setTimeout(() => {
+        setVisuallyAnimating(false);
         setAnimationState({ type: 'none', fromIndex: 0, toIndex: 0 });
         setCachedPrevCard(null);
         setCachedCurrentCard(null);
-      }, REVERSE_DURATION + 50);
+      }, REVERSE_DURATION + 20); // Reduced from 50ms to 20ms
       
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(interactionTimer);
+        clearTimeout(animationTimer);
+      };
     }
   }, [animationState]);
   
@@ -108,10 +125,10 @@ export default function AnimatedCardStack({
         fromIndex: index,
         toIndex: index + 1
       });
-      // Wait a tiny bit to let the swiped state propagate
+      // Reduced delay for better responsiveness
       setTimeout(() => {
         onChangeCard(index + 1);
-      }, 50);
+      }, 30); // Reduced from 50ms to 30ms
     }
   };
 
@@ -129,15 +146,14 @@ export default function AnimatedCardStack({
         toIndex: currentCardIndex - 1
       });
       
-      // Actual navigation happens in the animation completion callback
+      // Reduced timing for better responsiveness
       setTimeout(() => {
         onChangeCard(currentCardIndex - 1);
-      }, REVERSE_DURATION - 50);
+      }, REVERSE_DURATION - 100); // Faster transition: reduced from -50ms to -100ms
     }
   };
 
-  // Determine if we're in an animation
-  const isAnimating = animationState.type !== 'none';
+  // Use the new state variables to determine animation status
   const isBackAnimation = animationState.type === 'backward';
 
   return (
@@ -202,7 +218,8 @@ export default function AnimatedCardStack({
               renderFrontContent={renderFrontContent}
               renderBackContent={renderBackContent}
               cardsLength={cards.length}
-              isAnimating={isAnimating}
+              visuallyAnimating={visuallyAnimating}
+              interactionBlocked={interactionBlocked}
             />
           );
         })}
@@ -406,7 +423,7 @@ function ReverseCard({
   );
 }
 
-// Update CardItemProps to include isAnimating
+// Update CardItemProps to include new animation state props
 interface CardItemProps {
   item: Card;
   index: number;
@@ -421,7 +438,8 @@ interface CardItemProps {
   renderFrontContent: (card: Card) => React.ReactNode;
   renderBackContent: (card: Card) => React.ReactNode;
   cardsLength: number;
-  isAnimating: boolean;
+  visuallyAnimating: boolean;
+  interactionBlocked: boolean;
 }
 
 function CardItem({
@@ -438,7 +456,8 @@ function CardItem({
   renderFrontContent,
   renderBackContent,
   cardsLength,
-  isAnimating
+  visuallyAnimating,
+  interactionBlocked
 }: CardItemProps) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -447,9 +466,9 @@ function CardItem({
   const isSwipedOff = useSharedValue(false);
   const cardOpacity = useSharedValue(1);
 
-  // During animations, we want to prevent any interactions
+  // Use interactionBlocked instead of isAnimating for gesture control
   const pan = Gesture.Pan()
-    .enabled(!isAnimating)
+    .enabled(!interactionBlocked && isCurrentCard)
     .onBegin(() => {
       // Allow swiping regardless of flip state
       return true;
@@ -635,8 +654,8 @@ function CardItem({
         <TouchableOpacity 
           style={styles.card}
           activeOpacity={1.0}
-          onPress={isCurrentCard && !isAnimating ? toggleFlip : undefined}
-          disabled={isAnimating}
+          onPress={isCurrentCard && !interactionBlocked ? toggleFlip : undefined}
+          disabled={interactionBlocked}
         >
           {/* Back button - show on all cards that aren't the first card, only make it interactive on current card */}
           {index > 0 && (
@@ -644,12 +663,11 @@ function CardItem({
               style={[
                 styles.backButton, 
                 !isCurrentCard && { opacity: 0.6 }, // Slightly dim for non-current cards
-                isAnimating && { opacity: 0.4 } // Even dimmer during animations
               ]} 
-              onPress={isCurrentCard && !isAnimating ? goToPreviousCard : undefined}
-              activeOpacity={isCurrentCard && !isAnimating ? 0.7 : 1}
+              onPress={isCurrentCard && !interactionBlocked ? goToPreviousCard : undefined}
+              activeOpacity={isCurrentCard && !interactionBlocked ? 0.7 : 1}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-              disabled={isAnimating}
+              disabled={interactionBlocked}
             >
               <Image 
                 source={require('../../assets/images/prompt/back_arrow.png')} 
@@ -677,9 +695,9 @@ function CardItem({
         {/* Favorite button - show on all cards but only make clickable on current card */}
         <TouchableOpacity 
           style={styles.favoriteButton} 
-          onPress={isCurrentCard && !isAnimating ? showFavoriteModal : undefined}
-          activeOpacity={isCurrentCard && !isAnimating ? 0.7 : 1}
-          disabled={isAnimating}
+          onPress={isCurrentCard && !interactionBlocked ? showFavoriteModal : undefined}
+          activeOpacity={isCurrentCard && !interactionBlocked ? 0.7 : 1}
+          disabled={interactionBlocked}
         >
           <Image 
             source={isFavorite 
@@ -688,7 +706,6 @@ function CardItem({
             style={[
               styles.favoriteIcon,
               !isCurrentCard && { opacity: 0.6 }, // Slightly dim for non-current cards
-              isAnimating && { opacity: 0.4 } // Even dimmer during animations
             ]} 
           />
         </TouchableOpacity>
