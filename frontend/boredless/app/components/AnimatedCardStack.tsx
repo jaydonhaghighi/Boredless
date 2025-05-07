@@ -152,6 +152,7 @@ export default function AnimatedCardStack({
             isFlipped={false}
             isFavorite={isFavorite}
             incomingCard={true}
+            index={animationState.toIndex}
           />
           <ExitCard
             card={cachedCurrentCard}
@@ -311,14 +312,16 @@ function ReverseCard({
   renderBackContent, 
   isFlipped,
   isFavorite,
-  incomingCard = false
+  incomingCard = false,
+  index
 }: {
   card: Card,
   renderFrontContent: (card: Card) => React.ReactNode,
   renderBackContent: (card: Card) => React.ReactNode,
   isFlipped: boolean,
   isFavorite: boolean,
-  incomingCard?: boolean
+  incomingCard?: boolean,
+  index: number
 }) {
   const translateX = useSharedValue(SCREEN_WIDTH * 0.8); // Start from right off-screen
   const translateY = useSharedValue(0);
@@ -358,15 +361,20 @@ function ReverseCard({
   
   // Memoize card content to prevent re-rendering during animation
   const cardContent = useMemo(() => {
+    // Check if this is the first card (index 0)
+    const isFirstCard = index === 0;
+    
     return (
       <View style={styles.card}>
-        {/* Back button */}
-        <View style={styles.backButton}>
-          <Image 
-            source={require('../../assets/images/prompt/back_arrow.png')} 
-            style={styles.backArrowIcon} 
-          />
-        </View>
+        {/* Back button - only show if not the first card */}
+        {!isFirstCard && (
+          <View style={styles.backButton}>
+            <Image 
+              source={require('../../assets/images/prompt/back_arrow.png')} 
+              style={styles.backArrowIcon} 
+            />
+          </View>
+        )}
 
         {/* Card content - front only for reverse animation */}
         <View style={styles.cardContentContainer}>
@@ -374,7 +382,7 @@ function ReverseCard({
         </View>
       </View>
     );
-  }, [card.title, card.question]); // Only re-render if card content changes
+  }, [card.title, card.question, index]); // Include index in the dependencies
   
   return (
     <Animated.View style={[styles.cardContainer, cardStyle]}>
