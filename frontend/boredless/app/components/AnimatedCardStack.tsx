@@ -16,7 +16,8 @@ import Animated, {
   interpolate,
   Extrapolation,
   withSpring,
-  useAnimatedReaction
+  useAnimatedReaction,
+  Easing
 } from 'react-native-reanimated';
 import { Card } from '../types/card';
 
@@ -66,12 +67,11 @@ export default function AnimatedCardStack({
   // Function to go to next card
   const goToNextCard = (index: number) => {
     if (index < cards.length - 1) {
-      // Mark the current card as swiped
-      setSwipedCardIndices(prev => [...prev, index]);
-      // Wait a tiny bit to let the swiped state propagate
+      // Mark the current card as swiped - we do this after the animation completes
+      // in the CardItem component
       setTimeout(() => {
         onChangeCard(index + 1);
-      }, 50);
+      }, 300); // Much longer delay for very smooth transition
     }
   };
 
@@ -80,6 +80,11 @@ export default function AnimatedCardStack({
     if (currentCardIndex > 0) {
       onChangeCard(currentCardIndex - 1);
     }
+  };
+
+  // Function to mark a card as swiped
+  const markCardAsSwiped = (index: number) => {
+    setSwipedCardIndices(prev => [...prev, index]);
   };
 
   return (
@@ -104,6 +109,7 @@ export default function AnimatedCardStack({
             currentCardIndex={currentCardIndex}
             animatedValue={animatedValue}
             goToNextCard={goToNextCard}
+            markCardAsSwiped={markCardAsSwiped}
             isFlipped={isFlipped && index === currentCardIndex}
             toggleFlip={toggleFlip}
             isFavorite={isFavorite && index === currentCardIndex}
@@ -138,6 +144,7 @@ interface CardItemProps {
   currentCardIndex: number;
   animatedValue: Animated.SharedValue<number>;
   goToNextCard: (index: number) => void;
+  markCardAsSwiped: (index: number) => void;
   isFlipped: boolean;
   toggleFlip: () => void;
   isFavorite: boolean;
@@ -153,6 +160,7 @@ function CardItem({
   currentCardIndex,
   animatedValue,
   goToNextCard,
+  markCardAsSwiped,
   isFlipped,
   toggleFlip,
   isFavorite,
@@ -166,6 +174,7 @@ function CardItem({
   const direction = useSharedValue(0);
   const isCurrentCard = index === currentCardIndex;
   const isSwipedOff = useSharedValue(false);
+  const opacity = useSharedValue(1);
 
   // Animated style for content on the back of the card
   const backCardContentStyle = useAnimatedStyle(() => {
@@ -237,25 +246,41 @@ function CardItem({
           const targetX = Math.cos(angle) * distance;
           const targetY = Math.sin(angle) * distance;
           
-          // Mark the card as swiped off
+          // Mark the card as swiped off - but don't hide it yet
           isSwipedOff.value = true;
           
-          // Animate the card flying off
+          // Full animation duration for the fly-off effect
+          const ANIMATION_DURATION = 1500; // Much longer duration
+          
+          // Animate the card flying off with a natural easing
           translateX.value = withTiming(targetX, { 
-            duration: 250,
-          }, () => {
-            // Reset position and move to next card
-            runOnJS(goToNextCard)(currentCardIndex);
+            duration: ANIMATION_DURATION,
+            easing: Easing.bezier(0.15, 0.1, 0.25, 1), // Even smoother easing
           });
           
           translateY.value = withTiming(targetY, { 
-            duration: 250,
+            duration: ANIMATION_DURATION,
+            easing: Easing.bezier(0.15, 0.1, 0.25, 1), // Even smoother easing
           });
           
-          // Update animated value for stack effect
-          animatedValue.value = withTiming(currentCardIndex + 1);
+          // Begin fading the card out as it flies away - extremely slow fade
+          opacity.value = withTiming(0, { 
+            duration: ANIMATION_DURATION * 0.95, // Card stays visible almost the entire time
+            easing: Easing.out(Easing.cubic),
+          }, () => {
+            // Once the opacity animation completes, mark the card as swiped in the parent component
+            runOnJS(markCardAsSwiped)(index);
+            // Then trigger the next card
+            runOnJS(goToNextCard)(currentCardIndex);
+          });
+          
+          // Update animated value for stack effect - slower to give more time to see the card fly
+          animatedValue.value = withTiming(currentCardIndex + 1, {
+            duration: ANIMATION_DURATION * 0.9,
+            easing: Easing.bezier(0.15, 0.1, 0.25, 1), // Even smoother easing
+          });
         } else {
-          // Return to center
+          // Return to center with a spring effect
           translateX.value = withSpring(0, {
             stiffness: 200,
             damping: 20
@@ -273,14 +298,6 @@ function CardItem({
 
   // Card animation style
   const cardStyle = useAnimatedStyle(() => {
-    // If the card has been swiped off, keep it invisible
-    if (isSwipedOff.value) {
-      return {
-        opacity: 0,
-        zIndex: -1, // Move it below other cards
-      };
-    }
-    
     // For non-current cards, apply the stack effect
     if (!isCurrentCard) {
       const translateY = interpolate(
@@ -328,6 +345,7 @@ function CardItem({
         { translateY: translateY.value },
         { rotateZ: `${direction.value * rotateZ}deg` },
       ],
+      opacity: opacity.value,
       zIndex: MAX_VISIBLE_CARDS,
     };
   });
