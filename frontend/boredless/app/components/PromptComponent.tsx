@@ -102,53 +102,53 @@ export default function PromptComponent({
   }
 
   // Determine what content to show based on card type
-  const renderFrontContent = () => {
-    switch(currentCard.card_type) {
+  const renderFrontContent = (card: Card) => {
+    switch(card.card_type) {
       case 'deep_conversations':
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
+            <CardTitle title={card.title} />
+            <CardMainContent text={card.question} />
           </>
         );
       
       case 'fun_challenges':
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
+            <CardTitle title={card.title} />
+            <CardMainContent text={card.question} />
           </>
         );
         
       case 'creative_prompts':
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
+            <CardTitle title={card.title} />
+            <CardMainContent text={card.question} />
           </>
         );
         
       case 'light_conversation':
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
+            <CardTitle title={card.title} />
+            <CardMainContent text={card.question} />
           </>
         );
         
       case 'hot_takes':
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
+            <CardTitle title={card.title} />
+            <CardMainContent text={card.question} />
           </>
         );
         
       case 'personality_quizzes':
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
+            <CardTitle title={card.title} />
+            <CardMainContent text={card.question} />
           </>
         );
         
@@ -156,27 +156,27 @@ export default function PromptComponent({
         // Fallback for legacy cards or unknown types
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            <CardMainContent text={currentCard.question} />
+            <CardTitle title={card.title} />
+            <CardMainContent text={card.question} />
           </>
         );
     }
   };
   
   // Determine what content to show on the back based on card type
-  const renderBackContent = () => {
-    switch(currentCard.card_type) {
+  const renderBackContent = (card: Card) => {
+    switch(card.card_type) {
       case 'deep_conversations':
         return (
           <>
-            <CardTitle title={currentCard.title} />
+            <CardTitle title={card.title} />
             <CardSection title="Reflection">
-              <Text style={styles.cardSectionText}>{currentCard.reflection}</Text>
+              <Text style={styles.cardSectionText}>{card.reflection}</Text>
             </CardSection>
             
-            {currentCard.followups && currentCard.followups.length > 0 && (
+            {card.followups && card.followups.length > 0 && (
               <CardSection title="Follow-up Questions">
-                {currentCard.followups.map((followup, index) => (
+                {card.followups.map((followup, index) => (
                   <CardListItem key={index} text={followup} />
                 ))}
               </CardSection>
@@ -187,9 +187,9 @@ export default function PromptComponent({
       case 'fun_challenges':
         return (
           <>
-            <CardTitle title={currentCard.title} />
+            <CardTitle title={card.title} />
             <CardSection title="Twist">
-              <Text style={styles.cardSectionText}>{currentCard.twist}</Text>
+              <Text style={styles.cardSectionText}>{card.twist}</Text>
             </CardSection>
           </>
         );
@@ -197,9 +197,9 @@ export default function PromptComponent({
       case 'creative_prompts':
         return (
           <>
-            <CardTitle title={currentCard.title} />
+            <CardTitle title={card.title} />
             <CardSection title="Bonus">
-              <Text style={styles.cardSectionText}>{currentCard.bonus}</Text>
+              <Text style={styles.cardSectionText}>{card.bonus}</Text>
             </CardSection>
           </>
         );
@@ -207,10 +207,10 @@ export default function PromptComponent({
       case 'light_conversation':
         return (
           <>
-            <CardTitle title={currentCard.title} />
-            {currentCard.bonus && (
+            <CardTitle title={card.title} />
+            {card.bonus && (
               <CardSection title="Bonus">
-                <Text style={styles.cardSectionText}>{currentCard.bonus}</Text>
+                <Text style={styles.cardSectionText}>{card.bonus}</Text>
               </CardSection>
             )}
           </>
@@ -219,15 +219,15 @@ export default function PromptComponent({
       case 'hot_takes':
         return (
           <>
-            <CardTitle title={currentCard.title} />
+            <CardTitle title={card.title} />
             <CardSection title="Perspectives">
-              <CardListItem text={currentCard.perspective1 || ''} />
-              <CardListItem text={currentCard.perspective2 || ''} />
+              <CardListItem text={card.perspective1 || ''} />
+              <CardListItem text={card.perspective2 || ''} />
             </CardSection>
             
-            {currentCard.debate_twist && (
+            {card.debate_twist && (
               <CardSection title="Debate Twist">
-                <Text style={styles.cardSectionText}>{currentCard.debate_twist}</Text>
+                <Text style={styles.cardSectionText}>{card.debate_twist}</Text>
               </CardSection>
             )}
           </>
@@ -236,12 +236,12 @@ export default function PromptComponent({
       case 'personality_quizzes':
         return (
           <>
-            <CardTitle title={currentCard.title} />
+            <CardTitle title={card.title} />
             <CardSection title="Group Vote">
-              <Text style={styles.cardSectionText}>{currentCard.group_vote}</Text>
+              <Text style={styles.cardSectionText}>{card.group_vote}</Text>
             </CardSection>
             <CardSection title="Reveal">
-              <Text style={styles.cardSectionText}>{currentCard.reveal}</Text>
+              <Text style={styles.cardSectionText}>{card.reveal}</Text>
             </CardSection>
           </>
         );
@@ -250,11 +250,11 @@ export default function PromptComponent({
         // Fallback for legacy cards or unknown types
         return (
           <>
-            <CardTitle title={currentCard.title} />
+            <CardTitle title={card.title} />
             
-            {currentCard.followups && currentCard.followups.length > 0 && (
+            {card.followups && card.followups.length > 0 && (
               <CardSection title="Follow-up Questions">
-                {currentCard.followups.map((followup, index) => (
+                {card.followups.map((followup, index) => (
                   <CardListItem key={index} text={followup} />
                 ))}
               </CardSection>

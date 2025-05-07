@@ -34,8 +34,8 @@ interface AnimatedCardStackProps {
   isFavorite: boolean;
   toggleFavorite: () => void;
   showFavoriteModal: () => void;
-  renderFrontContent: () => React.ReactNode;
-  renderBackContent: () => React.ReactNode;
+  renderFrontContent: (card: Card) => React.ReactNode;
+  renderBackContent: (card: Card) => React.ReactNode;
 }
 
 export default function AnimatedCardStack({
@@ -72,28 +72,6 @@ export default function AnimatedCardStack({
     }
   };
 
-  // Animated style for content on the back of the card
-  const backCardContentStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotateY: `${isFlipped ? '0deg' : '180deg'}` },
-      ],
-      opacity: isFlipped ? 1 : 0,
-      display: isFlipped ? 'flex' : 'none',
-    };
-  });
-
-  // Animated style for content on the front of the card
-  const frontCardContentStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotateY: `${isFlipped ? '180deg' : '0deg'}` },
-      ],
-      opacity: isFlipped ? 0 : 1,
-      display: isFlipped ? 'none' : 'flex',
-    };
-  });
-
   return (
     <View style={styles.container}>
       {cards.map((item, index) => {
@@ -114,8 +92,6 @@ export default function AnimatedCardStack({
             toggleFlip={toggleFlip}
             isFavorite={isFavorite && index === currentCardIndex}
             showFavoriteModal={showFavoriteModal}
-            frontCardContentStyle={frontCardContentStyle}
-            backCardContentStyle={backCardContentStyle}
             renderFrontContent={renderFrontContent}
             renderBackContent={renderBackContent}
             cardsLength={cards.length}
@@ -150,10 +126,8 @@ interface CardItemProps {
   toggleFlip: () => void;
   isFavorite: boolean;
   showFavoriteModal: () => void;
-  frontCardContentStyle: any;
-  backCardContentStyle: any;
-  renderFrontContent: () => React.ReactNode;
-  renderBackContent: () => React.ReactNode;
+  renderFrontContent: (card: Card) => React.ReactNode;
+  renderBackContent: (card: Card) => React.ReactNode;
   cardsLength: number;
 }
 
@@ -167,8 +141,6 @@ function CardItem({
   toggleFlip,
   isFavorite,
   showFavoriteModal,
-  frontCardContentStyle,
-  backCardContentStyle,
   renderFrontContent,
   renderBackContent,
   cardsLength
@@ -177,6 +149,28 @@ function CardItem({
   const translateY = useSharedValue(0);
   const direction = useSharedValue(0);
   const isCurrentCard = index === currentCardIndex;
+
+  // Animated style for content on the back of the card
+  const backCardContentStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotateY: `${isFlipped ? '0deg' : '180deg'}` },
+      ],
+      opacity: isFlipped ? 1 : 0,
+      display: isFlipped ? 'flex' : 'none',
+    };
+  });
+
+  // Animated style for content on the front of the card
+  const frontCardContentStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { rotateY: `${isFlipped ? '180deg' : '0deg'}` },
+      ],
+      opacity: isFlipped ? 0 : 1,
+      display: isFlipped ? 'none' : 'flex',
+    };
+  });
 
   const pan = Gesture.Pan()
     .onBegin(() => {
@@ -322,12 +316,12 @@ function CardItem({
         >
           {/* Front of card */}
           <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
-            {renderFrontContent()}
+            {renderFrontContent(item)}
           </Animated.View>
 
           {/* Back of card */}
           <Animated.View style={[styles.cardContentContainer, backCardContentStyle]}>
-            {renderBackContent()}
+            {renderBackContent(item)}
           </Animated.View>
         </TouchableOpacity>
 
