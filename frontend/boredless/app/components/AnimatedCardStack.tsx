@@ -52,16 +52,26 @@ export default function AnimatedCardStack({
 }: AnimatedCardStackProps) {
   // Animation values
   const animatedValue = useSharedValue(currentCardIndex);
+  const [swipedCardIndices, setSwipedCardIndices] = useState<number[]>([]);
   
   // Update animatedValue when currentCardIndex changes
   useEffect(() => {
     animatedValue.value = currentCardIndex;
+    // Reset swiped cards when the current index changes (except for the just swiped card)
+    setSwipedCardIndices(prev => 
+      prev.filter(idx => idx === currentCardIndex - 1)
+    );
   }, [currentCardIndex]);
 
   // Function to go to next card
   const goToNextCard = (index: number) => {
     if (index < cards.length - 1) {
-      onChangeCard(index + 1);
+      // Mark the current card as swiped
+      setSwipedCardIndices(prev => [...prev, index]);
+      // Wait a tiny bit to let the swiped state propagate
+      setTimeout(() => {
+        onChangeCard(index + 1);
+      }, 50);
     }
   };
 
@@ -75,8 +85,14 @@ export default function AnimatedCardStack({
   return (
     <View style={styles.container}>
       {cards.map((item, index) => {
-        // Only render cards that are visible
+        // Only render cards that are visible and not swiped away
         if (index < currentCardIndex || index > currentCardIndex + MAX_VISIBLE_CARDS - 1) {
+          return null;
+        }
+        
+        // Check if this card has been swiped
+        const isSwiped = swipedCardIndices.includes(index);
+        if (isSwiped) {
           return null;
         }
 
@@ -149,6 +165,7 @@ function CardItem({
   const translateY = useSharedValue(0);
   const direction = useSharedValue(0);
   const isCurrentCard = index === currentCardIndex;
+  const isSwipedOff = useSharedValue(false);
 
   // Animated style for content on the back of the card
   const backCardContentStyle = useAnimatedStyle(() => {
@@ -220,13 +237,14 @@ function CardItem({
           const targetX = Math.cos(angle) * distance;
           const targetY = Math.sin(angle) * distance;
           
+          // Mark the card as swiped off
+          isSwipedOff.value = true;
+          
           // Animate the card flying off
           translateX.value = withTiming(targetX, { 
             duration: 250,
           }, () => {
             // Reset position and move to next card
-            translateX.value = 0;
-            translateY.value = 0;
             runOnJS(goToNextCard)(currentCardIndex);
           });
           
@@ -255,6 +273,14 @@ function CardItem({
 
   // Card animation style
   const cardStyle = useAnimatedStyle(() => {
+    // If the card has been swiped off, keep it invisible
+    if (isSwipedOff.value) {
+      return {
+        opacity: 0,
+        zIndex: -1, // Move it below other cards
+      };
+    }
+    
     // For non-current cards, apply the stack effect
     if (!isCurrentCard) {
       const translateY = interpolate(
