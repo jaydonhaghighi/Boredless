@@ -60,7 +60,7 @@ export const TabBottomSheet = () => {
   // Set snap points to percentages that leave space for the tab bar
   const snapPoints = useMemo(() => {
     const availableHeight = screenHeight - TAB_BAR_HEIGHT;
-    return [`12%`, `100%`];
+    return [`12%`, `95%`]; // Using slightly less than 100% may help with centering
   }, [screenHeight]);
 
   // Shared value for tracking the sheet position
@@ -251,8 +251,11 @@ export const TabBottomSheet = () => {
 const styles = StyleSheet.create({
   sheetContainer: {
     flex: 1,
-    padding: 24,
+    padding: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   sheetBackgroundStyle: {
     backgroundColor: '#FFFFFF',

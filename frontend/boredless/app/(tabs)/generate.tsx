@@ -206,7 +206,7 @@ export default function GenerateScreen() {
 
           {/* Card Type Selection - Always Visible */}
           <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Card Type (Required)</Text>
+            <Text style={styles.filterTitle}>Card Type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
               {FILTER_OPTIONS.cardTypes.map((type) => (
                 <TouchableOpacity
