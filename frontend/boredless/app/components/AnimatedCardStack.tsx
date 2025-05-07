@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -41,6 +41,13 @@ interface AnimatedCardStackProps {
   renderBackContent: (card: Card) => React.ReactNode;
 }
 
+// Animation state type
+type AnimationState = {
+  type: 'none' | 'forward' | 'backward';
+  fromIndex: number;
+  toIndex: number;
+};
+
 export default function AnimatedCardStack({
   cards,
   currentCardIndex,
@@ -56,8 +63,28 @@ export default function AnimatedCardStack({
   // Animation values
   const animatedValue = useSharedValue(currentCardIndex);
   const [swipedCardIndices, setSwipedCardIndices] = useState<number[]>([]);
-  const [isReverseAnimating, setIsReverseAnimating] = useState(false);
-  const prevCardRef = useRef<number | null>(null);
+  
+  // Animation state management
+  const [animationState, setAnimationState] = useState<AnimationState>({
+    type: 'none',
+    fromIndex: 0,
+    toIndex: 0
+  });
+  
+  // Content caching to prevent jumps
+  const [cachedPrevCard, setCachedPrevCard] = useState<Card | null>(null);
+  
+  // Reset animation state after animation completes
+  useEffect(() => {
+    if (animationState.type !== 'none') {
+      const timer = setTimeout(() => {
+        setAnimationState({ type: 'none', fromIndex: 0, toIndex: 0 });
+        setCachedPrevCard(null);
+      }, REVERSE_DURATION + 50);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [animationState]);
   
   // Update animatedValue when currentCardIndex changes
   useEffect(() => {
@@ -73,6 +100,12 @@ export default function AnimatedCardStack({
     if (index < cards.length - 1) {
       // Mark the current card as swiped
       setSwipedCardIndices(prev => [...prev, index]);
+      // Set animation state
+      setAnimationState({
+        type: 'forward',
+        fromIndex: index,
+        toIndex: index + 1
+      });
       // Wait a tiny bit to let the swiped state propagate
       setTimeout(() => {
         onChangeCard(index + 1);
@@ -82,32 +115,42 @@ export default function AnimatedCardStack({
 
   // Function to go to previous card with animation
   const goToPreviousCard = () => {
-    if (currentCardIndex > 0 && !isReverseAnimating) {
-      prevCardRef.current = currentCardIndex - 1;
-      // Start reverse animation
-      setIsReverseAnimating(true);
+    if (currentCardIndex > 0 && animationState.type === 'none') {
+      // Cache the previous card before animation
+      setCachedPrevCard(cards[currentCardIndex - 1]);
+      
+      // Start backward animation
+      setAnimationState({
+        type: 'backward',
+        fromIndex: currentCardIndex,
+        toIndex: currentCardIndex - 1
+      });
       
       // Actual navigation happens in the animation completion callback
       setTimeout(() => {
-        setIsReverseAnimating(false);
         onChangeCard(currentCardIndex - 1);
-      }, REVERSE_DURATION);
+      }, REVERSE_DURATION - 50);
     }
   };
 
+  // Determine if we're in an animation
+  const isAnimating = animationState.type !== 'none';
+  const isBackAnimation = animationState.type === 'backward';
+
   return (
     <View style={styles.container}>
-      {/* Render the previous card with entry animation */}
-      {isReverseAnimating && prevCardRef.current !== null && (
+      {/* Special case for backward animation */}
+      {isBackAnimation && cachedPrevCard && (
         <ReverseCard
-          card={cards[prevCardRef.current]}
+          card={cachedPrevCard}
           renderFrontContent={renderFrontContent}
           renderBackContent={renderBackContent}
           isFlipped={false}
-          isFavorite={false}
+          isFavorite={isFavorite}
         />
       )}
       
+      {/* Render the regular cards */}
       {cards.map((item, index) => {
         // Only render cards that are visible and not swiped away
         if (index < currentCardIndex || index > currentCardIndex + MAX_VISIBLE_CARDS - 1) {
@@ -120,8 +163,8 @@ export default function AnimatedCardStack({
           return null;
         }
 
-        // Hide current card during reverse animation
-        if (isReverseAnimating && index === currentCardIndex) {
+        // If we're animating backward and this is the current or target card, don't render it
+        if (isBackAnimation && (index === currentCardIndex || index === animationState.toIndex)) {
           return null;
         }
 
@@ -141,7 +184,7 @@ export default function AnimatedCardStack({
             renderFrontContent={renderFrontContent}
             renderBackContent={renderBackContent}
             cardsLength={cards.length}
-            isReverseAnimating={isReverseAnimating}
+            isAnimating={isAnimating}
           />
         );
       })}
@@ -149,6 +192,97 @@ export default function AnimatedCardStack({
   );
 }
 
+// New component for the reverse card animation
+function ReverseCard({
+  card, 
+  renderFrontContent, 
+  renderBackContent, 
+  isFlipped,
+  isFavorite
+}: {
+  card: Card,
+  renderFrontContent: (card: Card) => React.ReactNode,
+  renderBackContent: (card: Card) => React.ReactNode,
+  isFlipped: boolean,
+  isFavorite: boolean
+}) {
+  const translateX = useSharedValue(SCREEN_WIDTH * 0.8); // Start from right off-screen
+  const translateY = useSharedValue(0);
+  const rotation = useSharedValue(5); // Initial rotation
+  const scale = useSharedValue(0.95); // Initial scale
+  
+  // Card entry animation
+  useEffect(() => {
+    translateX.value = withTiming(0, {
+      duration: REVERSE_DURATION,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
+    rotation.value = withTiming(0, {
+      duration: REVERSE_DURATION,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
+    scale.value = withTiming(1, {
+      duration: REVERSE_DURATION,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+  }, []);
+  
+  // Card animation styles
+  const cardStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { rotateZ: `${rotation.value}deg` },
+        { scale: scale.value },
+      ],
+      zIndex: 1000, // Make sure it's above everything else
+    };
+  });
+  
+  // Memoize card content to prevent re-rendering during animation
+  const cardContent = useMemo(() => {
+    return (
+      <View style={styles.card}>
+        {/* Back button */}
+        <View style={styles.backButton}>
+          <Image 
+            source={require('../../assets/images/prompt/back_arrow.png')} 
+            style={styles.backArrowIcon} 
+          />
+        </View>
+
+        {/* Card content - front only for reverse animation */}
+        <View style={styles.cardContentContainer}>
+          {renderFrontContent(card)}
+        </View>
+      </View>
+    );
+  }, [card.title, card.question]); // Only re-render if card content changes
+  
+  return (
+    <Animated.View style={[styles.cardContainer, cardStyle]}>
+      {cardContent}
+      
+      {/* Card count indicator */}
+      <View style={styles.cardCountContainer}></View>
+
+      {/* Favorite button */}
+      <View style={styles.favoriteButton}>
+        <Image 
+          source={isFavorite 
+            ? require('../../assets/images/prompt/favourite_select.png')
+            : require('../../assets/images/prompt/favourite_unselect.png')} 
+          style={styles.favoriteIcon} 
+        />
+      </View>
+    </Animated.View>
+  );
+}
+
+// Update CardItemProps to include isAnimating
 interface CardItemProps {
   item: Card;
   index: number;
@@ -163,7 +297,7 @@ interface CardItemProps {
   renderFrontContent: (card: Card) => React.ReactNode;
   renderBackContent: (card: Card) => React.ReactNode;
   cardsLength: number;
-  isReverseAnimating: boolean;
+  isAnimating: boolean;
 }
 
 function CardItem({
@@ -180,7 +314,7 @@ function CardItem({
   renderFrontContent,
   renderBackContent,
   cardsLength,
-  isReverseAnimating
+  isAnimating
 }: CardItemProps) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -189,9 +323,9 @@ function CardItem({
   const isSwipedOff = useSharedValue(false);
   const cardOpacity = useSharedValue(1);
 
-  // During reverse animation, we want to prevent any interactions
+  // During animations, we want to prevent any interactions
   const pan = Gesture.Pan()
-    .enabled(!isReverseAnimating)
+    .enabled(!isAnimating)
     .onBegin(() => {
       // Allow swiping regardless of flip state
       return true;
@@ -377,7 +511,8 @@ function CardItem({
         <TouchableOpacity 
           style={styles.card}
           activeOpacity={1.0}
-          onPress={isCurrentCard ? toggleFlip : undefined}
+          onPress={isCurrentCard && !isAnimating ? toggleFlip : undefined}
+          disabled={isAnimating}
         >
           {/* Back button - show on all cards that aren't the first card, only make it interactive on current card */}
           {index > 0 && (
@@ -385,11 +520,12 @@ function CardItem({
               style={[
                 styles.backButton, 
                 !isCurrentCard && { opacity: 0.6 }, // Slightly dim for non-current cards
-                isReverseAnimating && { opacity: 0.4 } // Even dimmer during animations
+                isAnimating && { opacity: 0.4 } // Even dimmer during animations
               ]} 
-              onPress={isCurrentCard && !isReverseAnimating ? goToPreviousCard : undefined}
-              activeOpacity={isCurrentCard && !isReverseAnimating ? 0.7 : 1}
+              onPress={isCurrentCard && !isAnimating ? goToPreviousCard : undefined}
+              activeOpacity={isCurrentCard && !isAnimating ? 0.7 : 1}
               hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              disabled={isAnimating}
             >
               <Image 
                 source={require('../../assets/images/prompt/back_arrow.png')} 
@@ -417,8 +553,9 @@ function CardItem({
         {/* Favorite button - show on all cards but only make clickable on current card */}
         <TouchableOpacity 
           style={styles.favoriteButton} 
-          onPress={isCurrentCard && !isReverseAnimating ? showFavoriteModal : undefined}
-          activeOpacity={isCurrentCard && !isReverseAnimating ? 0.7 : 1}
+          onPress={isCurrentCard && !isAnimating ? showFavoriteModal : undefined}
+          activeOpacity={isCurrentCard && !isAnimating ? 0.7 : 1}
+          disabled={isAnimating}
         >
           <Image 
             source={isFavorite 
@@ -427,126 +564,12 @@ function CardItem({
             style={[
               styles.favoriteIcon,
               !isCurrentCard && { opacity: 0.6 }, // Slightly dim for non-current cards
-              isReverseAnimating && { opacity: 0.4 } // Even dimmer during animations
+              isAnimating && { opacity: 0.4 } // Even dimmer during animations
             ]} 
           />
         </TouchableOpacity>
       </Animated.View>
     </GestureDetector>
-  );
-}
-
-// New component for the reverse card animation
-function ReverseCard({
-  card, 
-  renderFrontContent, 
-  renderBackContent, 
-  isFlipped,
-  isFavorite
-}: {
-  card: Card,
-  renderFrontContent: (card: Card) => React.ReactNode,
-  renderBackContent: (card: Card) => React.ReactNode,
-  isFlipped: boolean,
-  isFavorite: boolean
-}) {
-  const translateX = useSharedValue(SCREEN_WIDTH * 1.2); // Start from right off-screen
-  const translateY = useSharedValue(0);
-  const rotation = useSharedValue(10); // Initial rotation
-  const scale = useSharedValue(0.95); // Initial scale
-  
-  // Start the animation immediately
-  useEffect(() => {
-    translateX.value = withTiming(0, {
-      duration: REVERSE_DURATION,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
-    rotation.value = withTiming(0, {
-      duration: REVERSE_DURATION,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
-    scale.value = withTiming(1, {
-      duration: REVERSE_DURATION,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
-  }, []);
-  
-  // Animated style for content on the back of the card
-  const backCardContentStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotateY: `${isFlipped ? '0deg' : '180deg'}` },
-      ],
-      opacity: isFlipped ? 1 : 0,
-      display: isFlipped ? 'flex' : 'none',
-    };
-  });
-
-  // Animated style for content on the front of the card
-  const frontCardContentStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { rotateY: `${isFlipped ? '180deg' : '0deg'}` },
-      ],
-      opacity: isFlipped ? 0 : 1,
-      display: isFlipped ? 'none' : 'flex',
-    };
-  });
-  
-  // Card animation style
-  const cardStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value },
-        { rotateZ: `${rotation.value}deg` },
-        { scale: scale.value },
-      ],
-      zIndex: 100, // Ensure it's above all other cards
-    };
-  });
-  
-  return (
-    <Animated.View style={[styles.cardContainer, cardStyle]}>
-      <View style={styles.card}>
-        {/* Back button */}
-        <TouchableOpacity 
-          style={styles.backButton} 
-          activeOpacity={1}
-        >
-          <Image 
-            source={require('../../assets/images/prompt/back_arrow.png')} 
-            style={styles.backArrowIcon} 
-          />
-        </TouchableOpacity>
-
-        {/* Front of card */}
-        <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
-          {renderFrontContent(card)}
-        </Animated.View>
-
-        {/* Back of card */}
-        <Animated.View style={[styles.cardContentContainer, backCardContentStyle]}>
-          {renderBackContent(card)}
-        </Animated.View>
-      </View>
-
-      {/* Card count indicator */}
-      <View style={styles.cardCountContainer}></View>
-
-      {/* Favorite button */}
-      <TouchableOpacity 
-        style={styles.favoriteButton} 
-        activeOpacity={1}
-      >
-        <Image 
-          source={isFavorite 
-            ? require('../../assets/images/prompt/favourite_select.png')
-            : require('../../assets/images/prompt/favourite_unselect.png')} 
-          style={styles.favoriteIcon} 
-        />
-      </TouchableOpacity>
-    </Animated.View>
   );
 }
 
