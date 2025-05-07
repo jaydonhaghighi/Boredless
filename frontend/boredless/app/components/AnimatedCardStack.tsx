@@ -73,6 +73,7 @@ export default function AnimatedCardStack({
   
   // Content caching to prevent jumps
   const [cachedPrevCard, setCachedPrevCard] = useState<Card | null>(null);
+  const [cachedCurrentCard, setCachedCurrentCard] = useState<Card | null>(null);
   
   // Reset animation state after animation completes
   useEffect(() => {
@@ -80,6 +81,7 @@ export default function AnimatedCardStack({
       const timer = setTimeout(() => {
         setAnimationState({ type: 'none', fromIndex: 0, toIndex: 0 });
         setCachedPrevCard(null);
+        setCachedCurrentCard(null);
       }, REVERSE_DURATION + 50);
       
       return () => clearTimeout(timer);
@@ -116,8 +118,9 @@ export default function AnimatedCardStack({
   // Function to go to previous card with animation
   const goToPreviousCard = () => {
     if (currentCardIndex > 0 && animationState.type === 'none') {
-      // Cache the previous card before animation
+      // Cache both the previous and current card
       setCachedPrevCard(cards[currentCardIndex - 1]);
+      setCachedCurrentCard(cards[currentCardIndex]);
       
       // Start backward animation
       setAnimationState({
@@ -140,14 +143,24 @@ export default function AnimatedCardStack({
   return (
     <View style={styles.container}>
       {/* Special case for backward animation */}
-      {isBackAnimation && cachedPrevCard && (
-        <ReverseCard
-          card={cachedPrevCard}
-          renderFrontContent={renderFrontContent}
-          renderBackContent={renderBackContent}
-          isFlipped={false}
-          isFavorite={isFavorite}
-        />
+      {isBackAnimation && cachedPrevCard && cachedCurrentCard && (
+        <>
+          <ReverseCard
+            card={cachedPrevCard}
+            renderFrontContent={renderFrontContent}
+            renderBackContent={renderBackContent}
+            isFlipped={false}
+            isFavorite={isFavorite}
+            incomingCard={true}
+          />
+          <ExitCard
+            card={cachedCurrentCard}
+            renderFrontContent={renderFrontContent}
+            renderBackContent={renderBackContent}
+            isFlipped={isFlipped}
+            isFavorite={isFavorite}
+          />
+        </>
       )}
       
       {/* Render the regular cards */}
@@ -168,11 +181,14 @@ export default function AnimatedCardStack({
           return null;
         }
 
+        // If we're animating backward and this card is behind the animation cards, adjust positioning
+        const shouldAdjustForAnimation = isBackAnimation && index > currentCardIndex;
+
         return (
           <CardItem
             key={index}
             item={item}
-            index={index}
+            index={shouldAdjustForAnimation ? index + 1 : index}
             currentCardIndex={currentCardIndex}
             animatedValue={animatedValue}
             goToNextCard={goToNextCard}
@@ -192,8 +208,8 @@ export default function AnimatedCardStack({
   );
 }
 
-// New component for the reverse card animation
-function ReverseCard({
+// New component for the card that exits during reverse animation
+function ExitCard({
   card, 
   renderFrontContent, 
   renderBackContent, 
@@ -205,6 +221,104 @@ function ReverseCard({
   renderBackContent: (card: Card) => React.ReactNode,
   isFlipped: boolean,
   isFavorite: boolean
+}) {
+  const translateX = useSharedValue(0); // Start in the center
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1); // Start at normal scale
+  const opacity = useSharedValue(1); // Start fully visible
+  
+  // Card exit animation
+  useEffect(() => {
+    // Animate to the left and slightly down with fade out
+    translateX.value = withTiming(-SCREEN_WIDTH * 0.6, {
+      duration: REVERSE_DURATION,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
+    translateY.value = withTiming(SCREEN_HEIGHT * 0.1, {
+      duration: REVERSE_DURATION,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
+    scale.value = withTiming(0.8, {
+      duration: REVERSE_DURATION,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    });
+    
+    opacity.value = withTiming(0, {
+      duration: REVERSE_DURATION,
+      easing: Easing.bezier(0.4, 0.0, 0.6, 1),
+    });
+  }, []);
+  
+  // Card animation styles
+  const cardStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+      opacity: opacity.value,
+      zIndex: 900, // Below the incoming card but above regular cards
+    };
+  });
+  
+  // Memoize card content to prevent re-rendering during animation
+  const cardContent = useMemo(() => {
+    return (
+      <View style={styles.card}>
+        {/* Back button */}
+        <View style={styles.backButton}>
+          <Image 
+            source={require('../../assets/images/prompt/back_arrow.png')} 
+            style={styles.backArrowIcon} 
+          />
+        </View>
+
+        {/* Card content */}
+        <View style={styles.cardContentContainer}>
+          {isFlipped ? renderBackContent(card) : renderFrontContent(card)}
+        </View>
+      </View>
+    );
+  }, [card.title, card.question, isFlipped]);
+  
+  return (
+    <Animated.View style={[styles.cardContainer, cardStyle]}>
+      {cardContent}
+      
+      {/* Card count indicator */}
+      <View style={styles.cardCountContainer}></View>
+
+      {/* Favorite button */}
+      <View style={styles.favoriteButton}>
+        <Image 
+          source={isFavorite 
+            ? require('../../assets/images/prompt/favourite_select.png')
+            : require('../../assets/images/prompt/favourite_unselect.png')} 
+          style={styles.favoriteIcon} 
+        />
+      </View>
+    </Animated.View>
+  );
+}
+
+// Component for the reverse card animation
+function ReverseCard({
+  card, 
+  renderFrontContent, 
+  renderBackContent, 
+  isFlipped,
+  isFavorite,
+  incomingCard = false
+}: {
+  card: Card,
+  renderFrontContent: (card: Card) => React.ReactNode,
+  renderBackContent: (card: Card) => React.ReactNode,
+  isFlipped: boolean,
+  isFavorite: boolean,
+  incomingCard?: boolean
 }) {
   const translateX = useSharedValue(SCREEN_WIDTH * 0.8); // Start from right off-screen
   const translateY = useSharedValue(0);
