@@ -142,69 +142,71 @@ export default function AnimatedCardStack({
 
   return (
     <View style={styles.container}>
-      {/* Special case for backward animation */}
-      {isBackAnimation && cachedPrevCard && cachedCurrentCard && (
-        <>
-          <ReverseCard
-            card={cachedPrevCard}
-            renderFrontContent={renderFrontContent}
-            renderBackContent={renderBackContent}
-            isFlipped={false}
-            isFavorite={isFavorite}
-            incomingCard={true}
-            index={animationState.toIndex}
-          />
-          <ExitCard
-            card={cachedCurrentCard}
-            renderFrontContent={renderFrontContent}
-            renderBackContent={renderBackContent}
-            isFlipped={isFlipped}
-            isFavorite={isFavorite}
-          />
-        </>
-      )}
-      
-      {/* Render the regular cards */}
-      {cards.map((item, index) => {
-        // Only render cards that are visible and not swiped away
-        if (index < currentCardIndex || index > currentCardIndex + MAX_VISIBLE_CARDS - 1) {
-          return null;
-        }
+      <View style={styles.cardStackContainer}>
+        {/* Special case for backward animation */}
+        {isBackAnimation && cachedPrevCard && cachedCurrentCard && (
+          <>
+            <ReverseCard
+              card={cachedPrevCard}
+              renderFrontContent={renderFrontContent}
+              renderBackContent={renderBackContent}
+              isFlipped={false}
+              isFavorite={isFavorite}
+              incomingCard={true}
+              index={animationState.toIndex}
+            />
+            <ExitCard
+              card={cachedCurrentCard}
+              renderFrontContent={renderFrontContent}
+              renderBackContent={renderBackContent}
+              isFlipped={isFlipped}
+              isFavorite={isFavorite}
+            />
+          </>
+        )}
         
-        // Check if this card has been swiped
-        const isSwiped = swipedCardIndices.includes(index);
-        if (isSwiped) {
-          return null;
-        }
+        {/* Render the regular cards */}
+        {cards.map((item, index) => {
+          // Only render cards that are visible and not swiped away
+          if (index < currentCardIndex || index > currentCardIndex + MAX_VISIBLE_CARDS - 1) {
+            return null;
+          }
+          
+          // Check if this card has been swiped
+          const isSwiped = swipedCardIndices.includes(index);
+          if (isSwiped) {
+            return null;
+          }
 
-        // If we're animating backward and this is the current or target card, don't render it
-        if (isBackAnimation && (index === currentCardIndex || index === animationState.toIndex)) {
-          return null;
-        }
+          // If we're animating backward and this is the current or target card, don't render it
+          if (isBackAnimation && (index === currentCardIndex || index === animationState.toIndex)) {
+            return null;
+          }
 
-        // If we're animating backward and this card is behind the animation cards, adjust positioning
-        const shouldAdjustForAnimation = isBackAnimation && index > currentCardIndex;
+          // If we're animating backward and this card is behind the animation cards, adjust positioning
+          const shouldAdjustForAnimation = isBackAnimation && index > currentCardIndex;
 
-        return (
-          <CardItem
-            key={index}
-            item={item}
-            index={shouldAdjustForAnimation ? index + 1 : index}
-            currentCardIndex={currentCardIndex}
-            animatedValue={animatedValue}
-            goToNextCard={goToNextCard}
-            goToPreviousCard={goToPreviousCard}
-            isFlipped={isFlipped && index === currentCardIndex}
-            toggleFlip={toggleFlip}
-            isFavorite={isFavorite && index === currentCardIndex}
-            showFavoriteModal={showFavoriteModal}
-            renderFrontContent={renderFrontContent}
-            renderBackContent={renderBackContent}
-            cardsLength={cards.length}
-            isAnimating={isAnimating}
-          />
-        );
-      })}
+          return (
+            <CardItem
+              key={index}
+              item={item}
+              index={shouldAdjustForAnimation ? index + 1 : index}
+              currentCardIndex={currentCardIndex}
+              animatedValue={animatedValue}
+              goToNextCard={goToNextCard}
+              goToPreviousCard={goToPreviousCard}
+              isFlipped={isFlipped && index === currentCardIndex}
+              toggleFlip={toggleFlip}
+              isFavorite={isFavorite && index === currentCardIndex}
+              showFavoriteModal={showFavoriteModal}
+              renderFrontContent={renderFrontContent}
+              renderBackContent={renderBackContent}
+              cardsLength={cards.length}
+              isAnimating={isAnimating}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -230,26 +232,26 @@ function ExitCard({
   
   // Card exit animation
   useEffect(() => {
-    // Animate to the left and slightly down with fade out
-    translateX.value = withTiming(-SCREEN_WIDTH * 0.6, {
+    // No horizontal movement
+    translateX.value = withTiming(0, {
       duration: REVERSE_DURATION,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1),
     });
     
-    translateY.value = withTiming(SCREEN_HEIGHT * 0.1, {
+    // Move upward slightly to match next-card position in stack
+    translateY.value = withTiming(-30, {
       duration: REVERSE_DURATION,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1),
     });
     
-    scale.value = withTiming(0.8, {
+    // Scale down to match next card in stack appearance
+    scale.value = withTiming(0.9, {
       duration: REVERSE_DURATION,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1),
     });
     
-    opacity.value = withTiming(0, {
-      duration: REVERSE_DURATION,
-      easing: Easing.bezier(0.4, 0.0, 0.6, 1),
-    });
+    // Maintain full opacity
+    opacity.value = 1;
   }, []);
   
   // Card animation styles
@@ -261,7 +263,7 @@ function ExitCard({
         { scale: scale.value },
       ],
       opacity: opacity.value,
-      zIndex: 900, // Below the incoming card but above regular cards
+      zIndex: 500, // Below the incoming card but above other cards
     };
   });
   
@@ -701,13 +703,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    width: '100%',
+    height: '100%',
+    transform: [{translateY: -50}], // Directly shift up to visually center
+  },
+  cardStackContainer: {
+    flex: 1,
+    justifyContent: 'center', // Center content vertically
+    alignItems: 'center',     // Center content horizontally
+    position: 'relative',
+    width: '100%',
+    height: '100%',
   },
   cardContainer: {
     width: SCREEN_WIDTH * 0.85,
-    height: SCREEN_HEIGHT * 0.6,
+    height: SCREEN_HEIGHT * 0.5, // Reduce card height to 50% of screen
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',
+    // Position is absolute but container is set to full dimensions and centered
   },
   card: {
     width: '100%',
