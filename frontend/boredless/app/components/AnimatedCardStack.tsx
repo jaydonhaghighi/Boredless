@@ -25,7 +25,7 @@ import { Card } from '../types/card';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const MAX_VISIBLE_CARDS = 3;
-const FLY_OFF_DURATION = 700; // Longer duration for smoother animation
+const FLY_OFF_DURATION = 600;
 
 interface AnimatedCardStackProps {
   cards: Card[];
@@ -106,6 +106,7 @@ export default function AnimatedCardStack({
             currentCardIndex={currentCardIndex}
             animatedValue={animatedValue}
             goToNextCard={goToNextCard}
+            goToPreviousCard={goToPreviousCard}
             isFlipped={isFlipped && index === currentCardIndex}
             toggleFlip={toggleFlip}
             isFavorite={isFavorite && index === currentCardIndex}
@@ -116,20 +117,6 @@ export default function AnimatedCardStack({
           />
         );
       })}
-
-      {/* Back button - only show if we're not on the first card */}
-      {currentCardIndex > 0 && (
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={goToPreviousCard}
-          hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-        >
-          <Image 
-            source={require('../../assets/images/prompt/back_arrow.png')} 
-            style={styles.backArrowIcon} 
-          />
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -140,6 +127,7 @@ interface CardItemProps {
   currentCardIndex: number;
   animatedValue: Animated.SharedValue<number>;
   goToNextCard: (index: number) => void;
+  goToPreviousCard: () => void;
   isFlipped: boolean;
   toggleFlip: () => void;
   isFavorite: boolean;
@@ -155,6 +143,7 @@ function CardItem({
   currentCardIndex,
   animatedValue,
   goToNextCard,
+  goToPreviousCard,
   isFlipped,
   toggleFlip,
   isFavorite,
@@ -194,11 +183,11 @@ function CardItem({
 
   const pan = Gesture.Pan()
     .onBegin(() => {
-      // Don't allow swiping when flipped
-      return !isFlipped;
+      // Allow swiping regardless of flip state
+      return true;
     })
     .onUpdate(e => {
-      if (isCurrentCard && !isFlipped) {
+      if (isCurrentCard) {
         // Determine swipe direction (1 for right, -1 for left)
         const isSwipeRight = e.translationX > 0;
         direction.value = isSwipeRight ? 1 : -1;
@@ -216,7 +205,7 @@ function CardItem({
       }
     })
     .onEnd(e => {
-      if (isCurrentCard && !isFlipped) {
+      if (isCurrentCard) {
         // Calculate total swipe distance (Pythagorean theorem)
         const swipeDistance = Math.sqrt(
           Math.pow(e.translationX, 2) + 
@@ -234,6 +223,11 @@ function CardItem({
           velocity > 800;
 
         if (shouldSwipe && currentCardIndex < cardsLength - 1) {
+          // If card is flipped, flip it back first then perform the swipe animation
+          if (isFlipped) {
+            runOnJS(toggleFlip)();
+          }
+
           // Determine the direction for the animation based on the existing movement
           const angle = Math.atan2(e.translationY, e.translationX);
           const distance = Math.max(SCREEN_WIDTH, SCREEN_HEIGHT) * 1.5;
@@ -350,9 +344,27 @@ function CardItem({
       <Animated.View style={[styles.cardContainer, cardStyle]}>
         <TouchableOpacity 
           style={styles.card}
-          activeOpacity={0.9}
+          activeOpacity={1.0}
           onPress={isCurrentCard ? toggleFlip : undefined}
         >
+          {/* Back button - show on all cards that aren't the first card, only make it interactive on current card */}
+          {index > 0 && (
+            <TouchableOpacity 
+              style={[
+                styles.backButton, 
+                !isCurrentCard && { opacity: 0.6 } // Slightly dim for non-current cards
+              ]} 
+              onPress={isCurrentCard ? goToPreviousCard : undefined}
+              activeOpacity={isCurrentCard ? 0.7 : 1}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            >
+              <Image 
+                source={require('../../assets/images/prompt/back_arrow.png')} 
+                style={styles.backArrowIcon} 
+              />
+            </TouchableOpacity>
+          )}
+
           {/* Front of card */}
           <Animated.View style={[styles.cardContentContainer, frontCardContentStyle]}>
             {renderFrontContent(item)}
@@ -452,9 +464,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    padding: 8,
+    top: 18,
+    left: 18,
     zIndex: 10,
   },
   backArrowIcon: {
