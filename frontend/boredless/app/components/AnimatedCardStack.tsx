@@ -25,6 +25,7 @@ import { Card } from '../types/card';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const MAX_VISIBLE_CARDS = 3;
+const FLY_OFF_DURATION = 700; // Longer duration for smoother animation
 
 interface AnimatedCardStackProps {
   cards: Card[];
@@ -67,11 +68,12 @@ export default function AnimatedCardStack({
   // Function to go to next card
   const goToNextCard = (index: number) => {
     if (index < cards.length - 1) {
-      // Mark the current card as swiped - we do this after the animation completes
-      // in the CardItem component
+      // Mark the current card as swiped
+      setSwipedCardIndices(prev => [...prev, index]);
+      // Wait a tiny bit to let the swiped state propagate
       setTimeout(() => {
         onChangeCard(index + 1);
-      }, 300); // Much longer delay for very smooth transition
+      }, 50);
     }
   };
 
@@ -80,11 +82,6 @@ export default function AnimatedCardStack({
     if (currentCardIndex > 0) {
       onChangeCard(currentCardIndex - 1);
     }
-  };
-
-  // Function to mark a card as swiped
-  const markCardAsSwiped = (index: number) => {
-    setSwipedCardIndices(prev => [...prev, index]);
   };
 
   return (
@@ -109,7 +106,6 @@ export default function AnimatedCardStack({
             currentCardIndex={currentCardIndex}
             animatedValue={animatedValue}
             goToNextCard={goToNextCard}
-            markCardAsSwiped={markCardAsSwiped}
             isFlipped={isFlipped && index === currentCardIndex}
             toggleFlip={toggleFlip}
             isFavorite={isFavorite && index === currentCardIndex}
@@ -144,7 +140,6 @@ interface CardItemProps {
   currentCardIndex: number;
   animatedValue: Animated.SharedValue<number>;
   goToNextCard: (index: number) => void;
-  markCardAsSwiped: (index: number) => void;
   isFlipped: boolean;
   toggleFlip: () => void;
   isFavorite: boolean;
@@ -160,7 +155,6 @@ function CardItem({
   currentCardIndex,
   animatedValue,
   goToNextCard,
-  markCardAsSwiped,
   isFlipped,
   toggleFlip,
   isFavorite,
@@ -174,7 +168,7 @@ function CardItem({
   const direction = useSharedValue(0);
   const isCurrentCard = index === currentCardIndex;
   const isSwipedOff = useSharedValue(false);
-  const opacity = useSharedValue(1);
+  const cardOpacity = useSharedValue(1);
 
   // Animated style for content on the back of the card
   const backCardContentStyle = useAnimatedStyle(() => {
@@ -246,41 +240,34 @@ function CardItem({
           const targetX = Math.cos(angle) * distance;
           const targetY = Math.sin(angle) * distance;
           
-          // Mark the card as swiped off - but don't hide it yet
-          isSwipedOff.value = true;
-          
-          // Full animation duration for the fly-off effect
-          const ANIMATION_DURATION = 1500; // Much longer duration
-          
-          // Animate the card flying off with a natural easing
+          // Create a smoother fly-off animation
           translateX.value = withTiming(targetX, { 
-            duration: ANIMATION_DURATION,
-            easing: Easing.bezier(0.15, 0.1, 0.25, 1), // Even smoother easing
+            duration: FLY_OFF_DURATION,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1) // Smooth cubic bezier curve
           });
           
           translateY.value = withTiming(targetY, { 
-            duration: ANIMATION_DURATION,
-            easing: Easing.bezier(0.15, 0.1, 0.25, 1), // Even smoother easing
+            duration: FLY_OFF_DURATION,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1) // Smooth cubic bezier curve
           });
           
-          // Begin fading the card out as it flies away - extremely slow fade
-          opacity.value = withTiming(0, { 
-            duration: ANIMATION_DURATION * 0.95, // Card stays visible almost the entire time
-            easing: Easing.out(Easing.cubic),
+          // Gradually fade out the card
+          cardOpacity.value = withTiming(0, {
+            duration: FLY_OFF_DURATION,
+            easing: Easing.out(Easing.ease)
           }, () => {
-            // Once the opacity animation completes, mark the card as swiped in the parent component
-            runOnJS(markCardAsSwiped)(index);
-            // Then trigger the next card
+            // Only mark as swiped off after animation completes
+            isSwipedOff.value = true;
             runOnJS(goToNextCard)(currentCardIndex);
           });
           
-          // Update animated value for stack effect - slower to give more time to see the card fly
+          // Update animated value for stack effect
           animatedValue.value = withTiming(currentCardIndex + 1, {
-            duration: ANIMATION_DURATION * 0.9,
-            easing: Easing.bezier(0.15, 0.1, 0.25, 1), // Even smoother easing
+            duration: FLY_OFF_DURATION,
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1)
           });
         } else {
-          // Return to center with a spring effect
+          // Return to center
           translateX.value = withSpring(0, {
             stiffness: 200,
             damping: 20
@@ -298,6 +285,14 @@ function CardItem({
 
   // Card animation style
   const cardStyle = useAnimatedStyle(() => {
+    // If the card has been swiped off, keep it invisible
+    if (isSwipedOff.value) {
+      return {
+        opacity: 0,
+        zIndex: -1, // Move it below other cards
+      };
+    }
+    
     // For non-current cards, apply the stack effect
     if (!isCurrentCard) {
       const translateY = interpolate(
@@ -345,7 +340,7 @@ function CardItem({
         { translateY: translateY.value },
         { rotateZ: `${direction.value * rotateZ}deg` },
       ],
-      opacity: opacity.value,
+      opacity: cardOpacity.value, // Apply the fading effect
       zIndex: MAX_VISIBLE_CARDS,
     };
   });
@@ -371,26 +366,25 @@ function CardItem({
 
         {/* Card count indicator */}
         <View style={styles.cardCountContainer}>
-          <Text style={styles.cardCountText}>
-            {currentCardIndex + 1} of {cardsLength}
-          </Text>
+          
         </View>
 
-        {/* Favorite button */}
-        {isCurrentCard && (
-          <TouchableOpacity 
-            style={styles.favoriteButton} 
-            onPress={showFavoriteModal}
-            activeOpacity={0.7}
-          >
-            <Image 
-              source={isFavorite 
-                ? require('../../assets/images/prompt/favourite_select.png')
-                : require('../../assets/images/prompt/favourite_unselect.png')} 
-              style={styles.favoriteIcon} 
-            />
-          </TouchableOpacity>
-        )}
+        {/* Favorite button - show on all cards but only make clickable on current card */}
+        <TouchableOpacity 
+          style={styles.favoriteButton} 
+          onPress={isCurrentCard ? showFavoriteModal : undefined}
+          activeOpacity={isCurrentCard ? 0.7 : 1}
+        >
+          <Image 
+            source={isFavorite 
+              ? require('../../assets/images/prompt/favourite_select.png')
+              : require('../../assets/images/prompt/favourite_unselect.png')} 
+            style={[
+              styles.favoriteIcon,
+              !isCurrentCard && { opacity: 0.6 } // Slightly dim for non-current cards
+            ]} 
+          />
+        </TouchableOpacity>
       </Animated.View>
     </GestureDetector>
   );
