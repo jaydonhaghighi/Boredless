@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert, Pressable } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackgroundProps } from "@gorhom/bottom-sheet";
 import { useRouter } from 'expo-router';
 import Animated, { 
@@ -184,7 +184,7 @@ export const TabBottomSheet = () => {
         <View style={styles.customHandleContainer}>
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
             {cards.length > 0 ? (
-              <TouchableWithoutFeedback style={styles.bottomSheetButton} onPress={() => {
+              <Pressable style={styles.bottomSheetButton} onPress={() => {
                 if (bottomSheetRef.current && cards.length > 0) {
                   bottomSheetRef.current.snapToIndex(1);
                 }
@@ -204,7 +204,7 @@ export const TabBottomSheet = () => {
                     </Text>
                   </View>
                 </View>
-              </TouchableWithoutFeedback>
+              </Pressable>
             ) : (
               <View style={styles.emptyContainer}/>
             )}
