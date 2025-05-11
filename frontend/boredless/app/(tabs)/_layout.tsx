@@ -5,7 +5,7 @@ import React from 'react';
 import { BottomSheetProvider } from '../../context/BottomSheetContext';
 import { useFontLoader } from '../../hooks/useFontLoader';
 import { TabBottomSheet } from '../../components/TabBottomSheet';
-import { GenerateContextProvider, BottomSheetVisibilityProvider } from '../../context/TabContext';
+import { CurrentGenerationProvider, BottomSheetVisibilityProvider } from '../../context/TabContext';
 
 export default function TabLayout() {
   const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
@@ -16,7 +16,7 @@ export default function TabLayout() {
 
   return (
     <GestureHandlerRootView style={styles.container} onLayout={onLayoutRootView}>
-      <GenerateContextProvider>
+      <CurrentGenerationProvider>
         <BottomSheetProvider>
           <BottomSheetVisibilityProvider>
             <Tabs
@@ -86,7 +86,7 @@ export default function TabLayout() {
             <TabBottomSheet />
           </BottomSheetVisibilityProvider>
         </BottomSheetProvider>
-      </GenerateContextProvider>
+      </CurrentGenerationProvider>
     </GestureHandlerRootView>
   );
 }
