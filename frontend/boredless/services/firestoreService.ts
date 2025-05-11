@@ -1,5 +1,5 @@
 import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc } from 'firebase/firestore';
-import { db } from '../FirebaseConfigExample'; // Adjust path as needed
+import { db } from '../FirebaseConfig.Example'; // Adjust path as needed
 import { Card } from '../types/card'; // Adjust path as needed
 import { FilterParams } from '../utils/cardUtils'; // Adjust path as needed
 
