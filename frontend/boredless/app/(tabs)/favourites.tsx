@@ -1,7 +1,6 @@
 import React from "react";
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
-import { useBottomSheetVisibility } from './_layout';
-
+import { useBottomSheetVisibility } from "@/context/TabContext";
 export default function FavouritesScreen() {
   const { showBottomSheet } = useBottomSheetVisibility();
 

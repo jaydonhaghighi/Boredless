@@ -1,14 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { Text, View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { AntDesign, Ionicons, FontAwesome5, Entypo } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as SplashScreen from 'expo-splash-screen';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { useBottomSheet } from '../context/BottomSheetContext';
-import { useGenerateContext } from './_layout';
-import { useBottomSheetVisibility } from './_layout';
-import { Card, CardResponse } from '../types/card';
+import { useGenerateContext, useBottomSheetVisibility } from '../../context/TabContext';
+import { Card, CardResponse } from '../../types/card';
 import { 
   FILTER_OPTIONS, 
   CARD_TYPES,
@@ -18,9 +14,9 @@ import {
   Participants, 
   Relationship,
   mapCardTypeToId
-} from '../constants/cardTypes';
-import { mapApiResponseToCards, FilterParams } from '../utils/cardUtils';
-import { useFontLoader } from '../hooks/useFontLoader';
+} from '../../constants/cardTypes';
+import { mapApiResponseToCards, FilterParams } from '../../utils/cardUtils';
+import { useFontLoader } from '../../hooks/useFontLoader';
 
 // API base URL - replace with your actual backend URL
 const API_BASE_URL = 'http://localhost:8000';
