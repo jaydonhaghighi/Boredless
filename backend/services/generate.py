@@ -105,3 +105,7 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
         print(f"Error parsing JSON from OpenAI response: {e}")
         print(f"Response content: {content}")
         raise ValueError(f"Failed to parse OpenAI response: {e}")
+    
+
+
+

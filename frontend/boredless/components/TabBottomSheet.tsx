@@ -47,13 +47,19 @@ const getCardPreviewText = (card: Card): string => {
 export const TabBottomSheet = () => {
   const { bottomSheetRef } = useBottomSheet();
   const { generationState } = useCurrentGeneration();
-  const { isVisible, bottomSheetRef: visibilitySheetRef, setIsGeneratingSheetState } = useBottomSheetVisibility();
+  const { 
+    isVisible, 
+    bottomSheetRef: visibilitySheetRef, 
+    setIsGeneratingSheetState,
+    cardsInSheet,
+    initialCardIndexInSheet
+  } = useBottomSheetVisibility();
   
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   
   const screenHeight = Dimensions.get('window').height;
   const TAB_BAR_HEIGHT = 55;
-  const snapPoints = useMemo(() => [`12%`, `95%`], [screenHeight]);
+  const snapPoints = useMemo(() => [`12%`, `100%`], [screenHeight]);
 
   const animatedPosition = useSharedValue(0);
   const animatedBackgroundStyle = useAnimatedStyle(() => {
@@ -66,30 +72,63 @@ export const TabBottomSheet = () => {
   });
   
   useEffect(() => {
-    if (!isVisible) return;
-
-    if (generationState.isGeneratingCards) {
+    if (!isVisible) {
+      // If sheet becomes not visible, ensure cards from deck view are cleared from TabContext
+      // This is already handled by hideBottomSheet in TabContext, but good to be aware
       return;
     }
 
-    setIsGeneratingSheetState(false);
+    // Determine target snap index and card index based on available data
+    let targetSnapIndex = 0; // Default to 12% (preview)
+    let newCardIndex = 0;
+    let effectivelyDisplayingCards = false;
 
-    if (generationState.error) {
-      Alert.alert('Generation Error', generationState.error);
-      visibilitySheetRef.current?.snapToIndex(0);
-      return;
+    if (cardsInSheet && cardsInSheet.length > 0) {
+      newCardIndex = initialCardIndexInSheet;
+      targetSnapIndex = 1; // 100%
+      effectivelyDisplayingCards = true;
+      setIsGeneratingSheetState(false);
+    } else if (generationState.isGeneratingCards) {
+      targetSnapIndex = 0; // 12% - Show loading in handle
+      effectivelyDisplayingCards = false; // Or true if PromptComponent shows its own loader
+      // setIsGeneratingSheetState(true); // This is set by CurrentGenerationProvider
+    } else if (generationState.generatedCards && generationState.generatedCards.length > 0) {
+      newCardIndex = 0;
+      targetSnapIndex = 1; // 100%
+      effectivelyDisplayingCards = true;
+      setIsGeneratingSheetState(false);
+    } else {
+      // No cards from deck, not generating, and no AI cards - stay at 12% or show error preview
+      targetSnapIndex = 0;
+      effectivelyDisplayingCards = false;
+      setIsGeneratingSheetState(false);
+      if (generationState.error) {
+        // Alerting error here might be redundant if PromptComponent also shows it.
+        // Consider if Alert is needed or if UI just reflects error state.
+        // Alert.alert('Generation Error', generationState.error);
+      }
     }
-
-    if (generationState.generatedCards && generationState.generatedCards.length > 0) {
-      setCurrentCardIndex(0);
-      setTimeout(() => {
+    
+    setCurrentCardIndex(newCardIndex);
+    
+    // Snap to the determined index
+    // Using a small timeout can sometimes help prevent race conditions with sheet rendering
+    setTimeout(() => {
         if (visibilitySheetRef.current) {
-          visibilitySheetRef.current.snapToIndex(1);
+            visibilitySheetRef.current.snapToIndex(targetSnapIndex);
         }
-      }, 100);
-    } else if (!generationState.isGeneratingCards && generationState.currentFilters) {
-    }
-  }, [generationState.generatedCards, generationState.isGeneratingCards, generationState.error, isVisible, visibilitySheetRef, setIsGeneratingSheetState]);
+    }, 50); // Reduced timeout slightly
+
+  }, [
+    isVisible, 
+    cardsInSheet, 
+    initialCardIndexInSheet, 
+    generationState.isGeneratingCards, 
+    generationState.generatedCards, 
+    generationState.error, 
+    // visibilitySheetRef, // Ref usually doesn't need to be in dep array
+    // setIsGeneratingSheetState // Setter usually doesn't need to be in dep array
+  ]);
 
   const handleChangeCard = React.useCallback((newIndex: number) => {
     setCurrentCardIndex(newIndex);
@@ -102,7 +141,9 @@ export const TabBottomSheet = () => {
     }
   };
 
-  const cardsToDisplay = generationState.generatedCards || [];
+  const finalCardsToDisplay = cardsInSheet && cardsInSheet.length > 0 
+    ? cardsInSheet 
+    : generationState.generatedCards || [];
 
   if (!isVisible) {
     return null;
@@ -129,9 +170,9 @@ export const TabBottomSheet = () => {
                 <ActivityIndicator size="small" color="#A97C63" />
                 <Text style={styles.loadingText}>Generating your cards...</Text>
               </View>
-            ) : cardsToDisplay.length > 0 ? (
+            ) : finalCardsToDisplay.length > 0 ? (
               <Pressable style={styles.bottomSheetButton} onPress={() => {
-                if (visibilitySheetRef.current && cardsToDisplay.length > 0) {
+                if (visibilitySheetRef.current && finalCardsToDisplay.length > 0) {
                   visibilitySheetRef.current.snapToIndex(1);
                 }
               }}>
@@ -139,14 +180,14 @@ export const TabBottomSheet = () => {
                   <View style={styles.cardPreviewInfoSection}>
                     <View style={styles.cardPreviewHeaderRow}>
                     <Text style={styles.cardPreviewTitle}>
-                        {cardsToDisplay[currentCardIndex]?.title || 'Prompt'}
+                        {finalCardsToDisplay[currentCardIndex]?.title || 'Prompt'}
                       </Text>
                       <Text style={styles.cardPreviewCount}>
-                        {currentCardIndex + 1} of {cardsToDisplay.length}
+                        {currentCardIndex + 1} of {finalCardsToDisplay.length}
                       </Text>
                     </View>
                     <Text style={styles.cardPreviewText} numberOfLines={1} ellipsizeMode="tail">
-                      {getCardPreviewText(cardsToDisplay[currentCardIndex])}
+                      {getCardPreviewText(finalCardsToDisplay[currentCardIndex])}
                     </Text>
                   </View>
                 </View>
@@ -161,8 +202,8 @@ export const TabBottomSheet = () => {
       )}
       animatedPosition={animatedPosition}
       enableOverDrag={false}
-      enableContentPanningGesture={cardsToDisplay.length > 0}
-      enableHandlePanningGesture={cardsToDisplay.length > 0}
+      enableContentPanningGesture={finalCardsToDisplay.length > 0}
+      enableHandlePanningGesture={finalCardsToDisplay.length > 0}
       animationConfigs={{
         duration: 300,
       }}
@@ -170,9 +211,9 @@ export const TabBottomSheet = () => {
       }}
     >
       <BottomSheetView style={styles.sheetContainer}>
-        {cardsToDisplay.length > 0 && !generationState.isGeneratingCards ? (
+        {finalCardsToDisplay.length > 0 && !generationState.isGeneratingCards ? (
           <PromptComponent
-            cards={cardsToDisplay}
+            cards={finalCardsToDisplay}
             currentCardIndex={currentCardIndex}
             onClose={handleClosePromptDisplay}
             onChangeCard={handleChangeCard}

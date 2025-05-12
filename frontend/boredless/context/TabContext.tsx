@@ -102,12 +102,14 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
 // --- BottomSheetVisibilityContext (can remain largely the same or be simplified if isGeneratingCards is used from CurrentGenerationContext) ---
 // For now, keeping it separate as it also controls the ref and visibility methods not tied to generation state
 type BottomSheetVisibilityContextType = {
-  showBottomSheet: () => void;
+  showBottomSheet: (cards?: Card[], initialIndex?: number) => void;
   hideBottomSheet: () => void;
   bottomSheetRef: React.RefObject<BottomSheet>;
   isVisible: boolean;
   setIsGeneratingSheetState: (isGenerating: boolean) => void;
   isSheetGenerating: boolean;
+  cardsInSheet: Card[] | null;
+  initialCardIndexInSheet: number;
 };
 
 const BottomSheetVisibilityContext = createContext<BottomSheetVisibilityContextType | null>(null);
@@ -124,16 +126,24 @@ export const BottomSheetVisibilityProvider = ({ children }: { children: React.Re
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isSheetGenerating, setIsSheetGenerating] = useState(false);
+  const [cardsInSheet, setCardsInSheet] = useState<Card[] | null>(null);
+  const [initialCardIndexInSheet, setInitialCardIndexInSheet] = useState<number>(0);
 
-  const showBottomSheet = useCallback(() => {
-    setIsVisible(true);
-    if (bottomSheetRef.current) {
-      bottomSheetRef.current.snapToIndex(0);
+  const showBottomSheet = useCallback((cardsToDisplay?: Card[], initialIndex?: number) => {
+    if (cardsToDisplay && cardsToDisplay.length > 0) {
+      setCardsInSheet(cardsToDisplay);
+      setInitialCardIndexInSheet(initialIndex !== undefined ? initialIndex : 0);
+    } else {
+      setCardsInSheet(null);
+      setInitialCardIndexInSheet(0);
     }
+    setIsVisible(true);
   }, []);
 
   const hideBottomSheet = useCallback(() => {
     setIsVisible(false);
+    setCardsInSheet(null);
+    setInitialCardIndexInSheet(0);
     if (bottomSheetRef.current) {
       bottomSheetRef.current.close();
     }
@@ -152,6 +162,8 @@ export const BottomSheetVisibilityProvider = ({ children }: { children: React.Re
         isVisible,
         setIsGeneratingSheetState,
         isSheetGenerating,
+        cardsInSheet,
+        initialCardIndexInSheet,
       }}
     >
       {children}

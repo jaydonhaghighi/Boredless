@@ -91,7 +91,7 @@ export default function PromptComponent({
         showFavoriteModal();
     }
   }, [isFavorite, currentCardIndex, showFavoriteModal]);
-
+  
   // Function to handle creating a new deck
   const handleCreateDeck = useCallback(() => {
     // Logic for creating a new deck would go here
@@ -104,7 +104,7 @@ export default function PromptComponent({
     // For now, show confirmation
     Alert.alert('New Deck', 'Started creating a new deck with this card!');
   }, [cards, currentCardIndex]);
-
+  
   // Share functionality (example)
   const onShare = async () => {
     try {
@@ -507,7 +507,7 @@ export default function PromptComponent({
               >
                 {isProcessingFavoriteAction ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalOptionText}>Save Deck</Text>}
               </TouchableOpacity>
-              <TouchableOpacity 
+         <TouchableOpacity 
                 style={styles.modalCancelButton}
                 onPress={() => setShowNameDeckModal(false)}
                 disabled={isProcessingFavoriteAction}
@@ -553,7 +553,7 @@ export default function PromptComponent({
                         <Text style={styles.modalCancelText}>Cancel</Text>
                     </TouchableOpacity>
                 </View>
-            </View>
+      </View>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>

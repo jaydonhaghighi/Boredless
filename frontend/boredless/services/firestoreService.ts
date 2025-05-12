@@ -1,13 +1,14 @@
 import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc } from 'firebase/firestore';
-import { db } from '../FirebaseConfig.Example'; // Adjust path as needed
-import { Card } from '../types/card'; // Adjust path as needed
-import { FilterParams } from '../utils/cardUtils'; // Adjust path as needed
+import { db } from '../FirebaseConfig';
+import { Card } from '../types/card';
+import { FilterParams } from '../utils/cardUtils';
 
 const USER_PROMPT_HISTORY_COLLECTION = 'user_prompt_history';
 const DECKS_COLLECTION = 'decks';
 const CARDS_SUBCOLLECTION = 'cards';
 
 export interface HistoryEntryData {
+  id?: string; // Optional ID, can be added when fetching
   userId: string;
   createdAt: Timestamp; // Firestore Timestamp for server-side time
   filters: FilterParams;
@@ -158,8 +159,27 @@ export const getDeckCards = async (deckId: string): Promise<Card[]> => {
     const querySnapshot = await getDocs(cardsRef);
     const cards: Card[] = [];
     querySnapshot.forEach((doc) => {
-      // Assuming card documents in subcollection match the Card type structure
-      cards.push({ id: doc.id, ...doc.data() } as Card); 
+      const data = doc.data();
+      // Manually construct the Card object to ensure type safety
+      cards.push({
+        id: doc.id,
+        question: data.question,
+        title: data.title,
+        card_type: data.card_type,
+        // Add all other fields from the Card interface, casting or providing defaults as necessary
+        reflection: data.reflection,
+        followups: data.followups,
+        twist: data.twist,
+        bonus: data.bonus,
+        perspective1: data.perspective1,
+        perspective2: data.perspective2,
+        debate_twist: data.debate_twist,
+        group_vote: data.group_vote,
+        reveal: data.reveal,
+        deckId: data.deckId, // if you store deckId on cards
+        createdAt: data.createdAt // if you store createdAt on cards
+        // Ensure all properties of Card are accounted for
+      } as Card);
     });
     console.log(`Fetched ${cards.length} cards for deck ${deckId}`);
     return cards;
@@ -296,6 +316,41 @@ export const createEmptyDeck = async (
   } catch (error) {
     console.error('Error creating empty deck:', error);
     return null;
+  }
+};
+
+/**
+ * Fetches the prompt generation history for a specific user.
+ * @param userId The ID of the user whose prompt history to fetch.
+ * @returns A promise that resolves to an array of HistoryEntryData objects.
+ */
+export const getUserPromptHistory = async (userId: string): Promise<HistoryEntryData[]> => {
+  if (!userId) {
+    console.error('User ID is required to fetch prompt history.');
+    return [];
+  }
+  try {
+    const historyRef = collection(db, USER_PROMPT_HISTORY_COLLECTION);
+    const q = query(
+      historyRef,
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc") // Order by most recent first
+    );
+
+    const querySnapshot = await getDocs(q);
+    const historyEntries: HistoryEntryData[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Omit<HistoryEntryData, 'id'>; // Cast to the known structure
+      historyEntries.push({
+        id: doc.id,
+        ...data // Spread the casted data
+      });
+    });
+    console.log(`Fetched ${historyEntries.length} prompt history entries for user ${userId}`);
+    return historyEntries;
+  } catch (error) {
+    console.error("Error fetching user prompt history:", error);
+    return [];
   }
 };
 

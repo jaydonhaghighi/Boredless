@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { auth } from '../../FirebaseConfig.Example';
+import { auth } from '../../FirebaseConfig';
 import { signOut } from 'firebase/auth';
 import { router } from 'expo-router';
 import { useState } from 'react';

@@ -71,6 +71,94 @@ export const CARD_TYPES = {
     tones: ["Playful", "Friendly"],
     participants: ["2", "3-5", "6+"],
     relationships: ["Friends", "Aquaintances", "Close Friends"]
+  },
+  "Table for Two": {
+    id: "table_for_two",
+    structure: {
+      front: "Meaningful, romantic, or playful question for couples",
+      back: "Follow-up: A deeper or more specific prompt to extend the moment"
+    },
+    topics: ["Relationships & Dating"],
+    tones: ["Romantic", "Thoughtful"],
+    participants: ["2"],
+    relationships: ["Romantic Partners"]
+  },
+  "Real Talk": {
+    id: "real_talk",
+    structure: {
+      front: "A heartfelt or revealing question between friends",
+      back: "Reflection: A prompt to unpack or explain the response"
+    },
+    topics: ["Personality & Self-discovery", "Relationships & Dating"],
+    tones: ["Reflective", "Serious"],
+    participants: ["2"],
+    relationships: ["Close Friends", "Friends"]
+  },
+  "Last Call": {
+    id: "last_call",
+    structure: {
+      front: "A bold, revealing, or hilarious challenge",
+      back: "Twist: A rule or action that escalates the tension"
+    },
+    topics: ["Pop Culture & Entertainment", "Casual Chat"],
+    tones: ["Energetic", "Playful", "Humourous"],
+    participants: ["6+", "3-5"],
+    relationships: ["Friends", "Mixed Group"]
+  },
+  "Icebreakers": {
+    id: "icebreakers",
+    structure: {
+      front: "A light, fun, or quirky question anyone can answer",
+      back: "Bonus: A second, humorous or surprising follow-up"
+    },
+    topics: ["Casual Chat"],
+    tones: ["Friendly", "Playful", "Humourous"],
+    participants: ["3-5", "6+", "2"],
+    relationships: ["Aquaintances", "Strangers", "Mixed Group"]
+  },
+  "True Self": {
+    id: "true_self",
+    structure: {
+      front: "A playful personality-style question",
+      back: "Group vote: Ask others to decide / Reveal: The person explains"
+    },
+    topics: ["Personality & Self-discovery", "Pop Culture & Entertainment"],
+    tones: ["Playful", "Friendly", "Humourous"],
+    participants: ["3-5", "6+"],
+    relationships: ["Mixed Group", "Friends", "Close Friends"]
+  },
+  "Hot Seat": {
+    id: "hot_seat",
+    structure: {
+      front: "A revealing question aimed at one person",
+      back: "Push further: A second question that goes even deeper"
+    },
+    topics: ["Personality & Self-discovery", "Relationships & Dating"],
+    tones: ["Serious", "Thoughtful", "Reflective"],
+    participants: ["3-5", "Close Friends"], // Participants might be group size or relationship specific
+    relationships: ["Close Friends", "Friends"]
+  },
+  "Face-Off": {
+    id: "face_off",
+    structure: {
+      front: "A polarizing question with two clear sides",
+      back: "Perspective 1 / Perspective 2 / Debate twist"
+    },
+    topics: ["Debates & Opinions", "Pop Culture & Entertainment", "Philosophy & Big Questions"],
+    tones: ["Thoughtful", "Serious", "Playful"],
+    participants: ["3-5", "6+", "2"],
+    relationships: ["Mixed Group", "Friends", "Aquaintances"]
+  },
+  "Deep Cuts": {
+    id: "deep_cuts",
+    structure: {
+      front: "A deep or abstract emotional prompt",
+      back: "Follow-up: A related question that cuts even deeper"
+    },
+    topics: ["Philosophy & Big Questions", "Personality & Self-discovery"],
+    tones: ["Reflective", "Serious", "Thoughtful", "Calm"],
+    participants: ["2", "Solo"],
+    relationships: ["Close Friends", "Self", "Romantic Partners"]
   }
 } as const;
 
