@@ -182,19 +182,29 @@ export default function Index() {
 
   // Render function for history items (Ongoing Decks)
   const renderHistoryItem = ({ item }: { item: HistoryEntryData }) => (
-    <ImageBackground
-      source={require('../../assets/images/textures/noisy-background.jpg')}
-      style={styles.ongoingDeckCard}
-      imageStyle={{ opacity: 0.70, borderRadius: 5 }}
-      borderRadius={5} // Ensures the ImageBackground itself clips content and respects border radius
+    <TouchableOpacity 
+      onPress={() => {
+        if (item.generated_cards_data && item.generated_cards_data.length > 0) {
+          showBottomSheet(item.generated_cards_data, 0);
+        } else {
+          Alert.alert("Empty Deck", "This deck doesn't contain any cards.");
+        }
+      }}
     >
-      <View style={styles.ongoingDeckCardColorTop} />
-      <View style={styles.ongoingDeckCardContent}>
-        <Text style={styles.ongoingDeckTitle}>{item.filters?.topic || "General Topics"}</Text>
-        <Text style={styles.ongoingDeckSubtitle} numberOfLines={1}>{item.generated_cards_data?.[0]?.title || 'View Cards'}</Text>
-        <Text style={styles.ongoingDeckProgress}>{item.generated_cards_data?.length || 0} cards</Text>
-      </View>
-    </ImageBackground>
+      <ImageBackground
+        source={require('../../assets/images/textures/noisy-background.jpg')}
+        style={styles.ongoingDeckCard}
+        imageStyle={{ opacity: 0.70, borderRadius: 5 }}
+        borderRadius={5} // Ensures the ImageBackground itself clips content and respects border radius
+      >
+        <View style={styles.ongoingDeckCardColorTop} />
+        <View style={styles.ongoingDeckCardContent}>
+          <Text style={styles.ongoingDeckTitle}>{item.filters?.topic || "General Topics"}</Text>
+          <Text style={styles.ongoingDeckSubtitle} numberOfLines={1}>{item.generated_cards_data?.[0]?.title || 'View Cards'}</Text>
+          <Text style={styles.ongoingDeckProgress}>{item.generated_cards_data?.length || 0} cards</Text>
+        </View>
+      </ImageBackground>
+    </TouchableOpacity>
   );
 
   return (
@@ -294,8 +304,8 @@ const styles = StyleSheet.create({
     marginBottom: 10, // Space between icon and title
   },
   quickStartTitle: {
-    fontFamily: 'BodoniModa-SemiBold',
-    fontSize: 20, // Example size, adjust as needed
+    fontFamily: 'Petrona-Bold',
+    fontSize: 18, // Example size, adjust as needed
     textAlign: 'center',
   },
   // Ongoing Deck Card Styles (mimicking image)

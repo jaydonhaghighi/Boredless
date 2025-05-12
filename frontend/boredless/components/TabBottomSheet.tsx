@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, 
-  Dimensions, Alert, Pressable, ActivityIndicator
+  Dimensions, Alert, Pressable, ActivityIndicator, ImageBackground
 } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackgroundProps } from "@gorhom/bottom-sheet";
 import Animated, { 
@@ -78,9 +78,12 @@ export const TabBottomSheet = () => {
       return;
     }
 
+    // Reset current card index when new cards are loaded
+    setCurrentCardIndex(initialCardIndexInSheet);
+
     // Determine target snap index and card index based on available data
     let targetSnapIndex = 0; // Default to 12% (preview)
-    let newCardIndex = 0;
+    let newCardIndex = initialCardIndexInSheet;
     let effectivelyDisplayingCards = false;
 
     if (cardsInSheet && cardsInSheet.length > 0) {
@@ -160,6 +163,7 @@ export const TabBottomSheet = () => {
         <Animated.View style={[props.style, animatedBackgroundStyle]} />
       )}
       handleStyle={styles.sheetHandleStyle}
+      enableDynamicSizing={false}
       bottomInset={TAB_BAR_HEIGHT}
       detached={false}
       handleComponent={() => (
@@ -167,8 +171,14 @@ export const TabBottomSheet = () => {
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
             {generationState.isGeneratingCards ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#A97C63" />
-                <Text style={styles.loadingText}>Generating your cards...</Text>
+                <ImageBackground
+                  source={require('../assets/images/textures/noisy-background.jpg')}
+                  style={styles.loadingBackgroundSmall}
+                  imageStyle={{ opacity: 0.25, borderRadius: 5 }}
+                >
+                  <ActivityIndicator size="small" color="#A97C63" />
+                  <Text style={styles.loadingText}>Generating your cards...</Text>
+                </ImageBackground>
               </View>
             ) : finalCardsToDisplay.length > 0 ? (
               <Pressable style={styles.bottomSheetButton} onPress={() => {
@@ -176,7 +186,11 @@ export const TabBottomSheet = () => {
                   visibilitySheetRef.current.snapToIndex(1);
                 }
               }}>
-                <View style={styles.cardPreviewContainer}>
+                <ImageBackground
+                  source={require('../assets/images/textures/noisy-background.jpg')}
+                  style={styles.cardPreviewContainer}
+                  imageStyle={{ opacity: 0.25, borderRadius: 16 }}
+                >
                   <View style={styles.cardPreviewInfoSection}>
                     <View style={styles.cardPreviewHeaderRow}>
                     <Text style={styles.cardPreviewTitle}>
@@ -190,11 +204,17 @@ export const TabBottomSheet = () => {
                       {getCardPreviewText(finalCardsToDisplay[currentCardIndex])}
                     </Text>
                   </View>
-                </View>
+                </ImageBackground>
               </Pressable>
             ) : (
               <View style={styles.emptyContainer}>
-                 <Text style={styles.emptyPreviewText}>Tap 'Generate' to start</Text>
+                <ImageBackground
+                  source={require('../assets/images/textures/noisy-background.jpg')}
+                  style={styles.emptyBackgroundSmall}
+                  imageStyle={{ opacity: 0.25, borderRadius: 5 }}
+                >
+                  <Text style={styles.emptyPreviewText}>Tap 'Generate' to start</Text>
+                </ImageBackground>
               </View>
             )}
           </Animated.View>
@@ -220,8 +240,14 @@ export const TabBottomSheet = () => {
           />
         ) : generationState.isGeneratingCards ? (
           <View style={styles.expandedLoadingContainer}>
-            <ActivityIndicator size="large" color="#A97C63" />
-            <Text style={styles.expandedLoadingText}>Loading cards...</Text>
+            <ImageBackground
+              source={require('../assets/images/textures/noisy-background.jpg')}
+              style={styles.loadingBackground}
+              imageStyle={{ opacity: 0.25, borderRadius: 5 }}
+            >
+              <ActivityIndicator size="large" color="#A97C63" />
+              <Text style={styles.expandedLoadingText}>Loading cards...</Text>
+            </ImageBackground>
           </View>
         ) : (
           <View style={styles.emptyContentContainer}>
@@ -247,7 +273,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     backgroundColor: 'rgba(255, 255, 255, 0.0)',
-    height: 70,
+    height: 60,
     justifyContent: 'center',
   },
   bottomSheetButton: {
@@ -274,17 +300,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#343A40',
-    fontFamily: 'Nunito_700Bold',
+    fontFamily: 'Petrona-Bold',
   },
   cardPreviewCount: {
     fontSize: 12,
     color: '#6C757D',
-    fontFamily: 'Nunito_400Regular',
+    fontFamily: 'Petrona-Regular',
   },
   cardPreviewText: {
     fontSize: 14,
     color: '#495057',
-    fontFamily: 'Nunito_400Regular',
+    fontFamily: 'Petrona-Regular',
   },
   emptyContainer: {
     flex: 1,
@@ -307,7 +333,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6C757D',
     textAlign: 'center',
-    fontFamily: 'Nunito_400Regular',
+    fontFamily: 'Petrona-Regular',
   },
   loadingContainer: {
     flex: 1,
@@ -332,5 +358,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#495057',
     fontFamily: 'Nunito_600SemiBold',
+  },
+  loadingBackground: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingBackgroundSmall: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 8,
+  },
+  emptyBackgroundSmall: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 8,
   },
 }); 
