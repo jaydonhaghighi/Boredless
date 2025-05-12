@@ -73,7 +73,7 @@ export const CARD_TYPES = {
     relationships: ["Friends", "Aquaintances", "Close Friends"]
   },
   "Table for Two": {
-    id: "table_for_two",
+    id: "deep_conversations",
     structure: {
       front: "Meaningful, romantic, or playful question for couples",
       back: "Follow-up: A deeper or more specific prompt to extend the moment"
@@ -84,7 +84,7 @@ export const CARD_TYPES = {
     relationships: ["Romantic Partners"]
   },
   "Real Talk": {
-    id: "real_talk",
+    id: "deep_conversations",
     structure: {
       front: "A heartfelt or revealing question between friends",
       back: "Reflection: A prompt to unpack or explain the response"
@@ -95,7 +95,7 @@ export const CARD_TYPES = {
     relationships: ["Close Friends", "Friends"]
   },
   "Last Call": {
-    id: "last_call",
+    id: "light_conversation",
     structure: {
       front: "A bold, revealing, or hilarious challenge",
       back: "Twist: A rule or action that escalates the tension"
@@ -106,7 +106,7 @@ export const CARD_TYPES = {
     relationships: ["Friends", "Mixed Group"]
   },
   "Icebreakers": {
-    id: "icebreakers",
+    id: "light_conversation",
     structure: {
       front: "A light, fun, or quirky question anyone can answer",
       back: "Bonus: A second, humorous or surprising follow-up"
@@ -117,7 +117,7 @@ export const CARD_TYPES = {
     relationships: ["Aquaintances", "Strangers", "Mixed Group"]
   },
   "True Self": {
-    id: "true_self",
+    id: "personality_quizzes",
     structure: {
       front: "A playful personality-style question",
       back: "Group vote: Ask others to decide / Reveal: The person explains"
@@ -128,7 +128,7 @@ export const CARD_TYPES = {
     relationships: ["Mixed Group", "Friends", "Close Friends"]
   },
   "Hot Seat": {
-    id: "hot_seat",
+    id: "deep_conversations",
     structure: {
       front: "A revealing question aimed at one person",
       back: "Push further: A second question that goes even deeper"
@@ -139,7 +139,7 @@ export const CARD_TYPES = {
     relationships: ["Close Friends", "Friends"]
   },
   "Face-Off": {
-    id: "face_off",
+    id: "hot_takes",
     structure: {
       front: "A polarizing question with two clear sides",
       back: "Perspective 1 / Perspective 2 / Debate twist"
@@ -150,7 +150,7 @@ export const CARD_TYPES = {
     relationships: ["Mixed Group", "Friends", "Aquaintances"]
   },
   "Deep Cuts": {
-    id: "deep_cuts",
+    id: "deep_conversations",
     structure: {
       front: "A deep or abstract emotional prompt",
       back: "Follow-up: A related question that cuts even deeper"
@@ -235,7 +235,15 @@ export type Relationship = typeof FILTER_OPTIONS.relationships[number];
  */
 export const mapCardTypeToId = (cardType: CardTypeName | null): string => {
   if (!cardType) return "light_conversation"; // Default
-  return CARD_TYPES[cardType].id;
+  
+  // Check if the cardType exists in CARD_TYPES
+  if (CARD_TYPES[cardType]) {
+    return CARD_TYPES[cardType].id;
+  }
+  
+  // Fallback to default if cardType isn't recognized
+  console.warn(`Unknown card type: ${cardType}, using default.`);
+  return "light_conversation"; 
 };
 
 /**

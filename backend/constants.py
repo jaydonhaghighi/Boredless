@@ -16,114 +16,115 @@ CARD_TYPE_MAPPING = {
     "Light Conversation": "light_conversation",
     "Hot Takes": "hot_takes",
     "Personality Quizzes": "personality_quizzes",
-    "Table for Two": "table_for_two",
-    "Real Talk": "real_talk",
-    "Last Call": "last_call",
-    "Icebreakers": "icebreakers",
-    "True Self": "true_self",
-    "Hot Seat": "hot_seat",
-    "Face-Off": "face_off",
-    "Deep Cuts": "deep_cuts",
+    # Quick Start items now map to standard card types
+    "Table for Two": "deep_conversations",
+    "Real Talk": "deep_conversations",
+    "Last Call": "fun_challenges",  # Changed from last_call
+    "Icebreakers": "light_conversation",  # Changed from icebreakers
+    "True Self": "personality_quizzes",  # Changed from true_self
+    "Hot Seat": "deep_conversations",  # Changed from hot_seat
+    "Face-Off": "hot_takes",  # Changed from face_off
+    "Deep Cuts": "deep_conversations",  # Changed from deep_cuts
 }
 
 # Card field definitions based on card type
 CARD_FIELD_DEFINITIONS = {
     "deep_conversations": """
     • card_type: "deep_conversations"
-    • title (string, optional)
+    • title (string)
     • question (string, required)
-    • followups (array of strings, optional)
+    • followups (array of strings)
     • reflection (string, required)
     """,
     "fun_challenges": """
     • card_type: "fun_challenges"
-    • title (string, optional)
+    • title (string)
     • question (string, required)
     • twist (string, required)
     """,
     "creative_prompts": """
     • card_type: "creative_prompts"
-    • title (string, optional)
+    • title (string)
     • question (string, required)
     • bonus (string, required)
     """,
     "light_conversation": """
     • card_type: "light_conversation"
-    • title (string, optional)
+    • title (string)
     • question (string, required)
-    • bonus (string, optional)
+    • bonus (string, required)
     """,
     "hot_takes": """
     • card_type: "hot_takes"
-    • title (string, optional)
+    • title (string)
     • question (string, required)
     • perspective1 (string, required)
     • perspective2 (string, required)
-    • debate_twist (string, optional)
+    • debate_twist (string, required)
     """,
     "personality_quizzes": """
     • card_type: "personality_quizzes"
-    • title (string, optional)
+    • title (string)
     • question (string, required)
     • group_vote (string, required)
     • reveal (string, required)
     """,
-    # Merged Quick Pick field definitions
+    # Quick Start items use the standard card types
     "table_for_two": """
-    • card_type: "table_for_two"
-    • title (string, optional)
+    • card_type: "deep_conversations"
+    • title (string)
     • question (string, required)
-    • followups (array of strings, optional, used for 'Follow-up')
-    • reflection (string, optional)
+    • followups (array of strings)
+    • reflection (string, required)
     """,
     "real_talk": """
-    • card_type: "real_talk"
-    • title (string, optional)
+    • card_type: "deep_conversations"
+    • title (string)
     • question (string, required)
-    • followups (array of strings, optional)
-    • reflection (string, required, used for 'Reflection')
+    • followups (array of strings)
+    • reflection (string, required)
     """,
     "last_call": """
-    • card_type: "last_call"
-    • title (string, optional)
-    • question (string, required, used for 'Challenge')
-    • twist (string, required, used for 'Twist')
+    • card_type: "fun_challenges"
+    • title (string)
+    • question (string, required)
+    • twist (string, required)
     """,
     "icebreakers": """
-    • card_type: "icebreakers"
-    • title (string, optional)
+    • card_type: "light_conversation"
+    • title (string)
     • question (string, required)
-    • bonus (string, optional, used for 'Bonus')
+    • bonus (string, required)
     """,
     "true_self": """
-    • card_type: "true_self"
-    • title (string, optional)
+    • card_type: "personality_quizzes"
+    • title (string)
     • question (string, required)
     • group_vote (string, required)
     • reveal (string, required)
     """,
     "hot_seat": """
-    • card_type: "hot_seat"
-    • title (string, optional)
-    • question (string, required, used for 'Revealing question')
-    • followups (array of strings, optional, used for 'Push further')
-    • reflection (string, optional)
+    • card_type: "deep_conversations"
+    • title (string)
+    • question (string, required)
+    • followups (array of strings)
+    • reflection (string, required)
     """,
     "face_off": """
-    • card_type: "face_off"
-    • title (string, optional)
-    • question (string, required, used for 'Polarizing question')
+    • card_type: "hot_takes"
+    • title (string)
+    • question (string, required)
     • perspective1 (string, required)
     • perspective2 (string, required)
-    • debate_twist (string, optional)
+    • debate_twist (string, required)
     """,
     "deep_cuts": """
-    • card_type: "deep_cuts"
-    • title (string, optional)
-    • question (string, required, used for 'Deep emotional prompt')
-    • followups (array of strings, optional, used for 'Follow-up')
-    • reflection (string, optional)
-    """,
+    • card_type: "deep_conversations"
+    • title (string)
+    • question (string, required)
+    • followups (array of strings)
+    • reflection (string, required)
+    """
 }
 
 # Card type-specific structures and instructions

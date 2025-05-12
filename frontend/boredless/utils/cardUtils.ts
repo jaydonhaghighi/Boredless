@@ -63,20 +63,18 @@ export const mapSingleCardData = (
   filters: FilterParams
 ): Card => {
   // Extract followups array if it exists
-  let followups: string[] = [];
-  if (cardData.followups && Array.isArray(cardData.followups)) {
-    followups = cardData.followups;
-  }
+  let followups: string[] = cardData.followups && Array.isArray(cardData.followups) 
+    ? cardData.followups 
+    : ["What's your experience with this?", "How does this make you feel?", "Can you share a related story?"];
   
   // Determine card type using shared utility
   const card_type = cardData.card_type || 
     (filters.card_type ? mapCardTypeToId(filters.card_type) : 'light_conversation');
   
   // Create base card with common fields
-  const baseCard: Card = {
-    question: cardData.question || '',
+  const baseCard = {
+    question: cardData.question || 'What would you like to talk about?',
     title: cardData.title || filters.card_type || 'Prompt',
-    card_type: card_type,
     topic: filters.topic || undefined,
     tone: filters.tone || undefined,
     participants: filters.participants || undefined,
@@ -88,51 +86,58 @@ export const mapSingleCardData = (
     case 'deep_conversations':
       return {
         ...baseCard,
-        followups: followups,
-        reflection: cardData.reflection || 'Take a moment to reflect on this question.'
+        card_type: 'deep_conversations',
+        followups,
+        reflection: cardData.reflection || 'Take a moment to reflect on this question and consider how it relates to your own experiences.'
       };
       
     case 'fun_challenges':
       return {
         ...baseCard,
-        twist: cardData.twist || 'Add your own twist to make this more fun!'
+        card_type: 'fun_challenges',
+        twist: cardData.twist || 'Add your own creative twist to make this challenge more exciting and personalized!'
       };
       
     case 'creative_prompts':
       return {
         ...baseCard,
-        bonus: cardData.bonus || 'Take it further by adding your own creative extension.'
+        card_type: 'creative_prompts',
+        bonus: cardData.bonus || 'For an extra challenge, try incorporating your personal experiences or an unexpected element.'
       };
       
     case 'light_conversation':
       return {
         ...baseCard,
-        bonus: cardData.bonus
+        card_type: 'light_conversation',
+        bonus: cardData.bonus || 'Keep the conversation flowing by sharing your own story after others have responded.'
       };
       
     case 'hot_takes':
       return {
         ...baseCard,
-        perspective1: cardData.perspective1 || 'Perspective 1',
-        perspective2: cardData.perspective2 || 'Perspective 2',
-        debate_twist: cardData.debate_twist
+        card_type: 'hot_takes',
+        perspective1: cardData.perspective1 || 'Consider the position that supports this view.',
+        perspective2: cardData.perspective2 || 'Consider the position that challenges this view.',
+        debate_twist: cardData.debate_twist || 'Try arguing for the opposite of your actual opinion to understand different perspectives.'
       };
       
     case 'personality_quizzes':
       return {
         ...baseCard,
-        group_vote: cardData.group_vote || 'Have the group vote on this.',
-        reveal: cardData.reveal || 'The person should reveal their answer.'
+        card_type: 'personality_quizzes',
+        group_vote: cardData.group_vote || 'Have the group predict how the person will answer before they reveal.',
+        reveal: cardData.reveal || 'The person should share their answer and explain their reasoning.'
       };
       
     default:
-      // Handle legacy or unknown card types
+      // For unknown card types, treat as light conversation
       return {
         ...baseCard,
-        followups: followups
+        card_type: 'light_conversation',
+        bonus: cardData.bonus || 'Feel free to build on this question with your own experiences.'
       };
   }
-}; 
+};
 
 /**
  * Gets recommended filter options for a card type

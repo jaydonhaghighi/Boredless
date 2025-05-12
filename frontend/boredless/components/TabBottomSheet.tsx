@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   cardPreviewContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
+    padding: 16,
     backgroundColor: '#F8F9FA',
     borderRadius: 16,
   },
