@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc, limit } from 'firebase/firestore';
 import { db } from '../FirebaseConfig';
 import { Card } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
@@ -259,6 +259,26 @@ export const addCardToExistingDeck = async (
   }
 
   try {
+    // Process the card to ensure all required fields are populated based on its type
+    const processedCardData = { 
+      ...cardData,
+      // Ensure base fields
+      question: cardData.question || 'What would you like to talk about?',
+      title: cardData.title || 'Card',
+      // Add extra fields based on card_type to prevent undefined values
+      reflection: cardData.reflection || '',
+      followups: cardData.followups || [],
+      twist: cardData.twist || '',
+      bonus: cardData.bonus || '',
+      perspective1: cardData.perspective1 || '',
+      perspective2: cardData.perspective2 || '',
+      debate_twist: cardData.debate_twist || '',
+      group_vote: cardData.group_vote || '',
+      reveal: cardData.reveal || '',
+      // Metadata
+      deckId: deckId
+    };
+
     await runTransaction(db, async (transaction) => {
       const deckDocRef = doc(db, DECKS_COLLECTION, deckId);
       
@@ -270,7 +290,7 @@ export const addCardToExistingDeck = async (
       // }
 
       const newCardRef = doc(collection(db, DECKS_COLLECTION, deckId, CARDS_SUBCOLLECTION));
-      transaction.set(newCardRef, { ...cardData, deckId: deckId, createdAt: serverTimestamp() as Timestamp });
+      transaction.set(newCardRef, { ...processedCardData, createdAt: serverTimestamp() as Timestamp });
       transaction.update(deckDocRef, { cardCount: increment(1) });
     });
 
@@ -322,9 +342,10 @@ export const createEmptyDeck = async (
 /**
  * Fetches the prompt generation history for a specific user.
  * @param userId The ID of the user whose prompt history to fetch.
+ * @param limitCount The maximum number of history entries to return (default: 5).
  * @returns A promise that resolves to an array of HistoryEntryData objects.
  */
-export const getUserPromptHistory = async (userId: string): Promise<HistoryEntryData[]> => {
+export const getUserPromptHistory = async (userId: string, limitCount: number = 5): Promise<HistoryEntryData[]> => {
   if (!userId) {
     console.error('User ID is required to fetch prompt history.');
     return [];
@@ -334,19 +355,22 @@ export const getUserPromptHistory = async (userId: string): Promise<HistoryEntry
     const q = query(
       historyRef,
       where("userId", "==", userId),
-      orderBy("createdAt", "desc") // Order by most recent first
+      orderBy("createdAt", "desc"), 
+      limit(limitCount)
     );
 
     const querySnapshot = await getDocs(q);
     const historyEntries: HistoryEntryData[] = [];
+    
     querySnapshot.forEach((doc) => {
-      const data = doc.data() as Omit<HistoryEntryData, 'id'>; // Cast to the known structure
+      const data = doc.data() as Omit<HistoryEntryData, 'id'>; 
       historyEntries.push({
         id: doc.id,
-        ...data // Spread the casted data
+        ...data
       });
     });
-    console.log(`Fetched ${historyEntries.length} prompt history entries for user ${userId}`);
+    
+    console.log(`Fetched ${historyEntries.length} prompt history entries for user ${userId} (limited to ${limitCount})`);
     return historyEntries;
   } catch (error) {
     console.error("Error fetching user prompt history:", error);

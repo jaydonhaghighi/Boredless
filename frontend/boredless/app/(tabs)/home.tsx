@@ -159,7 +159,7 @@ export default function Index() {
     const fetchHistory = async () => {
       if (isAuthenticated && userId) {
         setIsLoadingHistory(true);
-        const history = await getUserPromptHistory(userId);
+        const history = await getUserPromptHistory(userId, 5);
         setPromptHistory(history);
         setIsLoadingHistory(false);
       } else {
