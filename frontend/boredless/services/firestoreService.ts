@@ -2,6 +2,7 @@ import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query,
 import { db } from '../FirebaseConfig';
 import { Card } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
+import { EventEmitter } from 'events';
 
 const USER_PROMPT_HISTORY_COLLECTION = 'user_prompt_history';
 const DECKS_COLLECTION = 'decks';
@@ -14,6 +15,12 @@ export interface HistoryEntryData {
   filters: FilterParams;
   generated_cards_data: Card[]; // The array of card objects
 }
+
+// Create a global event emitter for deck data changes
+export const deckDataEvents = new EventEmitter();
+
+// Event names
+export const DECK_DATA_CHANGED = 'deckDataChanged';
 
 /**
  * Adds a set of generated cards to the user's prompt history.
@@ -104,6 +111,10 @@ export const saveAiSetAsDeck = async (
 
     await batch.commit();
     console.log(`Deck '${deckName}' saved successfully with ID: ${deckDocRef.id} and ${generatedCardsData.length} cards.`);
+    
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
+    
     return deckDocRef.id;
   } catch (error) {
     console.error('Error saving AI set as deck:', error);
@@ -230,6 +241,10 @@ export const createNewDeckWithSingleCard = async (
 
     await batch.commit();
     console.log(`Deck '${deckName}' created successfully with ID: ${deckDocRef.id} and 1 card.`);
+    
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
+    
     return deckDocRef.id;
   } catch (error) {
     console.error('Error creating new deck with single card:', error);
@@ -295,6 +310,8 @@ export const addCardToExistingDeck = async (
     });
 
     console.log(`Card added to deck ${deckId} successfully.`);
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId });
     return true;
   } catch (error) {
     console.error(`Error adding card to deck ${deckId}:`, error);
@@ -332,6 +349,10 @@ export const createEmptyDeck = async (
     await setDoc(deckDocRef, newDeckData); // Using setDoc directly as it's a single operation
 
     console.log(`Empty deck '${deckName}' created successfully with ID: ${deckDocRef.id}.`);
+    
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
+    
     return deckDocRef.id;
   } catch (error) {
     console.error('Error creating empty deck:', error);

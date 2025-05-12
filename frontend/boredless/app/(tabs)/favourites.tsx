@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useState, useCallback } from "react";
+import { Text, View, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useBottomSheetVisibility } from "@/context/TabContext";
 import { useAuth } from "../../hooks/useAuth";
-import { getUserDecks, getDeckCards, Deck } from "../../services/firestoreService";
+import { getUserDecks, getDeckCards, Deck, deckDataEvents, DECK_DATA_CHANGED } from "../../services/firestoreService";
 import { Card } from "../../types/card";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function FavouritesScreen() {
   const { showBottomSheet } = useBottomSheetVisibility();
@@ -12,21 +13,53 @@ export default function FavouritesScreen() {
   const [userDecks, setUserDecks] = useState<Deck[]>([]);
   const [isLoadingDecks, setIsLoadingDecks] = useState(true);
   const [isLoadingDeckCards, setIsLoadingDeckCards] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
+  const fetchDecks = async () => {
+    if (isAuthenticated && userId) {
+      setIsLoadingDecks(true);
+      const decks = await getUserDecks(userId);
+      setUserDecks(decks);
+      setIsLoadingDecks(false);
+      setRefreshing(false);
+    } else {
+      setUserDecks([]);
+      setIsLoadingDecks(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Initial fetch on component mount
   useEffect(() => {
-    const fetchDecks = async () => {
-      if (isAuthenticated && userId) {
-        setIsLoadingDecks(true);
-        const decks = await getUserDecks(userId);
-        setUserDecks(decks);
-        setIsLoadingDecks(false);
-      } else {
-        setUserDecks([]);
-        setIsLoadingDecks(false);
-      }
-    };
     fetchDecks();
   }, [userId, isAuthenticated]);
+
+  // Listen for deck data changes
+  useEffect(() => {
+    const handleDeckDataChanged = () => {
+      fetchDecks();
+    };
+
+    // Add event listener
+    deckDataEvents.on(DECK_DATA_CHANGED, handleDeckDataChanged);
+
+    // Clean up
+    return () => {
+      deckDataEvents.off(DECK_DATA_CHANGED, handleDeckDataChanged);
+    };
+  }, [userId, isAuthenticated]);
+
+  // Refresh when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchDecks();
+    }, [userId, isAuthenticated])
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchDecks();
+  }, []);
 
   const handleDeckPress = async (deckId: string) => {
     if (!deckId) return;
@@ -64,7 +97,7 @@ export default function FavouritesScreen() {
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Your Decks</Text>
       </View>
-      {isLoadingDecks ? (
+      {isLoadingDecks && !refreshing ? (
         <View style={styles.centeredMessageContainer}>
           <ActivityIndicator size="large" color="#A97C63" />
         </View>
@@ -79,6 +112,14 @@ export default function FavouritesScreen() {
           renderItem={renderDeckItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContentContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#A97C63"]}
+              tintColor="#A97C63"
+            />
+          }
         />
       )}
     </SafeAreaView>
