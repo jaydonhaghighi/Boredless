@@ -130,9 +130,17 @@ export const BottomSheetVisibilityProvider = ({ children }: { children: React.Re
   const [initialCardIndexInSheet, setInitialCardIndexInSheet] = useState<number>(0);
 
   const showBottomSheet = useCallback((cardsToDisplay?: Card[], initialIndex?: number) => {
+    console.log('showBottomSheet called with initialIndex:', initialIndex);
+    
     if (cardsToDisplay && cardsToDisplay.length > 0) {
       setCardsInSheet(cardsToDisplay);
-      setInitialCardIndexInSheet(initialIndex !== undefined ? initialIndex : 0);
+      // Ensure initialIndex is within bounds
+      const safeInitialIndex = initialIndex !== undefined && initialIndex >= 0 && initialIndex < cardsToDisplay.length 
+        ? initialIndex 
+        : 0;
+      
+      console.log('Setting initialCardIndexInSheet to:', safeInitialIndex);
+      setInitialCardIndexInSheet(safeInitialIndex);
     } else {
       setCardsInSheet(null);
       setInitialCardIndexInSheet(0);
@@ -141,12 +149,20 @@ export const BottomSheetVisibilityProvider = ({ children }: { children: React.Re
   }, []);
 
   const hideBottomSheet = useCallback(() => {
-    setIsVisible(false);
-    setCardsInSheet(null);
-    setInitialCardIndexInSheet(0);
+    console.log('hideBottomSheet called - completely hiding the sheet');
+    
+    // First close the bottom sheet
     if (bottomSheetRef.current) {
       bottomSheetRef.current.close();
     }
+    
+    // Force state update with slight delay to ensure bottom sheet animation has started
+    setTimeout(() => {
+      console.log('Clearing bottom sheet state after close');
+      setIsVisible(false);
+      setCardsInSheet(null);
+      setInitialCardIndexInSheet(0);
+    }, 100);
   }, []);
 
   const setIsGeneratingSheetState = useCallback((isGenerating: boolean) => {

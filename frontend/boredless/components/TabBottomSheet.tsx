@@ -15,28 +15,32 @@ import { useCurrentGeneration, useBottomSheetVisibility } from '../context/TabCo
 import PromptComponent from './PromptComponent';
 import { Card } from '../types/card';
 import { CustomBackdrop } from './CustomBackdrop';
+import { updateHistoryCardIndex, deckDataEvents, DECK_DATA_CHANGED } from '../services/firestoreService';
 
 /**
  * Gets the preview text to display in the bottom sheet based on card type
  */
-const getCardPreviewText = (card: Card): string => {
+const getCardPreviewText = (card: Card | undefined): string => {
   if (!card) return '';
+  
+  // Access question safely with type guarding
+  const question = 'question' in card ? card.question : '';
   
   switch(card.card_type) {
     case 'deep_conversations':
     case 'light_conversation':
     case 'hot_takes':
     case 'personality_quizzes':
-      return card.question || '';
+      return question;
       
     case 'fun_challenges':
-      return card.twist || card.question || '';
+      return ('twist' in card ? card.twist : '') || question;
       
     case 'creative_prompts':
-      return card.question || '';
+      return question;
       
     default:
-      return card.question || '';
+      return question;
   }
 };
 
@@ -56,6 +60,7 @@ export const TabBottomSheet = () => {
   } = useBottomSheetVisibility();
   
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [deckId, setDeckId] = useState<string | null>(null);
   
   const screenHeight = Dimensions.get('window').height;
   const TAB_BAR_HEIGHT = 55;
@@ -78,8 +83,19 @@ export const TabBottomSheet = () => {
       return;
     }
 
-    // Reset current card index when new cards are loaded
-    setCurrentCardIndex(initialCardIndexInSheet);
+    console.log('TabBottomSheet - initialCardIndexInSheet:', initialCardIndexInSheet);
+    console.log('TabBottomSheet - cardsInSheet length:', cardsInSheet?.length || 0);
+    
+    // If a deckId property exists on the first card, store it for use in saving index
+    // This will come from the history entry ID that was attached in home.tsx
+    let newDeckId = null;
+    if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
+      console.log('TabBottomSheet - Setting deckId:', cardsInSheet[0].deckId);
+      newDeckId = cardsInSheet[0].deckId;
+      setDeckId(newDeckId);
+    } else {
+      setDeckId(null);
+    }
 
     // Determine target snap index and card index based on available data
     let targetSnapIndex = 0; // Default to 12% (preview)
@@ -87,7 +103,25 @@ export const TabBottomSheet = () => {
     let effectivelyDisplayingCards = false;
 
     if (cardsInSheet && cardsInSheet.length > 0) {
-      newCardIndex = initialCardIndexInSheet;
+      // Ensure the initial card index is valid for this deck
+      if (initialCardIndexInSheet >= 0 && initialCardIndexInSheet < cardsInSheet.length) {
+        newCardIndex = initialCardIndexInSheet;
+      } else {
+        newCardIndex = 0;
+      }
+      
+      console.log('TabBottomSheet - Setting currentCardIndex to:', newCardIndex);
+      setCurrentCardIndex(newCardIndex);
+      
+      // If this is a saved deck and we're opening at a specific index, update the state in Firestore
+      // This ensures that simply viewing a card (without changing it) will still save the position
+      if (newDeckId && newCardIndex > 0) {
+        console.log(`Opening at saved position: index ${newCardIndex} for deck ${newDeckId}`);
+        // No need to await this, it can happen in the background
+        updateHistoryCardIndex(newDeckId, newCardIndex)
+          .catch(err => console.error('Failed to update initial card index:', err));
+      }
+      
       targetSnapIndex = 1; // 100%
       effectivelyDisplayingCards = true;
       setIsGeneratingSheetState(false);
@@ -112,8 +146,6 @@ export const TabBottomSheet = () => {
       }
     }
     
-    setCurrentCardIndex(newCardIndex);
-    
     // Snap to the determined index
     // Using a small timeout can sometimes help prevent race conditions with sheet rendering
     setTimeout(() => {
@@ -133,12 +165,80 @@ export const TabBottomSheet = () => {
     // setIsGeneratingSheetState // Setter usually doesn't need to be in dep array
   ]);
 
-  const handleChangeCard = React.useCallback((newIndex: number) => {
-    setCurrentCardIndex(newIndex);
+  // Save card index on sheet close if needed
+  useEffect(() => {
+    // When sheet becomes not visible
+    if (!isVisible && deckId && currentCardIndex > 0) {
+      console.log(`Sheet closed - saving final position at index ${currentCardIndex} for deck ${deckId}`);
+      // Save the last known position when closing
+      updateHistoryCardIndex(deckId, currentCardIndex)
+        .then(success => {
+          if (success) {
+            // Emit an event to notify that deck data has changed when sheet is closed
+            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+          }
+        })
+        .catch(err => console.error('Failed to save final card position:', err));
+    }
+  }, [isVisible, deckId, currentCardIndex]);
+  
+  // Cleanup function for when component unmounts
+  useEffect(() => {
+    return () => {
+      console.log('TabBottomSheet component cleanup');
+      // Any final cleanup if needed
+    };
   }, []);
 
+  const handleChangeCard = React.useCallback((newIndex: number) => {
+    console.log(`Changing card index to ${newIndex}`);
+    setCurrentCardIndex(newIndex);
+    
+    // If this card is from a history entry, save the index
+    if (deckId) {
+      console.log(`Saving card index ${newIndex} for deck ${deckId}`);
+      updateHistoryCardIndex(deckId, newIndex)
+        .then(success => {
+          if (success) {
+            console.log(`Successfully saved card index ${newIndex} for deck ${deckId}`);
+            
+            // Emit an event to notify that deck data has changed
+            // This will trigger the home screen to refresh
+            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
+            
+            // Update the state in context immediately to help with navigation
+            if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
+              // This ensures that if the user returns to home, it will show correct index
+              console.log(`Updated card context for deck ${deckId} with index ${newIndex}`);
+            }
+          } else {
+            console.error(`Failed to save card index ${newIndex} for deck ${deckId}`);
+          }
+        })
+        .catch(err => 
+          console.error('Failed to save card index:', err)
+        );
+    }
+  }, [deckId, cardsInSheet]);
+
   const handleClosePromptDisplay = () => {
-    setCurrentCardIndex(0);
+    // Don't reset currentCardIndex when closing, so it stays saved
+    console.log('Closing prompt display - keeping currentCardIndex as:', currentCardIndex);
+    
+    // Save the current position before minimizing
+    if (deckId) {
+      console.log(`Saving position at index ${currentCardIndex} before minimizing`);
+      updateHistoryCardIndex(deckId, currentCardIndex)
+        .then(success => {
+          if (success) {
+            // Emit an event to notify that deck data has changed
+            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+          }
+        })
+        .catch(err => console.error('Failed to save position before minimizing:', err));
+    }
+    
+    // Just minimize the sheet without resetting the current card
     if (visibilitySheetRef.current) {
       visibilitySheetRef.current.snapToIndex(0);
     }

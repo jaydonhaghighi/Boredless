@@ -17,6 +17,11 @@ interface BaseCard {
   tone?: string;
   participants?: string;
   relationship?: string;
+  
+  // Storage metadata
+  id?: string;
+  deckId?: string; // ID of the history entry or deck
+  createdAt?: any; // Timestamp of creation
 }
 
 /**

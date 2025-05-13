@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc, limit, updateDoc } from 'firebase/firestore';
 import { db } from '../FirebaseConfig';
 import { Card } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
@@ -14,6 +14,7 @@ export interface HistoryEntryData {
   createdAt: Timestamp; // Firestore Timestamp for server-side time
   filters: FilterParams;
   generated_cards_data: Card[]; // The array of card objects
+  currentCardIndex?: number; // Track the current position in the deck
 }
 
 // Create a global event emitter for deck data changes
@@ -43,6 +44,7 @@ export const addGeneratedSetToHistory = async (
       createdAt: serverTimestamp() as Timestamp, // Let Firestore set the timestamp
       filters,
       generated_cards_data: generatedCardsData,
+      currentCardIndex: 0, // Initialize the card index to 0
     };
     const docRef = await addDoc(collection(db, USER_PROMPT_HISTORY_COLLECTION), historyEntry);
     console.log('Generated set added to history with ID:', docRef.id);
@@ -396,6 +398,39 @@ export const getUserPromptHistory = async (userId: string, limitCount: number = 
   } catch (error) {
     console.error("Error fetching user prompt history:", error);
     return [];
+  }
+};
+
+/**
+ * Updates the current card index for a history entry.
+ * @param historyId The ID of the history entry.
+ * @param newIndex The new card index to save.
+ * @returns A promise that resolves to true on success, false on error.
+ */
+export const updateHistoryCardIndex = async (
+  historyId: string,
+  newIndex: number
+): Promise<boolean> => {
+  if (!historyId) {
+    console.error('History ID is required to update card index.');
+    return false;
+  }
+  
+  try {
+    console.log(`updateHistoryCardIndex: Updating index to ${newIndex} for history ID ${historyId}`);
+    const historyRef = doc(db, USER_PROMPT_HISTORY_COLLECTION, historyId);
+    await updateDoc(historyRef, {
+      currentCardIndex: newIndex
+    });
+    console.log(`updateHistoryCardIndex: Successfully updated card index to ${newIndex} for history entry ${historyId}`);
+    
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: historyId, currentCardIndex: newIndex });
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating history card index:', error);
+    return false;
   }
 };
 

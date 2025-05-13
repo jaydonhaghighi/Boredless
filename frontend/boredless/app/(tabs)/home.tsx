@@ -5,11 +5,12 @@ import { useCallback, useEffect, useState, ReactNode, useContext } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
-import { getUserPromptHistory, HistoryEntryData } from '../../services/firestoreService';
+import { getUserPromptHistory, HistoryEntryData, deckDataEvents, DECK_DATA_CHANGED } from '../../services/firestoreService';
 import { useCurrentGeneration, useBottomSheetVisibility } from '../../context/TabContext';
 import { Card } from '../../types/card';
 import { FilterParams } from '../../utils/cardUtils';
 import { CardTypeName } from '../../constants/cardTypes';
+import { useFocusEffect } from '@react-navigation/native';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,11 +24,20 @@ interface QuickStartItemData {
 }
 
 // Component for the content above the FlatList
-const ListHeader = ({ windowWidth, buttonSize, quickStartItems, onItemPress }: { 
+const ListHeader = ({ 
+  windowWidth, 
+  buttonSize, 
+  quickStartItems, 
+  onItemPress,
+  onRefresh,
+  isRefreshing
+}: { 
   windowWidth: number, 
   buttonSize: number, 
   quickStartItems: QuickStartItemData[],
-  onItemPress: (item: QuickStartItemData) => void
+  onItemPress: (item: QuickStartItemData) => void,
+  onRefresh: () => void,
+  isRefreshing: boolean
 }) => (
   <>
     <Text style={styles.headerText}>Hey, welcome back!</Text>
@@ -59,8 +69,19 @@ const ListHeader = ({ windowWidth, buttonSize, quickStartItems, onItemPress }: {
     />
 
     {/* Ongoing Decks Section Title - This will be followed by another FlatList */}
-    <View style={styles.sectionContainer}>
+    <View style={styles.sectionHeaderRow}>
       <Text style={styles.subHeader}>Ongoing Decks</Text>
+      <TouchableOpacity 
+        onPress={onRefresh} 
+        style={styles.refreshButton}
+        disabled={isRefreshing}
+      >
+        {isRefreshing ? (
+          <ActivityIndicator size="small" color="#A97C63" />
+        ) : (
+          <AntDesign name="reload1" size={16} color="#A97C63" />
+        )}
+      </TouchableOpacity>
     </View>
   </>
 );
@@ -155,20 +176,53 @@ export default function Index() {
     }
   }, [generationState.generatedCards, generationState.isGeneratingCards, generationState.error, showBottomSheet]);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      if (isAuthenticated && userId) {
-        setIsLoadingHistory(true);
-        const history = await getUserPromptHistory(userId, 5);
-        setPromptHistory(history);
-        setIsLoadingHistory(false);
-      } else {
-        setPromptHistory([]);
-        setIsLoadingHistory(false);
-      }
-    };
-    fetchHistory();
+  // Function to fetch history data
+  const fetchHistory = useCallback(async () => {
+    if (isAuthenticated && userId) {
+      console.log("Fetching updated history data...");
+      setIsLoadingHistory(true);
+      const history = await getUserPromptHistory(userId, 5);
+      setPromptHistory(history);
+      setIsLoadingHistory(false);
+    } else {
+      setPromptHistory([]);
+      setIsLoadingHistory(false);
+    }
   }, [userId, isAuthenticated]);
+
+  // Load history data on initial render
+  useEffect(() => {
+    console.log("Initial load - fetching history data");
+    fetchHistory();
+
+    // Listen for deck data changes
+    const handleDeckDataChanged = (data: { deckId: string, currentCardIndex?: number }) => {
+      console.log(`Deck data changed event for deck ${data.deckId}, index: ${data.currentCardIndex}. Refreshing history data.`);
+      fetchHistory();
+    };
+
+    // Add event listener
+    deckDataEvents.addListener(DECK_DATA_CHANGED, handleDeckDataChanged);
+
+    // Clean up event listener when component unmounts
+    return () => {
+      deckDataEvents.removeListener(DECK_DATA_CHANGED, handleDeckDataChanged);
+    };
+  }, [fetchHistory]);
+  
+  // Track last refresh time to force updates
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
+  
+  // Reload history data when the home tab becomes focused
+  useFocusEffect(
+    useCallback(() => {
+      console.log("Home tab focused - reloading history data");
+      fetchHistory();
+      return () => {
+        console.log("Home tab unfocused");
+      };
+    }, [fetchHistory])
+  );
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded || fontError) {
@@ -181,11 +235,25 @@ export default function Index() {
   }
 
   // Render function for history items (Ongoing Decks)
-  const renderHistoryItem = ({ item }: { item: HistoryEntryData }) => (
+  const renderHistoryItem = ({ item }: { item: HistoryEntryData }) => {
+    // Add debug logging for the currentCardIndex
+    console.log(`History item ${item.id} - currentCardIndex:`, item.currentCardIndex);
+    
+    return (
     <TouchableOpacity 
       onPress={() => {
         if (item.generated_cards_data && item.generated_cards_data.length > 0) {
-          showBottomSheet(item.generated_cards_data, 0);
+          // Add deck ID to each card to track which history entry this is
+          const cardsWithDeckId = item.generated_cards_data.map(card => ({
+            ...card,
+            deckId: item.id // Set the history entry ID as the deckId on each card
+          }));
+          
+          // Use the saved currentCardIndex if available, otherwise default to 0
+          const startIndex = item.currentCardIndex !== undefined ? item.currentCardIndex : 0;
+          
+          console.log(`Opening deck ${item.id} at index ${startIndex}`);
+          showBottomSheet(cardsWithDeckId, startIndex);
         } else {
           Alert.alert("Empty Deck", "This deck doesn't contain any cards.");
         }
@@ -202,10 +270,19 @@ export default function Index() {
           <Text style={styles.ongoingDeckTitle}>{item.filters?.topic || "General Topics"}</Text>
           <Text style={styles.ongoingDeckSubtitle} numberOfLines={1}>{item.generated_cards_data?.[0]?.title || 'View Cards'}</Text>
           <Text style={styles.ongoingDeckProgress}>{item.generated_cards_data?.length || 0} cards</Text>
+          {item.currentCardIndex !== undefined && item.currentCardIndex > 0 && (
+            <View style={styles.bookmarkContainer}>
+              <AntDesign name="pushpin" size={10} color="#A97C63" style={styles.bookmarkIcon} />
+              <Text style={styles.ongoingDeckBookmark}>
+                Resume at card {item.currentCardIndex + 1}
+              </Text>
+            </View>
+          )}
         </View>
       </ImageBackground>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
@@ -215,6 +292,8 @@ export default function Index() {
           buttonSize={buttonSize} 
           quickStartItems={quickStartItemsData}
           onItemPress={handleQuickStartPress}
+          onRefresh={fetchHistory}
+          isRefreshing={isLoadingHistory}
         />
         
         {/* Loading indicator for QuickPicks now uses context's loading state */}
@@ -353,6 +432,13 @@ const styles = StyleSheet.create({
     color: '#A0A0A0',
     textAlign: 'center',
   },
+  ongoingDeckBookmark: {
+    fontFamily: 'Petrona-Regular',
+    fontSize: 10,
+    color: '#A0A0A0',
+    textAlign: 'center',
+    marginTop: 4,
+  },
   // Styles for History List (Previously full width items)
   centeredMessageContainerHorizontalList: { // For when horizontal list is empty
     paddingVertical: 20,
@@ -380,5 +466,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Petrona-Regular',
     color: '#301C11'
+  },
+  bookmarkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookmarkIcon: {
+    marginRight: 4,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  refreshButton: {
+    padding: 5,
   },
 });
