@@ -28,16 +28,12 @@ const ListHeader = ({
   windowWidth, 
   buttonSize, 
   quickStartItems, 
-  onItemPress,
-  onRefresh,
-  isRefreshing
+  onItemPress
 }: { 
   windowWidth: number, 
   buttonSize: number, 
   quickStartItems: QuickStartItemData[],
-  onItemPress: (item: QuickStartItemData) => void,
-  onRefresh: () => void,
-  isRefreshing: boolean
+  onItemPress: (item: QuickStartItemData) => void
 }) => (
   <>
     <Text style={styles.headerText}>Hey, welcome back!</Text>
@@ -69,19 +65,8 @@ const ListHeader = ({
     />
 
     {/* Ongoing Decks Section Title - This will be followed by another FlatList */}
-    <View style={styles.sectionHeaderRow}>
+    <View style={styles.sectionContainer}>
       <Text style={styles.subHeader}>Ongoing Decks</Text>
-      <TouchableOpacity 
-        onPress={onRefresh} 
-        style={styles.refreshButton}
-        disabled={isRefreshing}
-      >
-        {isRefreshing ? (
-          <ActivityIndicator size="small" color="#A97C63" />
-        ) : (
-          <AntDesign name="reload1" size={16} color="#A97C63" />
-        )}
-      </TouchableOpacity>
     </View>
   </>
 );
@@ -210,9 +195,6 @@ export default function Index() {
     };
   }, [fetchHistory]);
   
-  // Track last refresh time to force updates
-  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
-  
   // Reload history data when the home tab becomes focused
   useFocusEffect(
     useCallback(() => {
@@ -292,8 +274,6 @@ export default function Index() {
           buttonSize={buttonSize} 
           quickStartItems={quickStartItemsData}
           onItemPress={handleQuickStartPress}
-          onRefresh={fetchHistory}
-          isRefreshing={isLoadingHistory}
         />
         
         {/* Loading indicator for QuickPicks now uses context's loading state */}
@@ -474,15 +454,5 @@ const styles = StyleSheet.create({
   },
   bookmarkIcon: {
     marginRight: 4,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  refreshButton: {
-    padding: 5,
   },
 });
