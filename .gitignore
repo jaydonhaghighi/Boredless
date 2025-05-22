@@ -37,6 +37,8 @@ var/
 *.egg
 venv/
 .env
+backend/cache/
+cache/
 
 # IDE
 .idea/
