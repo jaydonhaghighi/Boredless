@@ -5,6 +5,7 @@ import json
 from dotenv import load_dotenv
 from models.generate import PromptResponse
 from constants import CARD_TYPE_MAPPING, CARD_FIELD_DEFINITIONS, CARD_TYPE_STRUCTURES
+from services.cache import get_cache_key, get_from_cache, save_to_cache
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path=os.path.join(
@@ -40,6 +41,12 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
     # Get the field definitions for this card type
     field_definitions = CARD_FIELD_DEFINITIONS.get(card_type_id, "")
 
+    # Generate cache key from prompt parameters
+    cache_key = get_cache_key(topic, card_type, tone, participants, relationship)
+    
+    # Check cache for previous responses
+    previous_cards = get_from_cache(cache_key)
+
     # Format the structure for display in the prompt
     structure_text = f"Front: {structure.get('front', '')}\nBack: {structure.get('back', '')}"
 
@@ -70,10 +77,38 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
     {field_definitions}
     
     IMPORTANT: Make sure to include "card_type": "{card_type_id}" in each card.
+    IMPORTANT: Ensure all required fields are included for each card and properly formatted.
+
+    DIVERSITY GUIDELINES:
+    - Explore a wide range of perspectives, angles, and subtopics within the main topic.
+    - Approach the topic from unconventional or surprising directions.
+    - Vary the linguistic structure and length of your questions (use some short direct questions, some longer scenario-based questions, some hypothetical questions, etc).
+    - Avoid using the same question stems/starters across multiple questions (e.g., don't start multiple questions with "What would you...").
+    - Use different cognitive levels in your questions (knowledge, application, analysis, evaluation, creation).
+    - Consider different emotional tones within the overall specified tone (curious, reflective, challenging, playful).
+    - Explicitly check each question against the others to ensure sufficient differentiation.
+    - Ensure each question explores a unique facet of the topic that hasn't been covered in other questions.
     """
 
     # A simple user prompt to trigger generation
     user_prompt = "Generate 8 conversation cards based on the above system instructions. Only respond with valid JSON."
+
+    # If there are previous cards, add them to the context
+    if previous_cards:
+        previous_cards_json = json.dumps(previous_cards, indent=2)
+        system_prompt += f"""
+        
+        IMPORTANT: Below are cards that have been previously generated for these exact parameters.
+        DO NOT repeat or generate similar questions to these. Create completely new, original content.
+        Analyze these previous questions carefully to understand their patterns, then deliberately create questions that:
+        1. Explore completely different aspects of the topic
+        2. Use different linguistic structures
+        3. Approach the topic from fresh angles not seen below
+        4. Vary in complexity, depth, and tone
+        
+        Previous cards:
+        {previous_cards_json}
+        """
 
     # Create an OpenAI client
     client = openai.OpenAI(api_key=api_key)
@@ -88,7 +123,9 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
         response_format={"type": "json_object"},
         temperature=0.7,
         max_tokens=5000,
-        top_p=0.9
+        top_p=0.9,
+        frequency_penalty=0.5,
+        presence_penalty=0.5
     )
     
     # Get the content from the response
@@ -98,6 +135,69 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
     try:
         content_json = json.loads(content)
         
+        # Validate and clean the cards to ensure they have all required fields
+        if 'cards' in content_json:
+            validated_cards = []
+            
+            for card in content_json['cards']:
+                # Skip malformed cards or cards with invalid structure
+                if not isinstance(card, dict) or 'card_type' not in card:
+                    print(f"Warning: Skipping card with invalid structure: {card}")
+                    continue
+                
+                # Get expected card type
+                card_type_name = card.get('card_type')
+                
+                # Validate required fields for specific card types
+                if card_type_name == 'deep_conversations':
+                    if not all(k in card for k in ['question', 'title', 'reflection']):
+                        print(f"Warning: Skipping deep_conversations card with missing required fields: {card}")
+                        continue
+                    # Ensure followups exists as at least an empty list
+                    if 'followups' not in card or card['followups'] is None:
+                        card['followups'] = []
+                
+                elif card_type_name == 'fun_challenges':
+                    if not all(k in card for k in ['question', 'title', 'twist']):
+                        print(f"Warning: Skipping fun_challenges card with missing required fields: {card}")
+                        continue
+                
+                elif card_type_name == 'creative_prompts':
+                    if not all(k in card for k in ['question', 'title', 'bonus']):
+                        print(f"Warning: Skipping creative_prompts card with missing required fields: {card}")
+                        continue
+                
+                elif card_type_name == 'light_conversation':
+                    if not all(k in card for k in ['question', 'title']):
+                        print(f"Warning: Skipping light_conversation card with missing required fields: {card}")
+                        continue
+                    # Ensure bonus exists
+                    if 'bonus' not in card or not card['bonus']:
+                        card['bonus'] = "Just enjoy the conversation!"
+                
+                elif card_type_name == 'hot_takes':
+                    if not all(k in card for k in ['question', 'title', 'perspective1', 'perspective2', 'debate_twist']):
+                        print(f"Warning: Skipping hot_takes card with missing required fields: {card}")
+                        continue
+                
+                elif card_type_name == 'personality_quizzes':
+                    if not all(k in card for k in ['question', 'title', 'group_vote', 'reveal']):
+                        print(f"Warning: Skipping personality_quizzes card with missing required fields: {card}")
+                        continue
+                
+                # Card passed validation, add to validated list
+                validated_cards.append(card)
+            
+            # Only continue if we have at least one valid card
+            if not validated_cards:
+                raise ValueError("No valid cards were found in the response. All cards failed validation.")
+            
+            # Replace the cards in the response with validated cards
+            content_json['cards'] = validated_cards
+            
+            # Save the validated cards to cache
+            save_to_cache(cache_key, validated_cards)
+        
         # Convert the JSON to a PromptResponse
         prompt_response = PromptResponse.model_validate(content_json)
         return prompt_response
@@ -105,3 +205,7 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
         print(f"Error parsing JSON from OpenAI response: {e}")
         print(f"Response content: {content}")
         raise ValueError(f"Failed to parse OpenAI response: {e}")
+    
+
+
+

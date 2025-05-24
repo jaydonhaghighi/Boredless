@@ -291,7 +291,7 @@ function ExitCard({
         {/* Back button */}
         <View style={styles.backButton}>
           <Image 
-            source={require('../../assets/images/prompt/back_arrow.png')} 
+            source={require('../assets/images/prompt/back_arrow.png')} 
             style={styles.backArrowIcon} 
           />
         </View>
@@ -315,8 +315,8 @@ function ExitCard({
       <View style={styles.favoriteButton}>
         <Image 
           source={isFavorite 
-            ? require('../../assets/images/prompt/favourite_select.png')
-            : require('../../assets/images/prompt/favourite_unselect.png')} 
+            ? require('../assets/images/prompt/favourite_select.png')
+            : require('../assets/images/prompt/favourite_unselect.png')} 
           style={styles.favoriteIcon} 
         />
       </View>
@@ -389,7 +389,7 @@ function ReverseCard({
         {!isFirstCard && (
           <View style={styles.backButton}>
             <Image 
-              source={require('../../assets/images/prompt/back_arrow.png')} 
+              source={require('../assets/images/prompt/back_arrow.png')} 
               style={styles.backArrowIcon} 
             />
           </View>
@@ -414,8 +414,8 @@ function ReverseCard({
       <View style={styles.favoriteButton}>
         <Image 
           source={isFavorite 
-            ? require('../../assets/images/prompt/favourite_select.png')
-            : require('../../assets/images/prompt/favourite_unselect.png')} 
+            ? require('../assets/images/prompt/favourite_select.png')
+            : require('../assets/images/prompt/favourite_unselect.png')} 
           style={styles.favoriteIcon} 
         />
       </View>
@@ -670,7 +670,7 @@ function CardItem({
               disabled={interactionBlocked}
             >
               <Image 
-                source={require('../../assets/images/prompt/back_arrow.png')} 
+                source={require('../assets/images/prompt/back_arrow.png')} 
                 style={styles.backArrowIcon} 
               />
             </TouchableOpacity>
@@ -701,8 +701,8 @@ function CardItem({
         >
           <Image 
             source={isFavorite 
-              ? require('../../assets/images/prompt/favourite_select.png')
-              : require('../../assets/images/prompt/favourite_unselect.png')} 
+              ? require('../assets/images/prompt/favourite_select.png')
+              : require('../assets/images/prompt/favourite_unselect.png')} 
             style={[
               styles.favoriteIcon,
               !isCurrentCard && { opacity: 0.6 }, // Slightly dim for non-current cards

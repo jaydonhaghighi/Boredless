@@ -4,7 +4,10 @@
     "strict": true,
     "jsx": "react-jsx",
     "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["react"],
     "paths": {
+      "@firebase/auth": ["./node_modules/@firebase/auth/dist/index.rn.d.ts"],
       "@/*": [
         "./*"
       ]

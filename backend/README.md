@@ -127,3 +127,53 @@ const response = await axios.post('http://localhost:8000/generator/', {
 
 const generatedPrompt = response.data.prompt;
 ```
+
+# Boredless Backend
+
+The backend server for the Boredless application, built with FastAPI and OpenAI.
+
+## Key Components
+
+- FastAPI for API endpoints
+- OpenAI integration for prompt generation
+- Caching system for context-aware prompt generation
+
+## Caching System
+
+The caching system stores previously generated cards for specific combinations of parameters (topic, card type, tone, participants, relationship). When generating new prompts with the same parameters, the system:
+
+1. Retrieves previously generated cards from the cache
+2. Sends these cards to OpenAI as context to avoid repetition
+3. Stores the newly generated cards in the cache for future use
+
+This approach ensures:
+- No repetition of questions across multiple sessions with the same parameters
+- Improved prompt quality through accumulated context
+- Better user experience with increasingly diverse content
+
+### Cache Implementation
+
+- Cache files are stored in the `backend/cache/` directory
+- Each unique combination of parameters has its own cache file
+- Cache keys are generated using MD5 hashing of parameter strings
+- Cache entries persist between application restarts
+
+## Testing
+
+Run the test script to verify the caching system:
+
+```bash
+cd backend
+python test_cache.py
+```
+
+## Running the Application
+
+Start the backend server:
+
+```bash
+cd backend
+python main.py
+```
+
+The server will be available at http://localhost:8000.

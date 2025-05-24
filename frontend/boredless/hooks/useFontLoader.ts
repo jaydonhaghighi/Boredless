@@ -15,8 +15,10 @@ import * as SplashScreen from 'expo-splash-screen';
  */
 export const useFontLoader = () => {
   const [fontsLoaded, fontError] = useFonts({
-    'Petrona-Bold': require('../../assets/fonts/Petrona-Bold.ttf'),
-    'Petrona-Regular': require('../../assets/fonts/Petrona-Regular.ttf'),
+    'Petrona-Bold': require('../assets/fonts/Petrona-Bold.ttf'),
+    'Petrona-Regular': require('../assets/fonts/Petrona-Regular.ttf'),
+    'BodoniModa-Regular': require('../assets/fonts/BodoniModa-Regular.ttf'),
+    'BodoniModa-SemiBold': require('../assets/fonts/BodoniModa-SemiBold.ttf'),
   });
 
   const onLayoutRootView = useCallback(async () => {

@@ -37,6 +37,8 @@ var/
 *.egg
 venv/
 .env
+backend/cache/
+cache/
 
 # IDE
 .idea/
@@ -67,3 +69,5 @@ taskmaster/.roo/rules-test/test-rules
 taskmaster/scripts/example_prd.txt
 taskmaster/scripts/PRD.txt
 taskmaster/scripts/task-complexity-report.json
+frontend/boredless/ios
+frontend/boredless/FirebaseConfig.ts
