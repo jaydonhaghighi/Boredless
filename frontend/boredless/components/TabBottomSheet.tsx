@@ -15,7 +15,7 @@ import { useCurrentGeneration, useBottomSheetVisibility } from '../context/TabCo
 import PromptComponent from './PromptComponent';
 import { Card } from '../types/card';
 import { CustomBackdrop } from './CustomBackdrop';
-import { updateHistoryCardIndex, deckDataEvents, DECK_DATA_CHANGED } from '../services/firestoreService';
+import { updateHistoryCardIndex, deckDataEvents, DECK_DATA_CHANGED, doesHistoryEntryExist, updateDeckCardIndex, doesDeckExist } from '../services/firestoreService';
 
 /**
  * Gets the preview text to display in the bottom sheet based on card type
@@ -61,10 +61,26 @@ export const TabBottomSheet = () => {
   
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [deckId, setDeckId] = useState<string | null>(null);
+  const [isSavedDeck, setIsSavedDeck] = useState(false);
   
   const screenHeight = Dimensions.get('window').height;
   const TAB_BAR_HEIGHT = 55;
   const snapPoints = useMemo(() => [`12%`, `100%`], [screenHeight]);
+
+  // Helper function to determine if we're dealing with a saved deck or history entry
+  const determineCollectionType = (id: string, cards: Card[]) => {
+    // If cards have deckId property, it's likely a saved deck
+    // If cards come from history, they won't have deckId
+    if (cards && cards.length > 0 && 'deckId' in cards[0] && cards[0].deckId) {
+      return 'deck';
+    }
+    // If the ID looks like a Firestore auto-generated ID (20 chars), it's likely a history entry
+    if (id && id.length === 20) {
+      return 'history';
+    }
+    // Default to history for backward compatibility
+    return 'history';
+  };
 
   const animatedPosition = useSharedValue(0);
   const animatedBackgroundStyle = useAnimatedStyle(() => {
@@ -89,12 +105,20 @@ export const TabBottomSheet = () => {
     // If a deckId property exists on the first card, store it for use in saving index
     // This will come from the history entry ID that was attached in home.tsx
     let newDeckId = null;
+    let collectionType = 'history';
+    
     if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
       console.log('TabBottomSheet - Setting deckId:', cardsInSheet[0].deckId);
       newDeckId = cardsInSheet[0].deckId;
+      collectionType = 'deck';
       setDeckId(newDeckId);
+      setIsSavedDeck(true);
     } else {
+      // For history entries, we need to get the ID from the context or props
+      // This is a bit tricky since we don't have direct access to the history ID
+      // For now, we'll set it to null and handle it differently
       setDeckId(null);
+      setIsSavedDeck(false);
     }
 
     // Determine target snap index and card index based on available data
@@ -117,9 +141,28 @@ export const TabBottomSheet = () => {
       // This ensures that simply viewing a card (without changing it) will still save the position
       if (newDeckId && newCardIndex > 0) {
         console.log(`Opening at saved position: index ${newCardIndex} for deck ${newDeckId}`);
-        // No need to await this, it can happen in the background
-        updateHistoryCardIndex(newDeckId, newCardIndex)
-          .catch(err => console.error('Failed to update initial card index:', err));
+        
+        if (isSavedDeck) {
+          // For saved decks, update the deck collection
+          doesDeckExist(newDeckId).then(exists => {
+            if (exists) {
+              updateDeckCardIndex(newDeckId, newCardIndex)
+                .catch(err => console.error('Failed to update initial deck card index:', err));
+            } else {
+              console.warn(`Deck ${newDeckId} does not exist, skipping card index update`);
+            }
+          }).catch(err => console.error('Failed to check if deck exists:', err));
+        } else {
+          // For history entries, update the history collection
+          doesHistoryEntryExist(newDeckId).then(exists => {
+            if (exists) {
+              updateHistoryCardIndex(newDeckId, newCardIndex)
+                .catch(err => console.error('Failed to update initial card index:', err));
+            } else {
+              console.warn(`History entry ${newDeckId} does not exist, skipping card index update`);
+            }
+          }).catch(err => console.error('Failed to check if history entry exists:', err));
+        }
       }
       
       targetSnapIndex = 1; // 100%
@@ -170,17 +213,42 @@ export const TabBottomSheet = () => {
     // When sheet becomes not visible
     if (!isVisible && deckId && currentCardIndex > 0) {
       console.log(`Sheet closed - saving final position at index ${currentCardIndex} for deck ${deckId}`);
-      // Save the last known position when closing
-      updateHistoryCardIndex(deckId, currentCardIndex)
-        .then(success => {
-          if (success) {
-            // Emit an event to notify that deck data has changed when sheet is closed
-            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+      
+      if (isSavedDeck) {
+        // For saved decks, update the deck collection
+        doesDeckExist(deckId).then(exists => {
+          if (exists) {
+            updateDeckCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed when sheet is closed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save final deck card position:', err));
+          } else {
+            console.warn(`Deck ${deckId} does not exist, skipping final card position save`);
           }
-        })
-        .catch(err => console.error('Failed to save final card position:', err));
+        }).catch(err => console.error('Failed to check if deck exists:', err));
+      } else {
+        // For history entries, update the history collection
+        doesHistoryEntryExist(deckId).then(exists => {
+          if (exists) {
+            updateHistoryCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed when sheet is closed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save final card position:', err));
+          } else {
+            console.warn(`History entry ${deckId} does not exist, skipping final card position save`);
+          }
+        }).catch(err => console.error('Failed to check if history entry exists:', err));
+      }
     }
-  }, [isVisible, deckId, currentCardIndex]);
+  }, [isVisible, deckId, currentCardIndex, isSavedDeck]);
   
   // Cleanup function for when component unmounts
   useEffect(() => {
@@ -197,29 +265,68 @@ export const TabBottomSheet = () => {
     // If this card is from a history entry, save the index
     if (deckId) {
       console.log(`Saving card index ${newIndex} for deck ${deckId}`);
-      updateHistoryCardIndex(deckId, newIndex)
-        .then(success => {
-          if (success) {
-            console.log(`Successfully saved card index ${newIndex} for deck ${deckId}`);
-            
-            // Emit an event to notify that deck data has changed
-            // This will trigger the home screen to refresh
-            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
-            
-            // Update the state in context immediately to help with navigation
-            if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
-              // This ensures that if the user returns to home, it will show correct index
-              console.log(`Updated card context for deck ${deckId} with index ${newIndex}`);
-            }
+      
+      if (isSavedDeck) {
+        // For saved decks, update the deck collection
+        doesDeckExist(deckId).then(exists => {
+          if (exists) {
+            updateDeckCardIndex(deckId, newIndex)
+              .then(success => {
+                if (success) {
+                  console.log(`Successfully saved card index ${newIndex} for deck ${deckId}`);
+                  
+                  // Emit an event to notify that deck data has changed
+                  // This will trigger the home screen to refresh
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
+                  
+                  // Update the state in context immediately to help with navigation
+                  if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
+                    // This ensures that if the user returns to home, it will show correct index
+                    console.log(`Updated card context for deck ${deckId} with index ${newIndex}`);
+                  }
+                } else {
+                  console.error(`Failed to save card index ${newIndex} for deck ${deckId}`);
+                }
+              })
+              .catch(err => 
+                console.error('Failed to save deck card index:', err)
+              );
           } else {
-            console.error(`Failed to save card index ${newIndex} for deck ${deckId}`);
+            console.warn(`Deck ${deckId} does not exist, skipping card index save`);
           }
-        })
-        .catch(err => 
-          console.error('Failed to save card index:', err)
-        );
+        }).catch(err => console.error('Failed to check if deck exists:', err));
+      } else {
+        // For history entries, update the history collection
+        doesHistoryEntryExist(deckId).then(exists => {
+          if (exists) {
+            updateHistoryCardIndex(deckId, newIndex)
+              .then(success => {
+                if (success) {
+                  console.log(`Successfully saved card index ${newIndex} for deck ${deckId}`);
+                  
+                  // Emit an event to notify that deck data has changed
+                  // This will trigger the home screen to refresh
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
+                  
+                  // Update the state in context immediately to help with navigation
+                  if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
+                    // This ensures that if the user returns to home, it will show correct index
+                    console.log(`Updated card context for deck ${deckId} with index ${newIndex}`);
+                  }
+                } else {
+                  console.error(`Failed to save card index ${newIndex} for deck ${deckId}`);
+                }
+              })
+              .catch(err => 
+                console.error('Failed to save card index:', err)
+              );
+          } else {
+            console.warn(`History entry ${deckId} does not exist, skipping card index save`);
+          }
+        }).catch(err => console.error('Failed to check if history entry exists:', err));
+      }
     }
-  }, [deckId, cardsInSheet]);
+  }, [deckId, cardsInSheet, isSavedDeck]);
 
   const handleClosePromptDisplay = () => {
     // Don't reset currentCardIndex when closing, so it stays saved
@@ -228,14 +335,40 @@ export const TabBottomSheet = () => {
     // Save the current position before minimizing
     if (deckId) {
       console.log(`Saving position at index ${currentCardIndex} before minimizing`);
-      updateHistoryCardIndex(deckId, currentCardIndex)
-        .then(success => {
-          if (success) {
-            // Emit an event to notify that deck data has changed
-            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+      
+      if (isSavedDeck) {
+        // For saved decks, update the deck collection
+        doesDeckExist(deckId).then(exists => {
+          if (exists) {
+            updateDeckCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save deck position before minimizing:', err));
+          } else {
+            console.warn(`Deck ${deckId} does not exist, skipping position save before minimizing`);
           }
-        })
-        .catch(err => console.error('Failed to save position before minimizing:', err));
+        }).catch(err => console.error('Failed to check if deck exists:', err));
+      } else {
+        // For history entries, update the history collection
+        doesHistoryEntryExist(deckId).then(exists => {
+          if (exists) {
+            updateHistoryCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save position before minimizing:', err));
+          } else {
+            console.warn(`History entry ${deckId} does not exist, skipping position save before minimizing`);
+          }
+        }).catch(err => console.error('Failed to check if history entry exists:', err));
+      }
     }
     
     // Just minimize the sheet without resetting the current card

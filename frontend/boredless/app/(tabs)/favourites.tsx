@@ -67,7 +67,12 @@ export default function FavouritesScreen() {
     try {
       const cards = await getDeckCards(deckId);
       if (cards && cards.length > 0) {
-        showBottomSheet(cards, 0);
+        // Add deckId to each card so TabBottomSheet knows which deck to update
+        const cardsWithDeckId = cards.map(card => ({
+          ...card,
+          deckId: deckId
+        }));
+        showBottomSheet(cardsWithDeckId, 0);
       } else {
         Alert.alert("Empty Deck", "This deck doesn\'t have any cards.");
       }

@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc, limit, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc, limit, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../FirebaseConfig';
 import { Card } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
@@ -62,6 +62,7 @@ export interface Deck {
   name: string;
   createdAt: Timestamp;
   cardCount?: number; // Optional: can be denormalized
+  currentCardIndex?: number; // Track the current position in the deck
 }
 
 /**
@@ -402,6 +403,27 @@ export const getUserPromptHistory = async (userId: string, limitCount: number = 
 };
 
 /**
+ * Checks if a history entry exists in Firestore.
+ * @param historyId The ID of the history entry to check.
+ * @returns A promise that resolves to true if the document exists, false otherwise.
+ */
+export const doesHistoryEntryExist = async (historyId: string): Promise<boolean> => {
+  if (!historyId) {
+    console.error('History ID is required to check if entry exists.');
+    return false;
+  }
+  
+  try {
+    const historyRef = doc(db, USER_PROMPT_HISTORY_COLLECTION, historyId);
+    const docSnap = await getDoc(historyRef);
+    return docSnap.exists();
+  } catch (error) {
+    console.error('Error checking if history entry exists:', error);
+    return false;
+  }
+};
+
+/**
  * Updates the current card index for a history entry.
  * @param historyId The ID of the history entry.
  * @param newIndex The new card index to save.
@@ -417,8 +439,26 @@ export const updateHistoryCardIndex = async (
   }
   
   try {
-    console.log(`updateHistoryCardIndex: Updating index to ${newIndex} for history ID ${historyId}`);
+    console.log(`updateHistoryCardIndex: Attempting to update index to ${newIndex} for history ID ${historyId}`);
     const historyRef = doc(db, USER_PROMPT_HISTORY_COLLECTION, historyId);
+    
+    // First, try to get the document to see if it exists
+    const docSnap = await getDoc(historyRef);
+    
+    if (!docSnap.exists()) {
+      console.warn(`Document ${historyId} does not exist in ${USER_PROMPT_HISTORY_COLLECTION}. Cannot update card index.`);
+      console.warn(`This could happen if the document was deleted, the ID is incorrect, or there's a network issue.`);
+      return false;
+    }
+    
+    // Log the document data for debugging
+    const docData = docSnap.data();
+    console.log(`Document ${historyId} exists. Current data:`, {
+      userId: docData?.userId,
+      currentCardIndex: docData?.currentCardIndex,
+      cardCount: docData?.generated_cards_data?.length
+    });
+    
     await updateDoc(historyRef, {
       currentCardIndex: newIndex
     });
@@ -430,6 +470,90 @@ export const updateHistoryCardIndex = async (
     return true;
   } catch (error) {
     console.error('Error updating history card index:', error);
+    console.error('Error details:', {
+      historyId,
+      newIndex,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorCode: (error as any)?.code
+    });
+    return false;
+  }
+};
+
+/**
+ * Updates the current card index for a saved deck.
+ * @param deckId The ID of the deck.
+ * @param newIndex The new card index to save.
+ * @returns A promise that resolves to true on success, false on error.
+ */
+export const updateDeckCardIndex = async (
+  deckId: string,
+  newIndex: number
+): Promise<boolean> => {
+  if (!deckId) {
+    console.error('Deck ID is required to update card index.');
+    return false;
+  }
+  
+  try {
+    console.log(`updateDeckCardIndex: Attempting to update index to ${newIndex} for deck ID ${deckId}`);
+    const deckRef = doc(db, DECKS_COLLECTION, deckId);
+    
+    // First, try to get the document to see if it exists
+    const docSnap = await getDoc(deckRef);
+    
+    if (!docSnap.exists()) {
+      console.warn(`Document ${deckId} does not exist in ${DECKS_COLLECTION}. Cannot update card index.`);
+      console.warn(`This could happen if the document was deleted, the ID is incorrect, or there's a network issue.`);
+      return false;
+    }
+    
+    // Log the document data for debugging
+    const docData = docSnap.data();
+    console.log(`Document ${deckId} exists. Current data:`, {
+      userId: docData?.userId,
+      name: docData?.name,
+      cardCount: docData?.cardCount
+    });
+    
+    await updateDoc(deckRef, {
+      currentCardIndex: newIndex
+    });
+    console.log(`updateDeckCardIndex: Successfully updated card index to ${newIndex} for deck ${deckId}`);
+    
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating deck card index:', error);
+    console.error('Error details:', {
+      deckId,
+      newIndex,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorCode: (error as any)?.code
+    });
+    return false;
+  }
+};
+
+/**
+ * Checks if a deck exists in Firestore.
+ * @param deckId The ID of the deck to check.
+ * @returns A promise that resolves to true if the document exists, false otherwise.
+ */
+export const doesDeckExist = async (deckId: string): Promise<boolean> => {
+  if (!deckId) {
+    console.error('Deck ID is required to check if deck exists.');
+    return false;
+  }
+  
+  try {
+    const deckRef = doc(db, DECKS_COLLECTION, deckId);
+    const docSnap = await getDoc(deckRef);
+    return docSnap.exists();
+  } catch (error) {
+    console.error('Error checking if deck exists:', error);
     return false;
   }
 };
