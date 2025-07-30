@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl, TextInput, Modal } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { Text, View, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl, TextInput, Modal, Animated } from 'react-native';
 import { useBottomSheetVisibility } from "@/context/TabContext";
 import { useAuth } from "../../hooks/useAuth";
 import { getUserDecks, getDeckCards, Deck, deckDataEvents, DECK_DATA_CHANGED, createEmptyDeck } from "../../services/firestoreService";
@@ -21,6 +21,9 @@ export default function FavouritesScreen() {
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [isSearchVisible, setIsSearchVisible] = useState(false); // For animation control
+  const searchBarOpacity = useRef(new Animated.Value(0)).current;
+  const searchBarTranslateY = useRef(new Animated.Value(-10)).current;
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'cards'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
@@ -172,14 +175,51 @@ export default function FavouritesScreen() {
     return sortOrder === 'asc' ? 'arrow-up' : 'arrow-down';
   };
 
-  const getSortLabel = () => {
-    switch (sortBy) {
-      case 'name': return 'Name';
-      case 'date': return 'Date';
-      case 'cards': return 'Cards';
-      default: return 'Date';
+  // Animate search bar in/out
+  const animateSearchBar = (show: boolean) => {
+    if (show) {
+      setIsSearchVisible(true);
+      searchBarOpacity.setValue(0);
+      searchBarTranslateY.setValue(-10);
+      Animated.parallel([
+        Animated.timing(searchBarOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchBarTranslateY, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        })
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(searchBarOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchBarTranslateY, {
+          toValue: -10,
+          duration: 200,
+          useNativeDriver: true,
+        })
+      ]).start(() => setIsSearchVisible(false));
     }
   };
+
+  const handleSearchToggle = () => {
+    const newShowSearch = !showSearch;
+    setShowSearch(newShowSearch);
+    animateSearchBar(newShowSearch);
+  };
+
+  // Ensure search bar is mounted on first open
+  useEffect(() => {
+    if (showSearch) animateSearchBar(true);
+    // eslint-disable-next-line
+  }, []);
 
   const renderDeckItem = ({ item }: { item: Deck }) => (
     <TouchableOpacity 
@@ -188,9 +228,6 @@ export default function FavouritesScreen() {
       disabled={isLoadingDeckCards}
     >
       <View style={styles.deckCardHeader}>
-        <View style={styles.deckIcon}>
-          <AntDesign name="book" size={20} color="#374151" />
-        </View>
         <View style={styles.deckInfo}>
           <Text style={styles.deckTitle}>{item.name}</Text>
           <Text style={styles.deckSubtitle}>{item.cardCount || 0} cards</Text>
@@ -208,54 +245,72 @@ export default function FavouritesScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Hero Section - matching home.tsx */}
       <View style={styles.heroSection}>
-        <Text style={styles.heroTitle}>Your saved decks</Text>
-        <Text style={styles.heroSubtitle}>Access your favorite conversation collections anytime</Text>
+        <View style={styles.heroHeader}>
+          <View style={styles.heroTextContainer}>
+            <Text style={styles.heroTitle}>Your Decks</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerActionButton}
+              onPress={handleSearchToggle}
+            >
+              <Feather name={showSearch ? "x" : "search"} size={20} color="#718096" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.headerActionButton}
+              onPress={() => setShowAddDeckModal(true)}
+            >
+              <Feather name="plus" size={20} color="#718096" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
-      {/* Search and Filter Bar */}
-      <View style={styles.searchFilterContainer}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <TouchableOpacity 
-            style={styles.searchToggle}
-            onPress={() => setShowSearch(!showSearch)}
-          >
-            <Feather name={showSearch ? "x" : "search"} size={20} color="#718096" />
-          </TouchableOpacity>
-          
-          {showSearch && (
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search decks..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-            />
-          )}
-        </View>
+      {/* Search Bar */}
+      {isSearchVisible && (
+        <Animated.View style={[styles.searchContainer, { opacity: searchBarOpacity, transform: [{ translateY: searchBarTranslateY }] }]}> 
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search decks..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus={showSearch}
+          />
+        </Animated.View>
+      )}
 
-        {/* Sort Options */}
-        <View style={styles.sortContainer}>
+      {/* Sort Options */}
+      <View style={styles.sortContainer}>
+        <Text style={styles.sortLabel}>Sort by:</Text>
+        <View style={styles.sortOptions}>
           <TouchableOpacity 
-            style={styles.sortButton}
-            onPress={() => {
-              const sortOptions = ['name', 'date', 'cards'];
-              const currentIndex = sortOptions.indexOf(sortBy);
-              const nextIndex = (currentIndex + 1) % sortOptions.length;
-              setSortBy(sortOptions[nextIndex] as 'name' | 'date' | 'cards');
-            }}
+            style={[styles.sortOption, sortBy === 'name' && styles.sortOptionSelected]}
+            onPress={() => setSortBy('name')}
           >
-            <Text style={styles.sortButtonText}>{getSortLabel()}</Text>
-            <Feather name="chevron-down" size={16} color="#718096" />
+            <Text style={[styles.sortOptionText, sortBy === 'name' && styles.sortOptionTextSelected]}>Name</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.sortOrderButton}
-            onPress={toggleSortOrder}
+            style={[styles.sortOption, sortBy === 'date' && styles.sortOptionSelected]}
+            onPress={() => setSortBy('date')}
           >
-            <Feather name={getSortIcon()} size={16} color="#718096" />
+            <Text style={[styles.sortOptionText, sortBy === 'date' && styles.sortOptionTextSelected]}>Date</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.sortOption, sortBy === 'cards' && styles.sortOptionSelected]}
+            onPress={() => setSortBy('cards')}
+          >
+            <Text style={[styles.sortOptionText, sortBy === 'cards' && styles.sortOptionTextSelected]}>Cards</Text>
           </TouchableOpacity>
         </View>
+        
+        <TouchableOpacity 
+          style={styles.sortOrderButton}
+          onPress={toggleSortOrder}
+        >
+          <Feather name={getSortIcon()} size={16} color="#718096" />
+        </TouchableOpacity>
       </View>
 
       {/* Main Content */}
@@ -281,17 +336,7 @@ export default function FavouritesScreen() {
       ) : (
         <>
           {/* Section Header */}
-          <View style={styles.sectionContainer}>
-            <View>
-              <Text style={styles.sectionTitle}>Your Collections</Text>
-              <Text style={styles.sectionSubtitle}>
-                {searchQuery 
-                  ? `Found ${filteredDecks.length} deck${filteredDecks.length !== 1 ? 's' : ''}`
-                  : 'Tap any deck to start using it'
-                }
-              </Text>
-            </View>
-          </View>
+          
 
           {/* Deck List */}
           <FlatList
@@ -311,14 +356,6 @@ export default function FavouritesScreen() {
           />
         </>
       )}
-
-      {/* Floating Action Button */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => setShowAddDeckModal(true)}
-      >
-        <AntDesign name="plus" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
 
       {/* Add Deck Modal */}
       <Modal
@@ -384,7 +421,16 @@ const styles = StyleSheet.create({
   heroSection: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 16,
+    paddingBottom: 8, // Reduced from 16 to 8
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8, // Reduced from 16 to 8
+  },
+  heroTextContainer: {
+    flex: 1,
   },
   heroTitle: {
     fontSize: 28,
@@ -399,56 +445,69 @@ const styles = StyleSheet.create({
     fontFamily: 'Petrona-Regular',
     lineHeight: 24,
   },
-  // Search and Filter Container
-  searchFilterContainer: {
+  headerActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 16,
     gap: 12,
   },
+  headerActionButton: {
+    padding: 8,
+  },
+  // Search Container
   searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 12,
-    minHeight: 44,
-  },
-  searchToggle: {
-    padding: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 24,
+    marginBottom: 8, // Reduced from 16 to 8
   },
   searchInput: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
     fontSize: 16,
     fontFamily: 'Petrona-Regular',
     color: '#1A202C',
   },
+  // Sort Container
   sortContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 8, // Reduced from 16 to 8
     gap: 8,
   },
-  sortButton: {
+  sortLabel: {
+    fontSize: 14,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
+  sortOptions: {
     flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 8,
   },
-  sortButtonText: {
+  sortOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  sortOptionSelected: {
+    backgroundColor: '#374151',
+    borderColor: '#374151',
+  },
+  sortOptionText: {
     fontSize: 14,
     fontFamily: 'Petrona-Regular',
-    color: '#374151',
+    color: '#718096',
+  },
+  sortOptionTextSelected: {
+    color: '#FFFFFF',
+    fontFamily: 'Petrona-Bold',
   },
   sortOrderButton: {
     backgroundColor: '#FFFFFF',
@@ -538,15 +597,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  deckIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
   deckInfo: {
     flex: 1,
   },
@@ -560,27 +610,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Petrona-Regular',
     fontSize: 14,
     color: '#718096',
-  },
-  // Floating Action Button
-  fab: {
-    position: 'absolute',
-    bottom: 80, // Increased from 24 to account for bottom sheet (12% of screen + some padding)
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#374151',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 1000, // Ensure FAB stays above bottom sheet
   },
   // Modal Styles
   modalOverlay: {
