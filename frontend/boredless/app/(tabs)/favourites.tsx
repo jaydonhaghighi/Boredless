@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl } from 'react-native';
 import { useBottomSheetVisibility } from "@/context/TabContext";
 import { useAuth } from "../../hooks/useAuth";
 import { getUserDecks, getDeckCards, Deck, deckDataEvents, DECK_DATA_CHANGED } from "../../services/firestoreService";
 import { Card } from "../../types/card";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
+import EngagingLoadingScreen from '../../components/EngagingLoadingScreen';
 
 export default function FavouritesScreen() {
   const { showBottomSheet } = useBottomSheetVisibility();
@@ -92,7 +93,7 @@ export default function FavouritesScreen() {
         <Text style={styles.deckName}>{item.name}</Text>
         <Text style={styles.deckCardCount}>{item.cardCount || 0} cards</Text>
       </View>
-      {isLoadingDeckCards && <ActivityIndicator size="small" color="#A97C63" />}
+      {isLoadingDeckCards && <EngagingLoadingScreen variant="mini" showBackground={false} />}
     </TouchableOpacity>
   );
 
@@ -103,7 +104,7 @@ export default function FavouritesScreen() {
       </View>
       {isLoadingDecks && !refreshing ? (
         <View style={styles.centeredMessageContainer}>
-          <ActivityIndicator size="large" color="#A97C63" />
+          <EngagingLoadingScreen variant="fullscreen" showBackground={false} />
         </View>
       ) : userDecks.length === 0 ? (
         <View style={styles.centeredMessageContainer}>

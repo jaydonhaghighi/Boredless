@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Dimensions, Alert, Image, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -27,6 +27,7 @@ import {
   Deck, // Import Deck type
   createEmptyDeck // Import createEmptyDeck
 } from '../services/firestoreService';
+import EngagingLoadingScreen from './EngagingLoadingScreen';
 
 // Screen dimensions for card animations
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -505,7 +506,7 @@ export default function PromptComponent({
                 onPress={handleConfirmNameDeckModal}
                 disabled={isProcessingFavoriteAction}
               >
-                {isProcessingFavoriteAction ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalOptionText}>Save Deck</Text>}
+                {isProcessingFavoriteAction ? <EngagingLoadingScreen variant="mini" showBackground={false} /> : <Text style={styles.modalOptionText}>Save Deck</Text>}
               </TouchableOpacity>
          <TouchableOpacity 
                 style={styles.modalCancelButton}
@@ -530,7 +531,7 @@ export default function PromptComponent({
             <View style={[styles.modalContainer, { maxHeight: '60%' }]} onStartShouldSetResponder={() => true}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Add to Which Deck?</Text>
-                    {isProcessingFavoriteAction && <ActivityIndicator style={{marginVertical: 10}}/>}
+                    {isProcessingFavoriteAction && <EngagingLoadingScreen variant="mini" showBackground={false} />}
                     {!isProcessingFavoriteAction && existingDecks.length > 0 ? (
                         <ScrollView style={{width: '100%'}}>
                         {existingDecks.map((deck) => (

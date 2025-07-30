@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, FlatList, Alert, ImageBackground } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, FlatList, Alert, ImageBackground } from 'react-native';
 import { AntDesign, Ionicons, FontAwesome5, Entypo, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useState, ReactNode, useContext } from 'react';
@@ -23,6 +23,8 @@ interface QuickStartItemData {
   apiParams: Omit<FilterParams, 'card_type'>;
   description: string;
 }
+
+
 
 // Component for the content above the FlatList
 const ListHeader = ({ 
@@ -171,7 +173,6 @@ export default function Index() {
 
   const { userId, isAuthenticated } = useAuth();
   const [promptHistory, setPromptHistory] = useState<HistoryEntryData[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
   const handleQuickStartPress = async (item: QuickStartItemData) => {
     const filters: FilterParams = {
@@ -181,6 +182,9 @@ export default function Index() {
       participants: item.apiParams.participants,
       relationship: item.apiParams.relationship,
     };
+    
+    // Show bottom sheet immediately, just like the generate screen does
+    showBottomSheet();
     
     await triggerCardGeneration(filters);
   };
@@ -197,13 +201,10 @@ export default function Index() {
   // Function to fetch history data
   const fetchHistory = useCallback(async () => {
     if (isAuthenticated && userId) {
-      setIsLoadingHistory(true);
       const history = await getUserPromptHistory(userId, 5);
       setPromptHistory(history);
-      setIsLoadingHistory(false);
     } else {
       setPromptHistory([]);
-      setIsLoadingHistory(false);
     }
   }, [userId, isAuthenticated]);
 
@@ -300,18 +301,8 @@ export default function Index() {
           onItemPress={handleQuickStartPress}
         />
         
-        {/* Loading indicator for QuickPicks now uses context's loading state */}
-        {generationState.isGeneratingCards && 
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#A97C63" />
-            <Text style={styles.loadingText}>Summoning brilliance...</Text>
-          </View>
-        }
-
         {/* Ongoing Conversations */}
-        {isLoadingHistory ? (
-          <ActivityIndicator size="large" color="#A97C63" style={{ marginTop: 20, alignSelf: 'center' }} />
-        ) : promptHistory.length === 0 ? (
+        {promptHistory.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <View style={styles.emptyStateIcon}>
               <AntDesign name="message1" size={32} color="#CBD5E0" />
@@ -395,11 +386,9 @@ const styles = StyleSheet.create({
     padding: 16,
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   iconContainer: {
     width: 56,
@@ -407,6 +396,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    borderRadius: 28,
+    backgroundColor: '#F8FAFC',
   },
   quickStartTitle: {
     fontFamily: 'Petrona-Bold',
@@ -428,9 +419,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginRight: 16,
-    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.06)',
     borderWidth: 1,
-    borderColor: '#F7FAFC',
+    borderColor: '#E2E8F0',
   },
   conversationCardHeader: {
     flexDirection: 'row',
@@ -441,7 +431,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#F7FAFC',
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
@@ -488,7 +478,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#F7FAFC',
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -506,22 +496,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  // Loading Overlay
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(250, 250, 252, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    fontFamily: 'Petrona-Regular',
-    color: '#2D3748'
-  },
+
 });

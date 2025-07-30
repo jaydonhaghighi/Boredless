@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, 
-  Dimensions, Alert, Pressable, ActivityIndicator, ImageBackground
+  Dimensions, Alert, Pressable, ImageBackground
 } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackgroundProps } from "@gorhom/bottom-sheet";
 import Animated, { 
@@ -16,6 +16,7 @@ import PromptComponent from './PromptComponent';
 import { Card } from '../types/card';
 import { CustomBackdrop } from './CustomBackdrop';
 import { updateHistoryCardIndex, deckDataEvents, DECK_DATA_CHANGED, doesHistoryEntryExist, updateDeckCardIndex, doesDeckExist } from '../services/firestoreService';
+import EngagingLoadingScreen from './EngagingLoadingScreen';
 
 /**
  * Gets the preview text to display in the bottom sheet based on card type
@@ -352,14 +353,13 @@ export const TabBottomSheet = () => {
         <View style={styles.customHandleContainer}>
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
             {generationState.isGeneratingCards ? (
-              <View style={styles.loadingContainer}>
+              <View style={styles.emptyContainer}>
                 <ImageBackground
                   source={require('../assets/images/textures/noisy-background.jpg')}
-                  style={styles.loadingBackgroundSmall}
+                  style={styles.emptyBackgroundSmall}
                   imageStyle={{ opacity: 0.25, borderRadius: 5 }}
                 >
-                  <ActivityIndicator size="small" color="#A97C63" />
-                  <Text style={styles.loadingText}>Generating your cards...</Text>
+                  <Text style={styles.emptyPreviewText}>Generating...</Text>
                 </ImageBackground>
               </View>
             ) : finalCardsToDisplay.length > 0 ? (
@@ -422,14 +422,7 @@ export const TabBottomSheet = () => {
           />
         ) : generationState.isGeneratingCards ? (
           <View style={styles.expandedLoadingContainer}>
-            <ImageBackground
-              source={require('../assets/images/textures/noisy-background.jpg')}
-              style={styles.loadingBackground}
-              imageStyle={{ opacity: 0.25, borderRadius: 5 }}
-            >
-              <ActivityIndicator size="large" color="#A97C63" />
-              <Text style={styles.expandedLoadingText}>Loading cards...</Text>
-            </ImageBackground>
+            <EngagingLoadingScreen variant="fullscreen" showBackground={false} />
           </View>
         ) : (
           <View style={styles.emptyContentContainer}>
@@ -519,44 +512,14 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     height: '100%',
-  },
-  loadingText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#495057',
-    fontFamily: 'Nunito_600SemiBold',
   },
   expandedLoadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  expandedLoadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#495057',
-    fontFamily: 'Nunito_600SemiBold',
-  },
-  loadingBackground: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  loadingBackgroundSmall: {
-    width: '100%',
-    height: '100%',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 8,
   },
   emptyBackgroundSmall: {
     width: '100%',

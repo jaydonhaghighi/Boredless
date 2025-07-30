@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCurrentGeneration } from '../../context/TabContext';
 import { useBottomSheetVisibility } from '../../context/TabContext';
@@ -14,6 +14,7 @@ import {
 } from '../../constants/cardTypes';
 import { useFontLoader } from '../../hooks/useFontLoader';
 import { FilterParams } from "../../utils/cardUtils";
+import EngagingLoadingScreen from '../../components/EngagingLoadingScreen';
 
 export default function GenerateScreen() {
   const { triggerCardGeneration, generationState } = useCurrentGeneration();
@@ -211,7 +212,7 @@ export default function GenerateScreen() {
               disabled={!selectedCardType || generationState.isGeneratingCards}
             >
               {generationState.isGeneratingCards ? (
-                <ActivityIndicator color="#FFF" />
+                <EngagingLoadingScreen variant="mini" showBackground={false} />
               ) : (
                 <Text style={styles.generateButtonText}>Generate</Text>
               )}

@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../FirebaseConfig';
+import EngagingLoadingScreen from '../components/EngagingLoadingScreen';
 
 export default function RootLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -18,7 +19,7 @@ export default function RootLayout() {
 
   // Show loading state while checking auth
   if (isAuthenticated === null) {
-    return null; // You could show a loading spinner here
+    return <EngagingLoadingScreen variant="fullscreen" showBackground={true} />;
   }
 
   return (
