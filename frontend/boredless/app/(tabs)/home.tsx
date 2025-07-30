@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, ActivityIndicator, FlatList, Alert, ImageBackground } from 'react-native';
-import { AntDesign, Ionicons, FontAwesome5, Entypo } from '@expo/vector-icons';
+import { AntDesign, Ionicons, FontAwesome5, Entypo, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useState, ReactNode, useContext } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,6 +21,7 @@ interface QuickStartItemData {
   backgroundColor: string;
   color: string;
   apiParams: Omit<FilterParams, 'card_type'>;
+  description: string;
 }
 
 // Component for the content above the FlatList
@@ -36,26 +37,31 @@ const ListHeader = ({
   onItemPress: (item: QuickStartItemData) => void
 }) => (
   <>
-    <Text style={styles.headerText}>Hey, welcome back!</Text>
-    <Text style={styles.subText}>Ready to dive into some good conversations? Let's jump in!</Text>
+    {/* Hero Section */}
+    <View style={styles.heroSection}>
+      <Text style={styles.heroTitle}>Never run out of things to talk about</Text>
+      <Text style={styles.heroSubtitle}>Spark engaging conversations and transform awkward silences into memorable moments</Text>
+    </View>
     
     {/* Quick Start Section */}
     <View style={styles.sectionContainer}>
-      <Text style={styles.subHeader}>Quick Start</Text>
+      <View>
+        <Text style={styles.sectionTitle}>Start a Conversation</Text>
+        <Text style={styles.sectionSubtitle}>Choose your vibe and let's get talking</Text>
+      </View>
     </View>
+    
     <FlatList
       data={quickStartItems}
       renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => onItemPress(item)} style={{ marginRight: 15 }}>
-          <ImageBackground
-            source={require('../../assets/images/textures/noisy-background.jpg')}
-            style={[styles.quickStartCard, { width: buttonSize * 0.9, height: buttonSize * 1.1, backgroundColor: item.backgroundColor }]}
-            imageStyle={{ opacity: 0.70, borderRadius: 5 }}
-            borderRadius={5}
-          >
-            <View style={styles.quickStartIconContainer}>{item.icon}</View>
+        <TouchableOpacity onPress={() => onItemPress(item)} style={styles.quickStartItem}>
+          <View style={[styles.quickStartCard, { backgroundColor: item.backgroundColor }]}>
+            <View style={styles.iconContainer}>
+              {item.icon}
+            </View>
             <Text style={[styles.quickStartTitle, { color: item.color }]}>{item.title}</Text>
-          </ImageBackground>
+            <Text style={styles.quickStartDescription}>{item.description}</Text>
+          </View>
         </TouchableOpacity>
       )}
       keyExtractor={(item) => item.id}
@@ -64,69 +70,96 @@ const ListHeader = ({
       contentContainerStyle={styles.horizontalListContainer}
     />
 
-    {/* Ongoing Decks Section Title - This will be followed by another FlatList */}
+    {/* Ongoing Conversations Section */}
     <View style={styles.sectionContainer}>
-      <Text style={styles.subHeader}>Ongoing Decks</Text>
+      <View>
+        <Text style={styles.sectionTitle}>Your Conversations</Text>
+        <Text style={styles.sectionSubtitle}>Continue where you left off</Text>
+      </View>
     </View>
   </>
 );
 
 export default function Index() {
   const { width: windowWidth } = useWindowDimensions();
-  const outerPadding = 32;
+  const outerPadding = 24;
   const availableWidth = windowWidth - (outerPadding * 2);
-  const buttonSize = Math.min(Math.max((availableWidth - 24) / 2, 130), 170);
+  const buttonSize = Math.min(Math.max((availableWidth - 20) / 2.2, 140), 160);
   
   const { generationState, triggerCardGeneration } = useCurrentGeneration();
   const { showBottomSheet } = useBottomSheetVisibility();
 
   const quickStartItemsData: QuickStartItemData[] = [
     {
-      id: 'table-for-two', title: 'Table for Two', 
-      icon: <AntDesign name="heart" size={Math.floor(buttonSize/2.5)} color="#D43434" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'table-for-two', 
+      title: 'Table for Two', 
+      icon: <AntDesign name="heart" size={50} color="#FF6B6B" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Perfect for dates',
       apiParams: { topic: "Relationships & Dating", tone: "Romantic", participants: "2", relationship: "Romantic Partners" }
     },
     {
-      id: 'real-talk', title: 'Real Talk',
-      icon: <Ionicons name="chatbubble-ellipses-outline" size={Math.floor(buttonSize/2.5)} color="#2466D4" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'real-talk', 
+      title: 'Real Talk',
+      icon: <Ionicons name="chatbubble-ellipses" size={50} color="#4ECDC4" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Deep conversations',
       apiParams: { topic: "Personality & Self-discovery", tone: "Reflective", participants: "2", relationship: "Close Friends" }
     },
     {
-      id: 'last-call', title: 'Last Call', 
-      icon: <FontAwesome5 name="cocktail" size={Math.floor(buttonSize/2.5)} color="#069200" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'last-call', 
+      title: 'Last Call', 
+      icon: <FontAwesome5 name="cocktail" size={50} color="#45B7D1" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Party vibes',
       apiParams: { topic: "Pop Culture & Entertainment", tone: "Energetic", participants: "6+", relationship: "Friends" }
     },
     {
-      id: 'icebreakers', title: 'Icebreakers', 
-      icon: <AntDesign name="questioncircleo" size={Math.floor(buttonSize/2.5)} color="#301C11" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'icebreakers', 
+      title: 'Icebreakers', 
+      icon: <MaterialIcons name="psychology" size={50} color="#96CEB4" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Break the ice',
       apiParams: { topic: "Casual Chat", tone: "Friendly", participants: "3-5", relationship: "Aquaintances" }
     },
     {
-      id: 'true-self', title: 'True Self', 
-      icon: <Entypo name="emoji-happy" size={Math.floor(buttonSize/2.5)} color="#301C11" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'true-self', 
+      title: 'True Self', 
+      icon: <Entypo name="emoji-happy" size={50} color="#FFD93D" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Personality reveals',
       apiParams: { topic: "Personality & Self-discovery", tone: "Playful", participants: "3-5", relationship: "Mixed Group" }
     },
     {
-      id: 'hot-seat', title: 'Hot Seat', 
-      icon: <FontAwesome5 name="coffee" size={Math.floor(buttonSize/2.5)} color="#301C11" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'hot-seat', 
+      title: 'Hot Seat', 
+      icon: <FontAwesome5 name="fire" size={50} color="#FF8A80" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Spicy questions',
       apiParams: { topic: "Personality & Self-discovery", tone: "Serious", participants: "3-5", relationship: "Close Friends" }
     },
     {
-      id: 'face-off', title: 'Face-Off',
-      icon: <FontAwesome5 name="coffee" size={Math.floor(buttonSize/2.5)} color="#301C11" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'face-off', 
+      title: 'Face-Off',
+      icon: <FontAwesome5 name="balance-scale" size={50} color="#6C5CE7" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Friendly debates',
       apiParams: { topic: "Debates & Opinions", tone: "Thoughtful", participants: "3-5", relationship: "Mixed Group" }
     },
     {
-      id: 'deep-cuts', title: 'Deep Cuts', 
-      icon: <FontAwesome5 name="coffee" size={Math.floor(buttonSize/2.5)} color="#301C11" />,
-      backgroundColor: '#FFF', color: '#301C11',
+      id: 'deep-cuts', 
+      title: 'Deep Cuts', 
+      icon: <Feather name="zap" size={50} color="#A29BFE" />,
+      backgroundColor: '#FFF', 
+      color: '#2D3748',
+      description: 'Philosophical talks',
       apiParams: { topic: "Philosophy & Big Questions", tone: "Reflective", participants: "2", relationship: "Close Friends" }
     },
   ];
@@ -164,7 +197,6 @@ export default function Index() {
   // Function to fetch history data
   const fetchHistory = useCallback(async () => {
     if (isAuthenticated && userId) {
-      console.log("Fetching updated history data...");
       setIsLoadingHistory(true);
       const history = await getUserPromptHistory(userId, 5);
       setPromptHistory(history);
@@ -177,12 +209,10 @@ export default function Index() {
 
   // Load history data on initial render
   useEffect(() => {
-    console.log("Initial load - fetching history data");
     fetchHistory();
 
     // Listen for deck data changes
     const handleDeckDataChanged = (data: { deckId: string, currentCardIndex?: number }) => {
-      console.log(`Deck data changed event for deck ${data.deckId}, index: ${data.currentCardIndex}. Refreshing history data.`);
       fetchHistory();
     };
 
@@ -198,10 +228,9 @@ export default function Index() {
   // Reload history data when the home tab becomes focused
   useFocusEffect(
     useCallback(() => {
-      console.log("Home tab focused - reloading history data");
       fetchHistory();
       return () => {
-        console.log("Home tab unfocused");
+        // Cleanup if needed
       };
     }, [fetchHistory])
   );
@@ -218,8 +247,6 @@ export default function Index() {
 
   // Render function for history items (Ongoing Decks)
   const renderHistoryItem = ({ item }: { item: HistoryEntryData }) => {
-    // Add debug logging for the currentCardIndex
-    console.log(`History item ${item.id} - currentCardIndex:`, item.currentCardIndex);
     
     return (
     <TouchableOpacity 
@@ -228,40 +255,37 @@ export default function Index() {
           // Add deck ID to each card to track which history entry this is
           const cardsWithDeckId = item.generated_cards_data.map(card => ({
             ...card,
-            deckId: item.id // Set the history entry ID as the deckId on each card
+            deckId: item.id, // Set the history entry ID as the deckId on each card
+            isHistoryEntry: true // Flag to indicate this is from history, not a saved deck
           }));
           
           // Use the saved currentCardIndex if available, otherwise default to 0
           const startIndex = item.currentCardIndex !== undefined ? item.currentCardIndex : 0;
           
-          console.log(`Opening deck ${item.id} at index ${startIndex}`);
           showBottomSheet(cardsWithDeckId, startIndex);
         } else {
           Alert.alert("Empty Deck", "This deck doesn't contain any cards.");
         }
       }}
     >
-      <ImageBackground
-        source={require('../../assets/images/textures/noisy-background.jpg')}
-        style={styles.ongoingDeckCard}
-        imageStyle={{ opacity: 0.70, borderRadius: 5 }}
-        borderRadius={5} // Ensures the ImageBackground itself clips content and respects border radius
-      >
-        <View style={styles.ongoingDeckCardColorTop} />
-        <View style={styles.ongoingDeckCardContent}>
-          <Text style={styles.ongoingDeckTitle}>{item.filters?.topic || "General Topics"}</Text>
-          <Text style={styles.ongoingDeckSubtitle} numberOfLines={1}>{item.generated_cards_data?.[0]?.title || 'View Cards'}</Text>
-          <Text style={styles.ongoingDeckProgress}>{item.generated_cards_data?.length || 0} cards</Text>
+      <View style={styles.conversationCard}>
+        <View style={styles.conversationCardHeader}>
+          
+          <Text style={styles.conversationTitle}>{item.filters?.topic || "General Topics"}</Text>
+        </View>
+        <Text style={styles.conversationSubtitle} numberOfLines={1}>
+          {item.generated_cards_data?.[0]?.title || 'View Cards'}
+        </Text>
+        <View style={styles.conversationFooter}>
+          <Text style={styles.conversationProgress}>{item.generated_cards_data?.length || 0} cards</Text>
           {item.currentCardIndex !== undefined && item.currentCardIndex > 0 && (
-            <View style={styles.bookmarkContainer}>
-              <AntDesign name="pushpin" size={10} color="#A97C63" style={styles.bookmarkIcon} />
-              <Text style={styles.ongoingDeckBookmark}>
-                Resume at card {item.currentCardIndex + 1}
-              </Text>
+            <View style={styles.resumeIndicator}>
+              <AntDesign name="playcircleo" size={12} color="#A97C63" />
+              <Text style={styles.resumeText}>Resume</Text>
             </View>
           )}
         </View>
-      </ImageBackground>
+      </View>
     </TouchableOpacity>
     );
   };
@@ -284,12 +308,16 @@ export default function Index() {
           </View>
         }
 
-        {/* Ongoing Decks (Prompt History) */}
+        {/* Ongoing Conversations */}
         {isLoadingHistory ? (
           <ActivityIndicator size="large" color="#A97C63" style={{ marginTop: 20, alignSelf: 'center' }} />
         ) : promptHistory.length === 0 ? (
-          <View style={styles.centeredMessageContainerHorizontalList}>
-            <Text style={styles.placeholderText}>No ongoing decks to show.</Text>
+          <View style={styles.emptyStateContainer}>
+            <View style={styles.emptyStateIcon}>
+              <AntDesign name="message1" size={32} color="#CBD5E0" />
+            </View>
+            <Text style={styles.emptyStateTitle}>No conversations yet</Text>
+            <Text style={styles.emptyStateSubtitle}>Start your first conversation above to see it here</Text>
           </View>
         ) : (
           <FlatList
@@ -309,49 +337,63 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFC', // Match image background more closely
+    backgroundColor: '#FAFAFC',
   },
   mainScrollContainer: {
     paddingBottom: 24,
   },
-  headerText: {
-    fontSize: 32,
-    color: '#301C11',
+  // Hero Section
+  heroSection: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+    
+  },
+  heroTitle: {
+    fontSize: 28,
+    color: '#1A202C',
     fontFamily: 'Petrona-Bold',
     marginBottom: 8,
-    paddingHorizontal: 20, // Adjusted padding
-    marginTop: 20,
+    lineHeight: 36,
   },
-  subText: {
-    fontSize: 14, // Slightly larger
-    color: '#5F5F5F',
+  heroSubtitle: {
+    fontSize: 16,
+    color: '#4A5568',
     fontFamily: 'Petrona-Regular',
-    textAlign: 'left',
-    paddingHorizontal: 20, // Adjusted padding
-    marginBottom: 20, // Added margin
+    lineHeight: 24,
   },
+  // Section Headers
   sectionContainer: {
     width: '100%',
-    alignItems: 'flex-start',
-    marginBottom: 15, // Adjusted margin
-    paddingHorizontal: 20, // Adjusted padding
+    marginVertical: 10,
+    paddingHorizontal: 24,
   },
-  subHeader: {
-    fontSize: 22, // Slightly larger
-    marginTop: 18,
-    color: '#301C11',
+  sectionTitle: {
+    fontSize: 24,
+    color: '#1A202C',
     fontFamily: 'Petrona-Bold',
+    marginBottom: 4,
   },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Quick Start Items
   horizontalListContainer: {
-    paddingLeft: 20, // Start first item from edge
-    paddingRight: 5, // Allow last item to not be cut off if it's wider than paddingRight of main container
-    paddingVertical: 10,
+    paddingLeft: 24,
+    paddingRight: 8,
+    paddingVertical: 8,
   },
-  // Quick Start Card Styles
+  quickStartItem: {
+    marginRight: 16,
+  },
   quickStartCard: {
-    borderRadius: 5,
-    padding: 15,
-    justifyContent: 'space-around',
+    width: 140,
+    height: 160,
+    borderRadius: 16,
+    padding: 16,
+    justifyContent: 'space-between',
     alignItems: 'center',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -359,100 +401,127 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  quickStartIconContainer: {
-    marginBottom: 10, // Space between icon and title
+  iconContainer: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   quickStartTitle: {
     fontFamily: 'Petrona-Bold',
-    fontSize: 18, // Example size, adjust as needed
-    textAlign: 'center',
-  },
-  // Ongoing Deck Card Styles (mimicking image)
-  ongoingDeckCard: {
-    width: 150, // Adjust as needed
-    height: 180, // Adjust as needed
-    borderRadius: 5,
-    backgroundColor: '#FFFFFF', // This will be the base color under the texture
-    marginRight: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-    overflow: 'hidden', // To clip the color top part
-  },
-  ongoingDeckCardColorTop: {
-    height: '40%', // Adjust percentage for color block
-    backgroundColor: '#FFD44C', // Yellow color from image
-  },
-  ongoingDeckCardContent: {
-    padding: 12,
-    position: 'relative', // For star positioning
-    flex: 1, // Take remaining space
-    justifyContent: 'center', // Center content vertically in the remaining space
-  },
-  
-  ongoingDeckTitle: {
-    fontFamily: 'Petrona-Bold',
     fontSize: 16,
-    color: '#301C11',
     textAlign: 'center',
     marginBottom: 4,
   },
-  ongoingDeckSubtitle: {
+  quickStartDescription: {
     fontFamily: 'Petrona-Regular',
     fontSize: 12,
-    color: '#5F5F5F',
+    color: '#718096',
     textAlign: 'center',
+  },
+  // Conversation Cards
+  conversationCard: {
+    width: 160,
+    height: 120,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 16,
+    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.06)',
+    borderWidth: 1,
+    borderColor: '#F7FAFC',
+  },
+  conversationCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  ongoingDeckProgress: {
+  conversationIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F7FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  conversationTitle: {
+    fontFamily: 'Petrona-Bold',
+    fontSize: 14,
+    color: '#1A202C',
+    flex: 1,
+  },
+  conversationSubtitle: {
+    fontFamily: 'Petrona-Regular',
+    fontSize: 12,
+    color: '#718096',
+    marginBottom: 12,
+  },
+  conversationFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  conversationProgress: {
     fontFamily: 'Petrona-Regular',
     fontSize: 11,
-    color: '#A0A0A0',
-    textAlign: 'center',
+    color: '#A0AEC0',
   },
-  ongoingDeckBookmark: {
+  resumeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  resumeText: {
     fontFamily: 'Petrona-Regular',
     fontSize: 10,
-    color: '#A0A0A0',
-    textAlign: 'center',
-    marginTop: 4,
+    color: '#A97C63',
+    marginLeft: 4,
   },
-  // Styles for History List (Previously full width items)
-  centeredMessageContainerHorizontalList: { // For when horizontal list is empty
-    paddingVertical: 20,
-    paddingHorizontal: 20, 
-    alignItems: 'flex-start', // Align with the start of where the list would be
+  // Empty State
+  emptyStateContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
   },
-  placeholderText: {
-    fontSize: 16,
-    color: '#5F5F5F',
+  emptyStateIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F7FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontFamily: 'Petrona-Bold',
+    fontSize: 18,
+    color: '#2D3748',
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
     fontFamily: 'Petrona-Regular',
+    fontSize: 14,
+    color: '#718096',
+    textAlign: 'center',
+    lineHeight: 20,
   },
+  // Loading Overlay
   loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(250, 250, 252, 0.8)', // Semi-transparent overlay
+    backgroundColor: 'rgba(250, 250, 252, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10, // Ensure it's on top
+    zIndex: 10,
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 16,
     fontFamily: 'Petrona-Regular',
-    color: '#301C11'
-  },
-  bookmarkContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookmarkIcon: {
-    marginRight: 4,
+    color: '#2D3748'
   },
 });

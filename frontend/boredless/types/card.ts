@@ -21,6 +21,7 @@ interface BaseCard {
   // Storage metadata
   id?: string;
   deckId?: string; // ID of the history entry or deck
+  isHistoryEntry?: boolean; // Flag to distinguish between history entries and saved decks
   createdAt?: any; // Timestamp of creation
 }
 

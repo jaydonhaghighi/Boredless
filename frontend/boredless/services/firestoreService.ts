@@ -41,13 +41,12 @@ export const addGeneratedSetToHistory = async (
   try {
     const historyEntry: HistoryEntryData = {
       userId,
-      createdAt: serverTimestamp() as Timestamp, // Let Firestore set the timestamp
+      createdAt: serverTimestamp() as Timestamp,
       filters,
       generated_cards_data: generatedCardsData,
-      currentCardIndex: 0, // Initialize the card index to 0
+      currentCardIndex: 0,
     };
     const docRef = await addDoc(collection(db, USER_PROMPT_HISTORY_COLLECTION), historyEntry);
-    console.log('Generated set added to history with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error adding generated set to history:', error);
@@ -113,7 +112,6 @@ export const saveAiSetAsDeck = async (
     });
 
     await batch.commit();
-    console.log(`Deck '${deckName}' saved successfully with ID: ${deckDocRef.id} and ${generatedCardsData.length} cards.`);
     
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
@@ -148,7 +146,6 @@ export const getUserDecks = async (userId: string): Promise<Deck[]> => {
     querySnapshot.forEach((doc) => {
       decks.push({ id: doc.id, ...doc.data() } as Deck);
     });
-    console.log(`Fetched ${decks.length} decks for user ${userId}`);
     return decks;
   } catch (error) {
     console.error("Error fetching user decks:", error);
@@ -195,7 +192,6 @@ export const getDeckCards = async (deckId: string): Promise<Card[]> => {
         // Ensure all properties of Card are accounted for
       } as Card);
     });
-    console.log(`Fetched ${cards.length} cards for deck ${deckId}`);
     return cards;
   } catch (error) {
     console.error(`Error fetching cards for deck ${deckId}:`, error);
@@ -243,7 +239,6 @@ export const createNewDeckWithSingleCard = async (
     batch.set(cardDocRef, { ...cardData, deckId: deckDocRef.id, createdAt: serverTimestamp() as Timestamp });
 
     await batch.commit();
-    console.log(`Deck '${deckName}' created successfully with ID: ${deckDocRef.id} and 1 card.`);
     
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
@@ -312,7 +307,6 @@ export const addCardToExistingDeck = async (
       transaction.update(deckDocRef, { cardCount: increment(1) });
     });
 
-    console.log(`Card added to deck ${deckId} successfully.`);
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId });
     return true;
@@ -351,8 +345,6 @@ export const createEmptyDeck = async (
     };
     await setDoc(deckDocRef, newDeckData); // Using setDoc directly as it's a single operation
 
-    console.log(`Empty deck '${deckName}' created successfully with ID: ${deckDocRef.id}.`);
-    
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
     
@@ -394,11 +386,49 @@ export const getUserPromptHistory = async (userId: string, limitCount: number = 
       });
     });
     
-    console.log(`Fetched ${historyEntries.length} prompt history entries for user ${userId} (limited to ${limitCount})`);
     return historyEntries;
   } catch (error) {
     console.error("Error fetching user prompt history:", error);
     return [];
+  }
+};
+
+/**
+ * Updates the current card index for a history entry.
+ * @param historyId The ID of the history entry.
+ * @param newIndex The new card index to save.
+ * @returns A promise that resolves to true on success, false on error.
+ */
+export const updateHistoryCardIndex = async (
+  historyId: string,
+  newIndex: number
+): Promise<boolean> => {
+  if (!historyId) {
+    console.error('History ID is required to update card index.');
+    return false;
+  }
+  
+  try {
+    const historyRef = doc(db, USER_PROMPT_HISTORY_COLLECTION, historyId);
+    
+    // First, try to get the document to see if it exists
+    const docSnap = await getDoc(historyRef);
+    
+    if (!docSnap.exists()) {
+      return false;
+    }
+    
+    await updateDoc(historyRef, {
+      currentCardIndex: newIndex
+    });
+    
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: historyId, currentCardIndex: newIndex });
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating history card index:', error);
+    return false;
   }
 };
 
@@ -424,63 +454,6 @@ export const doesHistoryEntryExist = async (historyId: string): Promise<boolean>
 };
 
 /**
- * Updates the current card index for a history entry.
- * @param historyId The ID of the history entry.
- * @param newIndex The new card index to save.
- * @returns A promise that resolves to true on success, false on error.
- */
-export const updateHistoryCardIndex = async (
-  historyId: string,
-  newIndex: number
-): Promise<boolean> => {
-  if (!historyId) {
-    console.error('History ID is required to update card index.');
-    return false;
-  }
-  
-  try {
-    console.log(`updateHistoryCardIndex: Attempting to update index to ${newIndex} for history ID ${historyId}`);
-    const historyRef = doc(db, USER_PROMPT_HISTORY_COLLECTION, historyId);
-    
-    // First, try to get the document to see if it exists
-    const docSnap = await getDoc(historyRef);
-    
-    if (!docSnap.exists()) {
-      console.warn(`Document ${historyId} does not exist in ${USER_PROMPT_HISTORY_COLLECTION}. Cannot update card index.`);
-      console.warn(`This could happen if the document was deleted, the ID is incorrect, or there's a network issue.`);
-      return false;
-    }
-    
-    // Log the document data for debugging
-    const docData = docSnap.data();
-    console.log(`Document ${historyId} exists. Current data:`, {
-      userId: docData?.userId,
-      currentCardIndex: docData?.currentCardIndex,
-      cardCount: docData?.generated_cards_data?.length
-    });
-    
-    await updateDoc(historyRef, {
-      currentCardIndex: newIndex
-    });
-    console.log(`updateHistoryCardIndex: Successfully updated card index to ${newIndex} for history entry ${historyId}`);
-    
-    // Emit event to notify that deck data has changed
-    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: historyId, currentCardIndex: newIndex });
-    
-    return true;
-  } catch (error) {
-    console.error('Error updating history card index:', error);
-    console.error('Error details:', {
-      historyId,
-      newIndex,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: (error as any)?.code
-    });
-    return false;
-  }
-};
-
-/**
  * Updates the current card index for a saved deck.
  * @param deckId The ID of the deck.
  * @param newIndex The new card index to save.
@@ -496,30 +469,18 @@ export const updateDeckCardIndex = async (
   }
   
   try {
-    console.log(`updateDeckCardIndex: Attempting to update index to ${newIndex} for deck ID ${deckId}`);
     const deckRef = doc(db, DECKS_COLLECTION, deckId);
     
     // First, try to get the document to see if it exists
     const docSnap = await getDoc(deckRef);
     
     if (!docSnap.exists()) {
-      console.warn(`Document ${deckId} does not exist in ${DECKS_COLLECTION}. Cannot update card index.`);
-      console.warn(`This could happen if the document was deleted, the ID is incorrect, or there's a network issue.`);
       return false;
     }
-    
-    // Log the document data for debugging
-    const docData = docSnap.data();
-    console.log(`Document ${deckId} exists. Current data:`, {
-      userId: docData?.userId,
-      name: docData?.name,
-      cardCount: docData?.cardCount
-    });
     
     await updateDoc(deckRef, {
       currentCardIndex: newIndex
     });
-    console.log(`updateDeckCardIndex: Successfully updated card index to ${newIndex} for deck ${deckId}`);
     
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
@@ -527,12 +488,6 @@ export const updateDeckCardIndex = async (
     return true;
   } catch (error) {
     console.error('Error updating deck card index:', error);
-    console.error('Error details:', {
-      deckId,
-      newIndex,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      errorCode: (error as any)?.code
-    });
     return false;
   }
 };

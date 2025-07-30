@@ -77,7 +77,6 @@ export default function FavouritesScreen() {
         Alert.alert("Empty Deck", "This deck doesn\'t have any cards.");
       }
     } catch (error) {
-      console.error("Error fetching deck cards:", error);
       Alert.alert("Error", "Could not load cards for this deck.");
     }
     setIsLoadingDeckCards(false);
