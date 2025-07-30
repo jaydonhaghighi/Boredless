@@ -86,6 +86,4 @@ export type Card = DeepConversationCard | FunChallengeCard | CreativePromptCard 
 /**
  * Response type that includes all cards plus the main/featured card
  */
-export interface CardResponse extends Card {
-  cards: Card[];
-} 
+export type CardResponse = Card; 

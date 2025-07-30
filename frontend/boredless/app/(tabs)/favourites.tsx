@@ -7,6 +7,7 @@ import { Card } from "../../types/card";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
 import EngagingLoadingScreen from '../../components/EngagingLoadingScreen';
+import { AntDesign } from '@expo/vector-icons';
 
 export default function FavouritesScreen() {
   const { showBottomSheet } = useBottomSheetVisibility();
@@ -75,7 +76,7 @@ export default function FavouritesScreen() {
         }));
         showBottomSheet(cardsWithDeckId, 0);
       } else {
-        Alert.alert("Empty Deck", "This deck doesn\'t have any cards.");
+        Alert.alert("Empty Deck", "This deck doesn't have any cards.");
       }
     } catch (error) {
       Alert.alert("Error", "Could not load cards for this deck.");
@@ -85,47 +86,75 @@ export default function FavouritesScreen() {
 
   const renderDeckItem = ({ item }: { item: Deck }) => (
     <TouchableOpacity 
-      style={styles.deckItemContainer} 
+      style={styles.deckCard} 
       onPress={() => handleDeckPress(item.id)}
       disabled={isLoadingDeckCards}
     >
-      <View style={styles.deckInfoContainer}>
-        <Text style={styles.deckName}>{item.name}</Text>
-        <Text style={styles.deckCardCount}>{item.cardCount || 0} cards</Text>
+      <View style={styles.deckCardHeader}>
+        <View style={styles.deckIcon}>
+          <AntDesign name="book" size={20} color="#374151" />
+        </View>
+        <View style={styles.deckInfo}>
+          <Text style={styles.deckTitle}>{item.name}</Text>
+          <Text style={styles.deckSubtitle}>{item.cardCount || 0} cards</Text>
+        </View>
+        {isLoadingDeckCards && (
+          <View style={styles.loadingContainer}>
+            <EngagingLoadingScreen variant="mini" showBackground={false} />
+          </View>
+        )}
       </View>
-      {isLoadingDeckCards && <EngagingLoadingScreen variant="mini" showBackground={false} />}
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Your Decks</Text>
+      {/* Hero Section - matching home.tsx */}
+      <View style={styles.heroSection}>
+        <Text style={styles.heroTitle}>Your saved decks</Text>
+        <Text style={styles.heroSubtitle}>Access your favorite conversation collections anytime</Text>
       </View>
+
+      {/* Main Content */}
       {isLoadingDecks && !refreshing ? (
-        <View style={styles.centeredMessageContainer}>
+        <View style={styles.loadingContainer}>
           <EngagingLoadingScreen variant="fullscreen" showBackground={false} />
         </View>
       ) : userDecks.length === 0 ? (
-        <View style={styles.centeredMessageContainer}>
-          <Text style={styles.placeholderText}>You haven't created any decks yet.</Text>
-          <Text style={styles.placeholderSubText}>Go to a card set and save it as a deck!</Text>
+        <View style={styles.emptyStateContainer}>
+          <View style={styles.emptyStateIcon}>
+            <AntDesign name="book" size={32} color="#CBD5E0" />
+          </View>
+          <Text style={styles.emptyStateTitle}>No saved decks yet</Text>
+          <Text style={styles.emptyStateSubtitle}>Save conversation decks from your generated cards to access them here</Text>
         </View>
       ) : (
-        <FlatList
-          data={userDecks}
-          renderItem={renderDeckItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContentContainer}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#A97C63"]}
-              tintColor="#A97C63"
-            />
-          }
-        />
+        <>
+          {/* Section Header */}
+          <View style={styles.sectionContainer}>
+            <View>
+              <Text style={styles.sectionTitle}>Your Collections</Text>
+              <Text style={styles.sectionSubtitle}>Tap any deck to start using it</Text>
+            </View>
+          </View>
+
+          {/* Deck List */}
+          <FlatList
+            data={userDecks}
+            renderItem={renderDeckItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#374151"]}
+                tintColor="#374151"
+              />
+            }
+          />
+        </>
       )}
     </SafeAreaView>
   );
@@ -136,86 +165,127 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFC',
   },
-  headerContainer: {
-    paddingHorizontal: 20,
+  // Hero Section - matching home.tsx
+  heroSection: {
+    paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    backgroundColor: '#FFF',
+    paddingBottom: 16,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#301C11',
+  heroTitle: {
+    fontSize: 28,
+    color: '#1A202C',
     fontFamily: 'Petrona-Bold',
+    marginBottom: 8,
+    lineHeight: 36,
   },
-  centeredMessageContainer: {
+  heroSubtitle: {
+    fontSize: 16,
+    color: '#4A5568',
+    fontFamily: 'Petrona-Regular',
+    lineHeight: 24,
+  },
+  // Section Headers - matching home.tsx
+  sectionContainer: {
+    width: '100%',
+    marginVertical: 12,
+    paddingHorizontal: 24,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    color: '#1A202C',
+    fontFamily: 'Petrona-Bold',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Loading Container
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
-  placeholderText: {
+  // Empty State - matching home.tsx
+  emptyStateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  emptyStateIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontFamily: 'Petrona-Bold',
     fontSize: 18,
-    color: '#5F5F5F',
-    textAlign: 'center',
-    fontFamily: 'Petrona-Regular',
+    color: '#2D3748',
     marginBottom: 8,
   },
-  placeholderSubText: {
-    fontSize: 14,
-    color: '#777',
-    textAlign: 'center',
+  emptyStateSubtitle: {
     fontFamily: 'Petrona-Regular',
+    fontSize: 14,
+    color: '#718096',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
   },
-  listContentContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+  // List Container
+  listContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
-  deckItemContainer: {
+  // Deck Cards - matching conversation cards from home.tsx
+  deckCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 15,
-    shadowColor: "#000",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  deckCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  deckInfoContainer: {
+  deckIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  deckInfo: {
     flex: 1,
   },
-  deckName: {
-    fontSize: 18,
-    color: '#301C11',
-    fontFamily: 'Petrona-Bold', 
+  deckTitle: {
+    fontFamily: 'Petrona-Bold',
+    fontSize: 16,
+    color: '#1A202C',
+    marginBottom: 2,
   },
-  deckCardCount: {
-    fontSize: 14,
-    color: '#5F5F5F',
+  deckSubtitle: {
     fontFamily: 'Petrona-Regular',
+    fontSize: 14,
+    color: '#718096',
   },
-  debugButton: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: '#000',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFF',
-    fontWeight: '600',
-  }
 }); 

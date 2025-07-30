@@ -102,129 +102,167 @@ export default function GenerateScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Prompt Generator</Text>
-            <Text style={styles.subtitle}>
-              Start by selecting a card type, then customize with filters
-            </Text>
-          </View>
+      <ScrollView contentContainerStyle={styles.mainScrollContainer} showsVerticalScrollIndicator={false}>
+        
+        {/* Hero Section - matching home.tsx */}
+        <View style={styles.heroSection}>
+          <Text style={styles.heroTitle}>Create custom conversations</Text>
+          <Text style={styles.heroSubtitle}>Choose your card type and customize with filters to generate the perfect conversation topics</Text>
+        </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterTitle}>Card Type</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-              {FILTER_OPTIONS.cardTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[styles.filterButton, selectedCardType === type && styles.selectedFilterButton]}
-                  onPress={() => setSelectedCardType(selectedCardType === type ? null : type)}
-                >
-                  <Text style={[styles.filterButtonText, selectedCardType === type && styles.selectedFilterButtonText]}>
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* Card Type Section */}
+        <View style={styles.sectionContainer}>
+          <View>
+            <Text style={styles.sectionTitle}>Card Type</Text>
+            <Text style={styles.sectionSubtitle}>Choose the style of conversation you want</Text>
+          </View>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <View style={styles.horizontalListContainer}>
+            {FILTER_OPTIONS.cardTypes.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[styles.filterCard, selectedCardType === type && styles.selectedFilterCard]}
+                onPress={() => setSelectedCardType(selectedCardType === type ? null : type)}
+              >
+                <Text style={[styles.filterCardTitle, selectedCardType === type && styles.selectedFilterCardTitle]}>
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        {shouldShowFilters && (
+          <>
+            {/* Topic Section */}
+            <View style={styles.sectionContainer}>
+              <View>
+                <Text style={styles.sectionTitle}>Topic</Text>
+                <Text style={styles.sectionSubtitle}>What do you want to talk about?</Text>
+              </View>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              <View style={styles.horizontalListContainer}>
+                {getTopics().map((topic) => (
+                  <TouchableOpacity
+                    key={topic}
+                    style={[styles.filterChip, selectedTopic === topic && styles.selectedFilterChip]}
+                    onPress={() => setSelectedTopic(selectedTopic === topic ? null : topic)}
+                  >
+                    <Text style={[styles.filterChipText, selectedTopic === topic && styles.selectedFilterChipText]}>
+                      {topic}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </ScrollView>
-          </View>
 
-          {shouldShowFilters && (
-            <>
-              <View style={styles.filterSection}>
-                <Text style={styles.filterTitle}>Topic</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                  {getTopics().map((topic) => (
-                    <TouchableOpacity
-                      key={topic}
-                      style={[styles.filterButton, selectedTopic === topic && styles.selectedFilterButton]}
-                      onPress={() => setSelectedTopic(selectedTopic === topic ? null : topic)}
-                    >
-                      <Text style={[styles.filterButtonText, selectedTopic === topic && styles.selectedFilterButtonText]}>
-                        {topic}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+            {/* Tone Section */}
+            <View style={styles.sectionContainer}>
+              <View>
+                <Text style={styles.sectionTitle}>Tone</Text>
+                <Text style={styles.sectionSubtitle}>Set the mood for your conversation</Text>
               </View>
+            </View>
 
-              <View style={styles.filterSection}>
-                <Text style={styles.filterTitle}>Tone</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                  {getTones().map((tone) => (
-                    <TouchableOpacity
-                      key={tone}
-                      style={[styles.filterButton, selectedTone === tone && styles.selectedFilterButton]}
-                      onPress={() => setSelectedTone(selectedTone === tone ? null : tone)}
-                    >
-                      <Text style={[styles.filterButtonText, selectedTone === tone && styles.selectedFilterButtonText]}>
-                        {tone}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              <View style={styles.horizontalListContainer}>
+                {getTones().map((tone) => (
+                  <TouchableOpacity
+                    key={tone}
+                    style={[styles.filterChip, selectedTone === tone && styles.selectedFilterChip]}
+                    onPress={() => setSelectedTone(selectedTone === tone ? null : tone)}
+                  >
+                    <Text style={[styles.filterChipText, selectedTone === tone && styles.selectedFilterChipText]}>
+                      {tone}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </ScrollView>
 
-              <View style={styles.filterSection}>
-                <Text style={styles.filterTitle}>Participants</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                  {getParticipants().map((participants) => (
-                    <TouchableOpacity
-                      key={participants}
-                      style={[styles.filterButton, selectedParticipants === participants && styles.selectedFilterButton]}
-                      onPress={() => setSelectedParticipants(selectedParticipants === participants ? null : participants)}
-                    >
-                      <Text style={[styles.filterButtonText, selectedParticipants === participants && styles.selectedFilterButtonText]}>
-                        {participants}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+            {/* Participants Section */}
+            <View style={styles.sectionContainer}>
+              <View>
+                <Text style={styles.sectionTitle}>Participants</Text>
+                <Text style={styles.sectionSubtitle}>How many people will be involved?</Text>
               </View>
+            </View>
 
-              {selectedParticipants !== "Solo" && (
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterTitle}>Relationship</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              <View style={styles.horizontalListContainer}>
+                {getParticipants().map((participants) => (
+                  <TouchableOpacity
+                    key={participants}
+                    style={[styles.filterChip, selectedParticipants === participants && styles.selectedFilterChip]}
+                    onPress={() => setSelectedParticipants(selectedParticipants === participants ? null : participants)}
+                  >
+                    <Text style={[styles.filterChipText, selectedParticipants === participants && styles.selectedFilterChipText]}>
+                      {participants}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {/* Relationship Section */}
+            {selectedParticipants !== "Solo" && (
+              <>
+                <View style={styles.sectionContainer}>
+                  <View>
+                    <Text style={styles.sectionTitle}>Relationship</Text>
+                    <Text style={styles.sectionSubtitle}>What's your relationship to the group?</Text>
+                  </View>
+                </View>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                  <View style={styles.horizontalListContainer}>
                     {getRelationships().map((relationship) => (
                       <TouchableOpacity
                         key={relationship}
-                        style={[styles.filterButton, selectedRelationship === relationship && styles.selectedFilterButton]}
+                        style={[styles.filterChip, selectedRelationship === relationship && styles.selectedFilterChip]}
                         onPress={() => setSelectedRelationship(selectedRelationship === relationship ? null : relationship)}
                       >
-                        <Text style={[styles.filterButtonText, selectedRelationship === relationship && styles.selectedFilterButtonText]}>
+                        <Text style={[styles.filterChipText, selectedRelationship === relationship && styles.selectedFilterChipText]}>
                           {relationship}
                         </Text>
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
-                </View>
-              )}
-            </>
-          )}
+                  </View>
+                </ScrollView>
+              </>
+            )}
+          </>
+        )}
 
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
-              <Text style={styles.resetButtonText}>Reset</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.generateButton, !selectedCardType && styles.disabledButton]} 
-              onPress={handleApplyFiltersAndGenerate} 
-              disabled={!selectedCardType || generationState.isGeneratingCards}
-            >
-              {generationState.isGeneratingCards ? (
-                <EngagingLoadingScreen variant="mini" showBackground={false} />
-              ) : (
-                <Text style={styles.generateButtonText}>Generate</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {generationState.error && (
-            <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{generationState.error}</Text>
-            </View>
-          )}
+        {/* Action Buttons */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.generateButton, !selectedCardType && styles.disabledButton]} 
+            onPress={handleApplyFiltersAndGenerate} 
+            disabled={!selectedCardType || generationState.isGeneratingCards}
+          >
+            {generationState.isGeneratingCards ? (
+              <EngagingLoadingScreen variant="mini" showBackground={false} />
+            ) : (
+              <Text style={styles.generateButtonText}>Generate Cards</Text>
+            )}
+          </TouchableOpacity>
         </View>
+
+        {/* Error Display */}
+        {generationState.error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{generationState.error}</Text>
+          </View>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -235,127 +273,166 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFC',
   },
-  scrollView: {
-    flex: 1,
+  mainScrollContainer: {
+    paddingBottom: 120, // Extra padding to prevent bottom sheet from covering buttons
   },
-  content: {
-    padding: 20,
+  // Hero Section - matching home.tsx
+  heroSection: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
-  header: {
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  title: {
+  heroTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#402E22',
-    fontFamily: 'PlayfairDisplay_700Bold',
+    color: '#1A202C',
+    fontFamily: 'Petrona-Bold',
+    marginBottom: 8,
+    lineHeight: 36,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: '#4A5568',
+    fontFamily: 'Petrona-Regular',
+    lineHeight: 24,
+  },
+  // Section Headers - matching home.tsx
+  sectionContainer: {
+    width: '100%',
+    marginVertical: 12,
+    paddingHorizontal: 24,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    color: '#1A202C',
+    fontFamily: 'Petrona-Bold',
     marginBottom: 4,
   },
-  subtitle: {
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Horizontal scrolling - matching home.tsx pattern
+  horizontalScroll: {
+    marginBottom: 8,
+  },
+  horizontalListContainer: {
+    paddingLeft: 24,
+    paddingRight: 8,
+    paddingVertical: 8,
+    flexDirection: 'row',
+  },
+  // Card Type Cards - larger like quick start items
+  filterCard: {
+    width: 140,
+    height: 100,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedFilterCard: {
+    backgroundColor: '#374151',
+    borderColor: '#374151',
+  },
+  filterCardTitle: {
+    fontFamily: 'Petrona-Bold',
     fontSize: 16,
-    color: '#7A7A7A',
-    fontFamily: 'Nunito_400Regular',
+    color: '#1A202C',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  selectedFilterCardTitle: {
+    color: '#FFFFFF',
+  },
+  // Filter Chips - smaller for other options
+  filterChip: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedFilterChip: {
+    backgroundColor: '#374151',
+    borderColor: '#374151',
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: '#1A202C',
+    fontFamily: 'Petrona-Regular',
     textAlign: 'center',
   },
-  filterSection: {
-    marginBottom: 20,
+  selectedFilterChipText: {
+    color: '#FFFFFF',
+    fontFamily: 'Petrona-Bold',
   },
-  filterTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#402E22',
-    fontFamily: 'Nunito_600SemiBold',
-    marginBottom: 12,
-  },
-  filterScroll: {
-    // Styles for the horizontal scroll view if needed
-  },
-  filterButton: {
-    backgroundColor: '#FFF',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  selectedFilterButton: {
-    backgroundColor: '#A97C63',
-    borderColor: '#A97C63',
-  },
-  filterButtonText: {
-    fontSize: 15,
-    color: '#402E22',
-    fontFamily: 'Nunito_600SemiBold',
-  },
-  selectedFilterButtonText: {
-    color: '#FFF',
-  },
+  // Action Buttons
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 30,
-    paddingHorizontal: 10,
+    marginTop: 32,
+    marginBottom: 16,
+    paddingHorizontal: 24,
+    gap: 12,
   },
   resetButton: {
-    paddingVertical: 15,
-    paddingHorizontal: 30,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   resetButtonText: {
     fontSize: 16,
-    color: '#402E22',
-    fontFamily: 'Nunito_700Bold',
+    color: '#4A5568',
+    fontFamily: 'Petrona-Bold',
   },
   generateButton: {
     flex: 1,
-    marginLeft: 10,
-    backgroundColor: '#A97C63',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
+    backgroundColor: '#374151',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: "#A97C63",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
+    minHeight: 56,
   },
   generateButtonText: {
     fontSize: 16,
-    color: '#FFF',
-    fontFamily: 'Nunito_700Bold',
+    color: '#FFFFFF',
+    fontFamily: 'Petrona-Bold',
   },
   disabledButton: {
-    backgroundColor: '#D3C1B7',
-    shadowOpacity: 0.1,
+    backgroundColor: '#CBD5E0',
   },
+  // Error Display
   errorContainer: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#FFEBEE',
-    borderRadius: 8,
+    marginHorizontal: 24,
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#FED7D7',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FEB2B2',
   },
   errorText: {
-    color: '#B71C1C',
+    color: '#C53030',
     fontSize: 14,
-    fontFamily: 'Nunito_600SemiBold',
+    fontFamily: 'Petrona-Regular',
     textAlign: 'center',
-  }
+    lineHeight: 20,
+  },
 });

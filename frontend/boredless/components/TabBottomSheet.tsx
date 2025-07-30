@@ -9,6 +9,8 @@ import Animated, {
   useAnimatedStyle, 
   interpolate,
   Extrapolation,
+  withTiming,
+  Easing
 } from 'react-native-reanimated';
 import { useBottomSheet } from '../context/BottomSheetContext';
 import { useCurrentGeneration, useBottomSheetVisibility } from '../context/TabContext';
@@ -43,6 +45,58 @@ const getCardPreviewText = (card: Card | undefined): string => {
     default:
       return question;
   }
+};
+
+/**
+ * Small loading text component for the bottom sheet handle
+ */
+const HandleLoadingText = () => {
+  const opacity = useSharedValue(0);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+
+  const messages = [
+    "✨ Brewing magic...",
+    "🎭 Crafting questions...",
+    "🌟 Adding sparkle...",
+    "🎪 Setting up...",
+    "🎨 Painting words...",
+  ];
+
+  useEffect(() => {
+    // Start with fade in
+    opacity.value = withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) });
+
+    // Rotate messages with fade effect
+    const messageInterval = setInterval(() => {
+      // Fade out
+      opacity.value = withTiming(0, { 
+        duration: 300, 
+        easing: Easing.inOut(Easing.ease) 
+      });
+      
+      // Change message after fade out
+      setTimeout(() => {
+        setCurrentMessageIndex((prev) => (prev + 1) % messages.length);
+        // Fade in new message
+        opacity.value = withTiming(1, { 
+          duration: 500, 
+          easing: Easing.inOut(Easing.ease) 
+        });
+      }, 300);
+    }, 2000); // Faster rotation for handle
+
+    return () => clearInterval(messageInterval);
+  }, []);
+
+  const animatedTextStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.Text style={[styles.handleLoadingText, animatedTextStyle]}>
+      {messages[currentMessageIndex]}
+    </Animated.Text>
+  );
 };
 
 /**
@@ -359,7 +413,7 @@ export const TabBottomSheet = () => {
                   style={styles.emptyBackgroundSmall}
                   imageStyle={{ opacity: 0.25, borderRadius: 5 }}
                 >
-                  <Text style={styles.emptyPreviewText}>Generating...</Text>
+                  <HandleLoadingText />
                 </ImageBackground>
               </View>
             ) : finalCardsToDisplay.length > 0 ? (
@@ -529,5 +583,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     borderRadius: 16,
     padding: 8,
+  },
+  handleLoadingText: {
+    fontSize: 14,
+    color: '#6C757D',
+    fontFamily: 'Petrona-Regular',
+    textAlign: 'center',
   },
 }); 

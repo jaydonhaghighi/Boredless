@@ -8,6 +8,23 @@ const USER_PROMPT_HISTORY_COLLECTION = 'user_prompt_history';
 const DECKS_COLLECTION = 'decks';
 const CARDS_SUBCOLLECTION = 'cards';
 
+/**
+ * Utility function to clean card data by removing undefined values
+ * Firestore doesn't allow undefined values, so we need to filter them out
+ */
+const cleanCardData = (card: Card): Record<string, any> => {
+  const cleanedCard = { ...card } as Record<string, any>;
+  
+  // Remove undefined values recursively
+  Object.keys(cleanedCard).forEach(key => {
+    if (cleanedCard[key] === undefined) {
+      delete cleanedCard[key];
+    }
+  });
+  
+  return cleanedCard;
+};
+
 export interface HistoryEntryData {
   id?: string; // Optional ID, can be added when fetching
   userId: string;
@@ -105,10 +122,9 @@ export const saveAiSetAsDeck = async (
     const cardsSubcollectionRef = collection(db, DECKS_COLLECTION, deckDocRef.id, CARDS_SUBCOLLECTION);
     generatedCardsData.forEach((card) => {
       const cardDocRef = doc(cardsSubcollectionRef); // Auto-generate ID for each card
-      // We can store the full card object, or a subset if needed
-      // For now, storing the full card object as defined in types/card.ts
-      // Add userId to card if not already present, or if you want to enforce it
-      batch.set(cardDocRef, { ...card, deckId: deckDocRef.id }); 
+      // Clean the card data to remove any undefined values before saving
+      const cleanedCard = cleanCardData(card);
+      batch.set(cardDocRef, { ...cleanedCard, deckId: deckDocRef.id }); 
     });
 
     await batch.commit();
@@ -279,15 +295,15 @@ export const addCardToExistingDeck = async (
       question: cardData.question || 'What would you like to talk about?',
       title: cardData.title || 'Card',
       // Add extra fields based on card_type to prevent undefined values
-      reflection: cardData.reflection || '',
-      followups: cardData.followups || [],
-      twist: cardData.twist || '',
-      bonus: cardData.bonus || '',
-      perspective1: cardData.perspective1 || '',
-      perspective2: cardData.perspective2 || '',
-      debate_twist: cardData.debate_twist || '',
-      group_vote: cardData.group_vote || '',
-      reveal: cardData.reveal || '',
+      reflection: (cardData as any).reflection || '',
+      followups: (cardData as any).followups || [],
+      twist: (cardData as any).twist || '',
+      bonus: (cardData as any).bonus || '',
+      perspective1: (cardData as any).perspective1 || '',
+      perspective2: (cardData as any).perspective2 || '',
+      debate_twist: (cardData as any).debate_twist || '',
+      group_vote: (cardData as any).group_vote || '',
+      reveal: (cardData as any).reveal || '',
       // Metadata
       deckId: deckId
     };
