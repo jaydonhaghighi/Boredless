@@ -18,7 +18,6 @@ import EngagingLoadingScreen from '../../components/EngagingLoadingScreen';
 
 export default function GenerateScreen() {
   const { triggerCardGeneration, generationState } = useCurrentGeneration();
-  const { showBottomSheet, setIsGeneratingSheetState } = useBottomSheetVisibility();
 
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedCardType, setSelectedCardType] = useState<CardTypeName | null>(null);
@@ -55,9 +54,6 @@ export default function GenerateScreen() {
       relationship: selectedRelationship,
     };
 
-    setIsGeneratingSheetState(true);
-    showBottomSheet();
-    
     await triggerCardGeneration(filters);
   };
 

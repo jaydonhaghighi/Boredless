@@ -20,6 +20,9 @@ interface CurrentGenerationState {
 type CurrentGenerationContextType = {
   generationState: CurrentGenerationState;
   triggerCardGeneration: (filters: FilterParams) => Promise<void>;
+  showOverlayLoading: () => void;
+  hideOverlayLoading: () => void;
+  isOverlayLoading: boolean;
 };
 
 const initialGenerationState: CurrentGenerationState = {
@@ -32,13 +35,25 @@ const initialGenerationState: CurrentGenerationState = {
 export const CurrentGenerationContext = createContext<CurrentGenerationContextType>({
   generationState: initialGenerationState,
   triggerCardGeneration: async () => {},
+  showOverlayLoading: () => {},
+  hideOverlayLoading: () => {},
+  isOverlayLoading: false,
 });
 
 export const useCurrentGeneration = () => useContext(CurrentGenerationContext);
 
 export const CurrentGenerationProvider = ({ children }: { children: React.ReactNode }) => {
   const [generationState, setGenerationState] = useState<CurrentGenerationState>(initialGenerationState);
+  const [isOverlayLoading, setIsOverlayLoading] = useState(false);
   const { userId } = useAuth();
+
+  const showOverlayLoading = useCallback(() => {
+    setIsOverlayLoading(true);
+  }, []);
+
+  const hideOverlayLoading = useCallback(() => {
+    setIsOverlayLoading(false);
+  }, []);
 
   const triggerCardGeneration = useCallback(async (filters: FilterParams) => {
     if (!userId) {
@@ -47,6 +62,8 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
       return;
     }
 
+    // Show overlay loading instead of bottom sheet loading
+    setIsOverlayLoading(true);
     setGenerationState({
       currentFilters: filters,
       generatedCards: null,
@@ -78,9 +95,11 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
           generatedCards: cardsFromApi,
           isGeneratingCards: false,
         }));
+        setIsOverlayLoading(false);
       } else {
         console.log('No cards returned from API.');
         setGenerationState(prev => ({ ...prev, isGeneratingCards: false, error: 'No cards generated.' }));
+        setIsOverlayLoading(false);
       }
     } catch (err: any) {
       console.error('Error during card generation or saving history:', err);
@@ -89,11 +108,18 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
         isGeneratingCards: false,
         error: err.message || 'Failed to generate cards.',
       }));
+      setIsOverlayLoading(false);
     }
   }, [userId]);
 
   return (
-    <CurrentGenerationContext.Provider value={{ generationState, triggerCardGeneration }}>
+    <CurrentGenerationContext.Provider value={{ 
+      generationState, 
+      triggerCardGeneration, 
+      showOverlayLoading, 
+      hideOverlayLoading, 
+      isOverlayLoading 
+    }}>
       {children}
     </CurrentGenerationContext.Provider>
   );

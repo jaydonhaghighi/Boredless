@@ -18,7 +18,6 @@ import PromptComponent from './PromptComponent';
 import { Card } from '../types/card';
 import { CustomBackdrop } from './CustomBackdrop';
 import { updateHistoryCardIndex, deckDataEvents, DECK_DATA_CHANGED, doesHistoryEntryExist, updateDeckCardIndex, doesDeckExist } from '../services/firestoreService';
-import EngagingLoadingScreen from './EngagingLoadingScreen';
 
 /**
  * Gets the preview text to display in the bottom sheet based on card type
@@ -105,7 +104,7 @@ const HandleLoadingText = () => {
  */
 export const TabBottomSheet = () => {
   const { bottomSheetRef } = useBottomSheet();
-  const { generationState } = useCurrentGeneration();
+  const { generationState, isOverlayLoading } = useCurrentGeneration();
   const { 
     isVisible, 
     bottomSheetRef: visibilitySheetRef, 
@@ -385,7 +384,7 @@ export const TabBottomSheet = () => {
     ? cardsInSheet 
     : generationState.generatedCards || [];
 
-  if (!isVisible) {
+  if (!isVisible || isOverlayLoading) {
     return null;
   }
 
@@ -474,10 +473,6 @@ export const TabBottomSheet = () => {
             onClose={handleClosePromptDisplay}
             onChangeCard={handleChangeCard}
           />
-        ) : generationState.isGeneratingCards ? (
-          <View style={styles.expandedLoadingContainer}>
-            <EngagingLoadingScreen variant="fullscreen" showBackground={false} />
-          </View>
         ) : (
           <View style={styles.emptyContentContainer}>
             <Text style={styles.emptyContentText}>
@@ -570,11 +565,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: '100%',
   },
-  expandedLoadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   emptyBackgroundSmall: {
     width: '100%',
     height: '100%',

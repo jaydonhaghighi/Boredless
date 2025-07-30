@@ -183,14 +183,11 @@ export default function Index() {
       relationship: item.apiParams.relationship,
     };
     
-    // Show bottom sheet immediately, just like the generate screen does
-    showBottomSheet();
-    
     await triggerCardGeneration(filters);
   };
 
   useEffect(() => {
-    if (generationState.generatedCards && generationState.generatedCards.length > 0 && generationState.isGeneratingCards === false && !generationState.error) {
+    if (generationState.generatedCards && generationState.generatedCards.length > 0 && !generationState.isGeneratingCards && !generationState.error) {
       showBottomSheet(generationState.generatedCards, 0);
     }
     if (generationState.error && !generationState.isGeneratingCards) {
