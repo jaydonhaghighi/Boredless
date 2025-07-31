@@ -102,7 +102,11 @@ const HandleLoadingText = () => {
  * TabBottomSheet component for displaying generated prompts
  * Extracted from _layout.tsx to improve organization
  */
-export const TabBottomSheet = () => {
+interface TabBottomSheetProps {
+  hideOnProfile?: boolean;
+}
+
+export const TabBottomSheet = ({ hideOnProfile = false }: TabBottomSheetProps) => {
   const { bottomSheetRef } = useBottomSheet();
   const { generationState, isOverlayLoading } = useCurrentGeneration();
   const { 
@@ -384,7 +388,7 @@ export const TabBottomSheet = () => {
     ? cardsInSheet 
     : generationState.generatedCards || [];
 
-  if (!isVisible || isOverlayLoading) {
+  if (!isVisible || isOverlayLoading || hideOnProfile) {
     return null;
   }
 

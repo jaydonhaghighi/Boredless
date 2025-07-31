@@ -3,11 +3,37 @@ import BottomSheet from "@gorhom/bottom-sheet";
 import { Card, CardResponse } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
 import { addGeneratedSetToHistory } from '../services/firestoreService';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from './AuthContext';
 import axios from 'axios';
 
 // API base URL - should be in a config
 const API_BASE_URL = 'http://localhost:8000';
+
+// --- Current Tab Context ---
+type CurrentTabContextType = {
+  currentTab: string;
+  setCurrentTab: (tab: string) => void;
+};
+
+const CurrentTabContext = createContext<CurrentTabContextType | null>(null);
+
+export const useCurrentTab = () => {
+  const context = useContext(CurrentTabContext);
+  if (!context) {
+    throw new Error('useCurrentTab must be used within a CurrentTabProvider');
+  }
+  return context;
+};
+
+export const CurrentTabProvider = ({ children }: { children: React.ReactNode }) => {
+  const [currentTab, setCurrentTab] = useState('home');
+
+  return (
+    <CurrentTabContext.Provider value={{ currentTab, setCurrentTab }}>
+      {children}
+    </CurrentTabContext.Provider>
+  );
+};
 
 // --- New CurrentGenerationContext ---
 interface CurrentGenerationState {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Dimensions, Alert, Image, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Dimensions, Image, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -18,7 +18,8 @@ import { Card, DeepConversationCard } from '../types/card';
 import { CardTitle, CardSection, CardMainContent, CardListItem } from './CardElements';
 import { useFontLoader } from '../hooks/useFontLoader';
 import AnimatedCardStack from './AnimatedCardStack';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { 
   saveAiSetAsDeck, 
   createNewDeckWithSingleCard, 
@@ -50,6 +51,7 @@ export default function PromptComponent({
   const [favoriteModalVisible, setFavoriteModalVisible] = useState(false);
   const router = useRouter();
   const { userId, isAuthenticated } = useAuth();
+  const { showToast } = useToast();
 
   // New state variables
   const [showNameDeckModal, setShowNameDeckModal] = useState(false);
@@ -105,7 +107,7 @@ export default function PromptComponent({
     // router.push('/create-deck');
     
     // For now, show confirmation
-    Alert.alert('New Deck', 'Started creating a new deck with this card!');
+    showToast('Started creating a new deck with this card!', 'success');
   }, [cards, currentCardIndex]);
   
   // Share functionality (example)
@@ -128,7 +130,7 @@ export default function PromptComponent({
         // title: 'Boredless Prompt' // Optional: for email subject etc.
       });
     } catch (error: any) {
-      Alert.alert(error.message);
+      showToast(error.message, 'error');
     }
   };
 
@@ -307,7 +309,7 @@ export default function PromptComponent({
 
   const handleCreateNewDeckPress = () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to perform this action.");
+      showToast("Please log in to perform this action.", "warning");
       return;
     }
     setFavoriteModalVisible(false);
@@ -317,7 +319,7 @@ export default function PromptComponent({
 
   const handleCreateEmptyDeckPress = () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to perform this action.");
+      showToast("Please log in to perform this action.", "warning");
       return;
     }
     setNameDeckModalAction('createEmpty');
@@ -328,11 +330,11 @@ export default function PromptComponent({
 
   const handleSaveEntireSetPress = () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to save decks.");
+      showToast("Please log in to save decks.", "warning");
       return;
     }
     if (!cards || cards.length === 0) {
-      Alert.alert("No Cards", "There are no cards in the current set to save.");
+      showToast("There are no cards in the current set to save.", "warning");
       return;
     }
     setNameDeckModalAction('saveSet');
@@ -345,7 +347,7 @@ export default function PromptComponent({
   const handleConfirmNameDeckModal = async () => { 
     if (!userId || !nameDeckModalAction) return;
     if (!newDeckName.trim()) {
-      Alert.alert("Invalid Name", "Please enter a name for your deck.");
+      showToast("Please enter a name for your deck.", "warning");
       return;
     }
 
@@ -361,7 +363,7 @@ export default function PromptComponent({
     } else if (nameDeckModalAction === 'saveSet') {
       const currentCardsToSave = cards; // Assuming 'cards' is the prop with the full set
       if (!currentCardsToSave || currentCardsToSave.length === 0) {
-        Alert.alert("Error", "No cards in the current set to save.");
+        showToast("No cards in the current set to save.", "error");
         setIsProcessingFavoriteAction(false);
         setShowNameDeckModal(false);
         setNameDeckModalAction(null);
@@ -375,17 +377,17 @@ export default function PromptComponent({
     setIsProcessingFavoriteAction(false);
 
     if (successId) {
-      Alert.alert("Success!", successMessage);
+      showToast(successMessage, "success");
       setShowNameDeckModal(false);
       setNameDeckModalAction(null); // Reset action
     } else {
-      Alert.alert("Error", errorMessage);
+      showToast(errorMessage, "error");
     }
   };
 
   const handleAddToExistingDeckPress = async () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to perform this action.");
+      showToast("Please log in to perform this action.", "warning");
       return;
     }
     setIsProcessingFavoriteAction(true);
@@ -393,10 +395,8 @@ export default function PromptComponent({
     setIsProcessingFavoriteAction(false);
     
     if (fetchedDecks.length === 0) {
-        Alert.alert("No Decks", "You don't have any decks yet. Try creating one first!", [
-            { text: "OK", onPress: () => setFavoriteModalVisible(false) },
-            { text: "Create New Deck", onPress: handleCreateNewDeckPress }
-        ]);
+        showToast("You don't have any decks yet. Try creating one first!", "warning");
+        setFavoriteModalVisible(false);
         return;
     }
 
@@ -409,7 +409,7 @@ export default function PromptComponent({
     if (!userId) return;
     const cardToSave = cards[currentCardIndex];
     if (!cardToSave) {
-        Alert.alert("Error", "No card selected.");
+        showToast("No card selected.", "error");
         return;
     }
 
@@ -418,10 +418,10 @@ export default function PromptComponent({
     setIsProcessingFavoriteAction(false);
 
     if (success) {
-      Alert.alert("Card Added", "The current card has been added to the selected deck.");
+      showToast("The current card has been added to the selected deck.", "success");
       setShowDeckListModal(false);
     } else {
-      Alert.alert("Error", "Could not add the card to the deck. Please try again.");
+      showToast("Could not add the card to the deck. Please try again.", "error");
     }
   };
 

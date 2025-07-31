@@ -1,46 +1,142 @@
-import { Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView } from 'react-native'
-import React, { useState } from 'react'
+import { Text, StyleSheet, TextInput, TouchableOpacity, View, ScrollView, Alert } from 'react-native'
+import React, { useState, useEffect } from 'react'
 import { auth } from '../../FirebaseConfig'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
 import { router } from 'expo-router'
-
+import { useAuth } from '../../context/AuthContext'
+import { useFontLoader } from '../../hooks/useFontLoader'
+import { Feather } from '@expo/vector-icons'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const index = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { isAuthenticated, loading } = useAuth();
 
-
-  const signIn = async () => {
-    try {
-      const user = await signInWithEmailAndPassword(auth, email, password)
-      if (user) router.replace('/(tabs)/home');
-    } catch (error: any) {
-      console.log(error)
-      alert('Sign in failed: ' + error.message);
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      router.replace('/(tabs)/home');
     }
-  }
+  }, [isAuthenticated, loading]);
 
-  const signUp = async () => {
-    try {
-      const user = await createUserWithEmailAndPassword(auth, email, password)
-      if (user) router.replace('/(tabs)/home');
-    } catch (error: any) {
-      console.log(error)
-      alert('Sign in failed: ' + error.message);
+  const handleEmailSignIn = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
     }
+
+    try {
+      setIsLoading(true);
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      router.replace('/(tabs)/home');
+    } catch (error: any) {
+      console.log('Email auth error:', error);
+      Alert.alert('Authentication Failed', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
+
+  if (!fontsLoaded && !fontError) {
+    return null;
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <TextInput style={styles.textInput} placeholder="email" value={email} onChangeText={setEmail} />
-      <TextInput style={styles.textInput} placeholder="password" value={password} onChangeText={setPassword} secureTextEntry/>
-      <TouchableOpacity style={styles.button} onPress={signIn}>
-        <Text style={styles.text}>Login</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={signUp}>
-        <Text style={styles.text}>Make Account</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={styles.container} edges={['top']} onLayout={onLayoutRootView}>
+      <ScrollView contentContainerStyle={styles.mainScrollContainer} showsVerticalScrollIndicator={false}>
+        
+        {/* Hero Section - matching other pages */}
+        <View style={styles.heroSection}>
+          <Text style={styles.heroTitle}>Welcome to Boredless</Text>
+          <Text style={styles.heroSubtitle}>Sign in to start creating amazing conversations</Text>
+        </View>
+
+        {/* Auth Form Section */}
+        <View style={styles.sectionContainer}>
+          <View>
+            <Text style={styles.sectionTitle}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
+            <Text style={styles.sectionSubtitle}>
+              {isSignUp ? 'Join us to save your conversations' : 'Welcome back! Sign in to continue'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Email/Password Form */}
+        <View style={styles.formContainer}>
+          <View style={styles.inputContainer}>
+            <Feather name="mail" size={20} color="#718096" style={styles.inputIcon} />
+            <TextInput 
+              style={styles.textInput} 
+              placeholder="Email address" 
+              value={email} 
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Feather name="lock" size={20} color="#718096" style={styles.inputIcon} />
+            <TextInput 
+              style={styles.textInput} 
+              placeholder="Password" 
+              value={password} 
+              onChangeText={setPassword} 
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </View>
+
+          {/* Primary Action Button */}
+          <TouchableOpacity 
+            style={[styles.primaryButton, isLoading && styles.disabledButton]} 
+            onPress={handleEmailSignIn}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <Feather name="loader" size={16} color="#FFFFFF" />
+                <Text style={styles.loadingText}>
+                  {isSignUp ? 'Creating Account...' : 'Signing In...'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {isSignUp ? 'Create Account' : 'Sign In'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Toggle Sign In/Sign Up */}
+          <TouchableOpacity 
+            style={styles.toggleButton} 
+            onPress={() => setIsSignUp(!isSignUp)}
+            disabled={isLoading}
+          >
+            <Text style={styles.toggleButtonText}>
+              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Google Sign-In Placeholder */}
+        <View style={styles.googleContainer}>
+          <View style={styles.googleButton}>
+            <Text style={styles.googleButtonText}>Google Sign-In Coming Soon</Text>
+          </View>
+        </View>
+
+      </ScrollView>
     </SafeAreaView>
   )
 }
@@ -50,50 +146,144 @@ export default index
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA', // A softer white for a modern, minimalist background
+    backgroundColor: '#FAFAFC',
   },
-  title: {
-    fontSize: 28, // A bit larger for a more striking appearance
-    fontWeight: '800', // Extra bold for emphasis
-    marginBottom: 40, // Increased space for a more airy, open feel
-    color: '#1A237E', // A deep indigo for a sophisticated, modern look
+  mainScrollContainer: {
+    paddingBottom: 24,
+  },
+  // Hero Section - matching other pages
+  heroSection: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
+  },
+  heroTitle: {
+    fontSize: 28,
+    color: '#1A202C',
+    fontFamily: 'Petrona-Bold',
+    marginBottom: 8,
+    lineHeight: 36,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: '#4A5568',
+    fontFamily: 'Petrona-Regular',
+    lineHeight: 24,
+  },
+  // Section Headers - matching other pages
+  sectionContainer: {
+    width: '100%',
+    marginVertical: 12,
+    paddingHorizontal: 24,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    color: '#1A202C',
+    fontFamily: 'Petrona-Bold',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Form Container
+  formContainer: {
+    paddingHorizontal: 24,
+    marginBottom: 24,
+  },
+  // Input Styles
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    shadowColor: '#9E9E9E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   textInput: {
-    height: 50, // Standard height for elegance and simplicity
-    width: '90%', // Full width for a more expansive feel
-    backgroundColor: '#FFFFFF', // Pure white for contrast against the container
-    borderColor: '#E8EAF6', // A very light indigo border for subtle contrast
-    borderWidth: 2,
-    borderRadius: 15, // Softly rounded corners for a modern, friendly touch
-    marginVertical: 15,
-    paddingHorizontal: 25, // Generous padding for ease of text entry
-    fontSize: 16, // Comfortable reading size
-    color: '#3C4858', // A dark gray for readability with a hint of warmth
-    shadowColor: '#9E9E9E', // A medium gray shadow for depth
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4, // Slightly elevated for a subtle 3D effect
+    flex: 1,
+    height: 50,
+    fontSize: 16,
+    fontFamily: 'Petrona-Regular',
+    color: '#1A202C',
   },
-  button: {
-    width: '90%',
-    marginVertical: 15,
-    backgroundColor: '#5C6BC0', // A lighter indigo to complement the title color
-    padding: 20,
-    borderRadius: 15, // Matching rounded corners for consistency
+  // Primary Button - matching other pages
+  primaryButton: {
+    backgroundColor: '#374151',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#5C6BC0', // Shadow color to match the button for a cohesive look
+    marginBottom: 16,
+    shadowColor: '#374151',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  text: {
-    color: '#FFFFFF', // Maintained white for clear visibility
-    fontSize: 18, // Slightly larger for emphasis
-    fontWeight: '600', // Semi-bold for a balanced weight
-  }
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Petrona-Bold',
+  },
+  // Toggle Button
+  toggleButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    color: '#5C6BC0',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Google Button
+  googleContainer: {
+    paddingHorizontal: 24,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    opacity: 0.6,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Loading States
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Petrona-Regular',
+  },
+  // Disabled States
+  disabledButton: {
+    backgroundColor: '#CBD5E0',
+    opacity: 0.7,
+  },
 });

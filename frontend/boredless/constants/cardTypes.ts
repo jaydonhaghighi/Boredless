@@ -135,7 +135,7 @@ export const CARD_TYPES = {
     },
     topics: ["Personality & Self-discovery", "Relationships & Dating"],
     tones: ["Serious", "Thoughtful", "Reflective"],
-    participants: ["3-5", "Close Friends"], // Participants might be group size or relationship specific
+    participants: ["3-5"],
     relationships: ["Close Friends", "Friends"]
   },
   "Face-Off": {

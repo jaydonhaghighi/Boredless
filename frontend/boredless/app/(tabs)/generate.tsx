@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCurrentGeneration } from '../../context/TabContext';
 import { useBottomSheetVisibility } from '../../context/TabContext';
+import { useToast } from '../../context/ToastContext';
 import { 
   FILTER_OPTIONS, 
   CARD_TYPES,
@@ -18,6 +19,7 @@ import EngagingLoadingScreen from '../../components/EngagingLoadingScreen';
 
 export default function GenerateScreen() {
   const { triggerCardGeneration, generationState } = useCurrentGeneration();
+  const { showToast } = useToast();
 
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedCardType, setSelectedCardType] = useState<CardTypeName | null>(null);
@@ -42,7 +44,7 @@ export default function GenerateScreen() {
 
   const handleApplyFiltersAndGenerate = async () => {
     if (!selectedCardType) {
-      Alert.alert('Card Type Required', 'Please select a card type before generating prompts.');
+      showToast('Please select a card type before generating prompts.', 'warning');
       return;
     }
 
@@ -376,7 +378,7 @@ const styles = StyleSheet.create({
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 32,
+    marginTop: 16,
     marginBottom: 16,
     paddingHorizontal: 24,
     gap: 12,

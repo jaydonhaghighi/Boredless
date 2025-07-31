@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 18,
     left: 18,
-    zIndex: 10,
+    zIndex: 20,
   },
   backArrowIcon: {
     width: 28,

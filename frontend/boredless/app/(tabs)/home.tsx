@@ -1,12 +1,13 @@
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, FlatList, Alert, ImageBackground } from 'react-native';
-import { AntDesign, Ionicons, FontAwesome5, Entypo, MaterialIcons, Feather } from '@expo/vector-icons';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, useWindowDimensions, FlatList, ImageBackground, Image } from 'react-native';
+import { AntDesign } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useState, ReactNode, useContext } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../context/AuthContext';
 import { getUserPromptHistory, HistoryEntryData, deckDataEvents, DECK_DATA_CHANGED } from '../../services/firestoreService';
-import { useCurrentGeneration, useBottomSheetVisibility } from '../../context/TabContext';
+import { useCurrentGeneration, useBottomSheetVisibility, useCurrentTab } from '../../context/TabContext';
+import { useToast } from '../../context/ToastContext';
 import { Card } from '../../types/card';
 import { FilterParams } from '../../utils/cardUtils';
 import { CardTypeName } from '../../constants/cardTypes';
@@ -90,12 +91,21 @@ export default function Index() {
   
   const { generationState, triggerCardGeneration } = useCurrentGeneration();
   const { showBottomSheet } = useBottomSheetVisibility();
+  const { showToast } = useToast();
+  const { setCurrentTab } = useCurrentTab();
+
+  // Set current tab when home screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      setCurrentTab('home');
+    }, [setCurrentTab])
+  );
 
   const quickStartItemsData: QuickStartItemData[] = [
     {
       id: 'table-for-two', 
       title: 'Table for Two', 
-      icon: <AntDesign name="heart" size={50} color="#FF6B6B" />,
+      icon: <Image source={require('../../assets/images/home/tablefortwo.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Perfect for dates',
@@ -104,7 +114,7 @@ export default function Index() {
     {
       id: 'real-talk', 
       title: 'Real Talk',
-      icon: <Ionicons name="chatbubble-ellipses" size={50} color="#4ECDC4" />,
+      icon: <Image source={require('../../assets/images/home/realtalk.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Deep conversations',
@@ -113,7 +123,7 @@ export default function Index() {
     {
       id: 'last-call', 
       title: 'Last Call', 
-      icon: <FontAwesome5 name="cocktail" size={50} color="#45B7D1" />,
+      icon: <Image source={require('../../assets/images/home/lastcall.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Party vibes',
@@ -122,7 +132,7 @@ export default function Index() {
     {
       id: 'icebreakers', 
       title: 'Icebreakers', 
-      icon: <MaterialIcons name="psychology" size={50} color="#96CEB4" />,
+      icon: <Image source={require('../../assets/images/home/icebreaker.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Break the ice',
@@ -131,7 +141,7 @@ export default function Index() {
     {
       id: 'true-self', 
       title: 'True Self', 
-      icon: <Entypo name="emoji-happy" size={50} color="#FFD93D" />,
+      icon: <Image source={require('../../assets/images/home/trueself.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Personality reveals',
@@ -140,7 +150,7 @@ export default function Index() {
     {
       id: 'hot-seat', 
       title: 'Hot Seat', 
-      icon: <FontAwesome5 name="fire" size={50} color="#FF8A80" />,
+      icon: <Image source={require('../../assets/images/home/hotseat.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Spicy questions',
@@ -149,7 +159,7 @@ export default function Index() {
     {
       id: 'face-off', 
       title: 'Face-Off',
-      icon: <FontAwesome5 name="balance-scale" size={50} color="#6C5CE7" />,
+      icon: <Image source={require('../../assets/images/home/faceoff.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Friendly debates',
@@ -158,7 +168,7 @@ export default function Index() {
     {
       id: 'deep-cuts', 
       title: 'Deep Cuts', 
-      icon: <Feather name="zap" size={50} color="#A29BFE" />,
+      icon: <Image source={require('../../assets/images/home/deepcuts.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
       description: 'Philosophical talks',
@@ -191,7 +201,7 @@ export default function Index() {
       showBottomSheet(generationState.generatedCards, 0);
     }
     if (generationState.error && !generationState.isGeneratingCards) {
-      Alert.alert("Error Generating Cards", generationState.error);
+      showToast(generationState.error, "error");
     }
   }, [generationState.generatedCards, generationState.isGeneratingCards, generationState.error, showBottomSheet]);
 
@@ -262,7 +272,7 @@ export default function Index() {
           
           showBottomSheet(cardsWithDeckId, startIndex);
         } else {
-          Alert.alert("Empty Deck", "This deck doesn't contain any cards.");
+          showToast("This deck doesn't contain any cards.", "warning");
         }
       }}
     >
@@ -388,12 +398,12 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   iconContainer: {
-    width: 56,
-    height: 56,
+    width: 80,
+    height: 80,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
-    borderRadius: 28,
+    borderRadius: 40,
     backgroundColor: '#F8FAFC',
   },
   quickStartTitle: {

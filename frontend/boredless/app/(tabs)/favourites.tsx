@@ -1,21 +1,22 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Text, View, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl, TextInput, Modal, Animated } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, FlatList, RefreshControl, TextInput, Modal, Animated } from 'react-native';
 import { useBottomSheetVisibility } from "@/context/TabContext";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { getUserDecks, getDeckCards, Deck, deckDataEvents, DECK_DATA_CHANGED, createEmptyDeck } from "../../services/firestoreService";
 import { Card } from "../../types/card";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from '@react-navigation/native';
-import EngagingLoadingScreen from '../../components/EngagingLoadingScreen';
 import { AntDesign, Ionicons, Feather } from '@expo/vector-icons';
 
 export default function FavouritesScreen() {
   const { showBottomSheet } = useBottomSheetVisibility();
   const { userId, isAuthenticated } = useAuth();
+  const { showToast } = useToast();
   const [userDecks, setUserDecks] = useState<Deck[]>([]);
   const [filteredDecks, setFilteredDecks] = useState<Deck[]>([]);
   const [isLoadingDecks, setIsLoadingDecks] = useState(true);
-  const [isLoadingDeckCards, setIsLoadingDeckCards] = useState(false);
+  const [loadingDeckId, setLoadingDeckId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   
   // Search and filter states
@@ -123,7 +124,7 @@ export default function FavouritesScreen() {
 
   const handleDeckPress = async (deckId: string) => {
     if (!deckId) return;
-    setIsLoadingDeckCards(true);
+    setLoadingDeckId(deckId);
     try {
       const cards = await getDeckCards(deckId);
       if (cards && cards.length > 0) {
@@ -134,22 +135,22 @@ export default function FavouritesScreen() {
         }));
         showBottomSheet(cardsWithDeckId, 0);
       } else {
-        Alert.alert("Empty Deck", "This deck doesn't have any cards.");
+        showToast("This deck doesn't have any cards.", "warning");
       }
     } catch (error) {
-      Alert.alert("Error", "Could not load cards for this deck.");
+      showToast("Could not load cards for this deck.", "error");
     }
-    setIsLoadingDeckCards(false);
+    setLoadingDeckId(null);
   };
 
   const handleCreateEmptyDeck = async () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to create a deck.");
+      showToast("Please log in to create a deck.", "warning");
       return;
     }
     
     if (!newDeckName.trim()) {
-      Alert.alert("Invalid Name", "Please enter a name for your deck.");
+      showToast("Please enter a name for your deck.", "warning");
       return;
     }
 
@@ -158,12 +159,12 @@ export default function FavouritesScreen() {
     setIsCreatingDeck(false);
 
     if (successId) {
-      Alert.alert("Success!", `Empty deck "${newDeckName.trim()}" created successfully.`);
+      showToast(`Empty deck "${newDeckName.trim()}" created successfully.`, "success");
       setShowAddDeckModal(false);
       setNewDeckName('');
       fetchDecks(); // Refresh the list
     } else {
-      Alert.alert("Error", "Could not create the empty deck. Please try again.");
+      showToast("Could not create the empty deck. Please try again.", "error");
     }
   };
 
@@ -223,18 +224,35 @@ export default function FavouritesScreen() {
 
   const renderDeckItem = ({ item }: { item: Deck }) => (
     <TouchableOpacity 
-      style={styles.deckCard} 
+      style={[
+        styles.deckCard,
+        loadingDeckId !== null && loadingDeckId !== item.id && styles.deckCardDisabled
+      ]} 
       onPress={() => handleDeckPress(item.id)}
-      disabled={isLoadingDeckCards}
+      disabled={loadingDeckId !== null}
+      activeOpacity={loadingDeckId !== null ? 1 : 0.7}
     >
       <View style={styles.deckCardHeader}>
         <View style={styles.deckInfo}>
-          <Text style={styles.deckTitle}>{item.name}</Text>
-          <Text style={styles.deckSubtitle}>{item.cardCount || 0} cards</Text>
+          <Text style={[
+            styles.deckTitle,
+            loadingDeckId !== null && loadingDeckId !== item.id && styles.deckTitleDisabled
+          ]}>
+            {item.name}
+          </Text>
+          <Text style={[
+            styles.deckSubtitle,
+            loadingDeckId !== null && loadingDeckId !== item.id && styles.deckSubtitleDisabled
+          ]}>
+            {item.cardCount || 0} cards
+          </Text>
         </View>
-        {isLoadingDeckCards && (
-          <View style={styles.loadingContainer}>
-            <EngagingLoadingScreen variant="mini" showBackground={false} />
+        {loadingDeckId === item.id && (
+          <View style={styles.deckLoadingContainer}>
+            <View style={styles.deckLoadingSpinner}>
+              <Feather name="loader" size={16} color="#374151" />
+            </View>
+            <Text style={styles.deckLoadingText}>Loading...</Text>
           </View>
         )}
       </View>
@@ -281,7 +299,6 @@ export default function FavouritesScreen() {
 
       {/* Sort Options */}
       <View style={styles.sortContainer}>
-        <Text style={styles.sortLabel}>Sort by:</Text>
         <View style={styles.sortOptions}>
           <TouchableOpacity 
             style={[styles.sortOption, sortBy === 'name' && styles.sortOptionSelected]}
@@ -316,7 +333,10 @@ export default function FavouritesScreen() {
       {/* Main Content */}
       {isLoadingDecks && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <EngagingLoadingScreen variant="fullscreen" showBackground={false} />
+          <View style={styles.fullLoadingSpinner}>
+            <Feather name="loader" size={32} color="#374151" />
+          </View>
+          <Text style={styles.fullLoadingText}>Loading your decks...</Text>
         </View>
       ) : filteredDecks.length === 0 ? (
         <View style={styles.emptyStateContainer}>
@@ -391,7 +411,10 @@ export default function FavouritesScreen() {
                 disabled={isCreatingDeck}
               >
                 {isCreatingDeck ? (
-                  <EngagingLoadingScreen variant="mini" showBackground={false} />
+                  <View style={styles.modalLoadingContainer}>
+                    <Feather name="loader" size={16} color="#FFFFFF" />
+                    <Text style={styles.modalLoadingText}>Creating...</Text>
+                  </View>
                 ) : (
                   <Text style={styles.modalPrimaryButtonText}>Create Deck</Text>
                 )}
@@ -421,13 +444,13 @@ const styles = StyleSheet.create({
   heroSection: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 8, // Reduced from 16 to 8
+    paddingBottom: 8,
   },
   heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8, // Reduced from 16 to 8
+    marginBottom: 8,
   },
   heroTextContainer: {
     flex: 1,
@@ -436,7 +459,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#1A202C',
     fontFamily: 'Petrona-Bold',
-    marginBottom: 8,
     lineHeight: 36,
   },
   heroSubtitle: {
@@ -461,7 +483,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginHorizontal: 24,
-    marginBottom: 8, // Reduced from 16 to 8
+    marginBottom: 8,
   },
   searchInput: {
     fontSize: 16,
@@ -472,14 +494,10 @@ const styles = StyleSheet.create({
   sortContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+
     paddingHorizontal: 24,
-    paddingBottom: 8, // Reduced from 16 to 8
+    paddingBottom: 16,
     gap: 8,
-  },
-  sortLabel: {
-    fontSize: 14,
-    color: '#718096',
-    fontFamily: 'Petrona-Regular',
   },
   sortOptions: {
     flexDirection: 'row',
@@ -574,9 +592,9 @@ const styles = StyleSheet.create({
   // List Container
   listContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 60,
   },
-  // Deck Cards - matching conversation cards from home.tsx
+  // Deck Cards
   deckCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -709,5 +727,61 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#CBD5E0',
     opacity: 0.7,
+  },
+  // Deck Loading Styles
+  deckLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 8,
+  },
+  deckLoadingSpinner: {
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deckLoadingText: {
+    fontSize: 14,
+    color: '#374151',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Full Loading Styles
+  fullLoadingSpinner: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  fullLoadingText: {
+    fontSize: 16,
+    color: '#374151',
+    fontFamily: 'Petrona-Regular',
+    textAlign: 'center',
+  },
+  // Modal Loading Styles
+  modalLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalLoadingText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Disabled States
+  deckCardDisabled: {
+    opacity: 0.5,
+  },
+  deckTitleDisabled: {
+    color: '#CBD5E0',
+  },
+  deckSubtitleDisabled: {
+    color: '#CBD5E0',
   },
 }); 
