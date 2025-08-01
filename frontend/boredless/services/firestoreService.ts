@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc, limit, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query, where, getDocs, orderBy, runTransaction, increment, setDoc, limit, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../FirebaseConfig';
 import { Card } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
@@ -7,6 +7,23 @@ import { EventEmitter } from 'events';
 const USER_PROMPT_HISTORY_COLLECTION = 'user_prompt_history';
 const DECKS_COLLECTION = 'decks';
 const CARDS_SUBCOLLECTION = 'cards';
+
+/**
+ * Utility function to clean card data by removing undefined values
+ * Firestore doesn't allow undefined values, so we need to filter them out
+ */
+const cleanCardData = (card: Card): Record<string, any> => {
+  const cleanedCard = { ...card } as Record<string, any>;
+  
+  // Remove undefined values recursively
+  Object.keys(cleanedCard).forEach(key => {
+    if (cleanedCard[key] === undefined) {
+      delete cleanedCard[key];
+    }
+  });
+  
+  return cleanedCard;
+};
 
 export interface HistoryEntryData {
   id?: string; // Optional ID, can be added when fetching
@@ -41,13 +58,12 @@ export const addGeneratedSetToHistory = async (
   try {
     const historyEntry: HistoryEntryData = {
       userId,
-      createdAt: serverTimestamp() as Timestamp, // Let Firestore set the timestamp
+      createdAt: serverTimestamp() as Timestamp,
       filters,
       generated_cards_data: generatedCardsData,
-      currentCardIndex: 0, // Initialize the card index to 0
+      currentCardIndex: 0,
     };
     const docRef = await addDoc(collection(db, USER_PROMPT_HISTORY_COLLECTION), historyEntry);
-    console.log('Generated set added to history with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error adding generated set to history:', error);
@@ -62,6 +78,7 @@ export interface Deck {
   name: string;
   createdAt: Timestamp;
   cardCount?: number; // Optional: can be denormalized
+  currentCardIndex?: number; // Track the current position in the deck
 }
 
 /**
@@ -105,14 +122,12 @@ export const saveAiSetAsDeck = async (
     const cardsSubcollectionRef = collection(db, DECKS_COLLECTION, deckDocRef.id, CARDS_SUBCOLLECTION);
     generatedCardsData.forEach((card) => {
       const cardDocRef = doc(cardsSubcollectionRef); // Auto-generate ID for each card
-      // We can store the full card object, or a subset if needed
-      // For now, storing the full card object as defined in types/card.ts
-      // Add userId to card if not already present, or if you want to enforce it
-      batch.set(cardDocRef, { ...card, deckId: deckDocRef.id }); 
+      // Clean the card data to remove any undefined values before saving
+      const cleanedCard = cleanCardData(card);
+      batch.set(cardDocRef, { ...cleanedCard, deckId: deckDocRef.id }); 
     });
 
     await batch.commit();
-    console.log(`Deck '${deckName}' saved successfully with ID: ${deckDocRef.id} and ${generatedCardsData.length} cards.`);
     
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
@@ -147,7 +162,6 @@ export const getUserDecks = async (userId: string): Promise<Deck[]> => {
     querySnapshot.forEach((doc) => {
       decks.push({ id: doc.id, ...doc.data() } as Deck);
     });
-    console.log(`Fetched ${decks.length} decks for user ${userId}`);
     return decks;
   } catch (error) {
     console.error("Error fetching user decks:", error);
@@ -194,7 +208,6 @@ export const getDeckCards = async (deckId: string): Promise<Card[]> => {
         // Ensure all properties of Card are accounted for
       } as Card);
     });
-    console.log(`Fetched ${cards.length} cards for deck ${deckId}`);
     return cards;
   } catch (error) {
     console.error(`Error fetching cards for deck ${deckId}:`, error);
@@ -242,7 +255,6 @@ export const createNewDeckWithSingleCard = async (
     batch.set(cardDocRef, { ...cardData, deckId: deckDocRef.id, createdAt: serverTimestamp() as Timestamp });
 
     await batch.commit();
-    console.log(`Deck '${deckName}' created successfully with ID: ${deckDocRef.id} and 1 card.`);
     
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
@@ -283,15 +295,15 @@ export const addCardToExistingDeck = async (
       question: cardData.question || 'What would you like to talk about?',
       title: cardData.title || 'Card',
       // Add extra fields based on card_type to prevent undefined values
-      reflection: cardData.reflection || '',
-      followups: cardData.followups || [],
-      twist: cardData.twist || '',
-      bonus: cardData.bonus || '',
-      perspective1: cardData.perspective1 || '',
-      perspective2: cardData.perspective2 || '',
-      debate_twist: cardData.debate_twist || '',
-      group_vote: cardData.group_vote || '',
-      reveal: cardData.reveal || '',
+      reflection: (cardData as any).reflection || '',
+      followups: (cardData as any).followups || [],
+      twist: (cardData as any).twist || '',
+      bonus: (cardData as any).bonus || '',
+      perspective1: (cardData as any).perspective1 || '',
+      perspective2: (cardData as any).perspective2 || '',
+      debate_twist: (cardData as any).debate_twist || '',
+      group_vote: (cardData as any).group_vote || '',
+      reveal: (cardData as any).reveal || '',
       // Metadata
       deckId: deckId
     };
@@ -311,7 +323,6 @@ export const addCardToExistingDeck = async (
       transaction.update(deckDocRef, { cardCount: increment(1) });
     });
 
-    console.log(`Card added to deck ${deckId} successfully.`);
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId });
     return true;
@@ -350,8 +361,6 @@ export const createEmptyDeck = async (
     };
     await setDoc(deckDocRef, newDeckData); // Using setDoc directly as it's a single operation
 
-    console.log(`Empty deck '${deckName}' created successfully with ID: ${deckDocRef.id}.`);
-    
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: deckDocRef.id });
     
@@ -393,7 +402,6 @@ export const getUserPromptHistory = async (userId: string, limitCount: number = 
       });
     });
     
-    console.log(`Fetched ${historyEntries.length} prompt history entries for user ${userId} (limited to ${limitCount})`);
     return historyEntries;
   } catch (error) {
     console.error("Error fetching user prompt history:", error);
@@ -417,12 +425,18 @@ export const updateHistoryCardIndex = async (
   }
   
   try {
-    console.log(`updateHistoryCardIndex: Updating index to ${newIndex} for history ID ${historyId}`);
     const historyRef = doc(db, USER_PROMPT_HISTORY_COLLECTION, historyId);
+    
+    // First, try to get the document to see if it exists
+    const docSnap = await getDoc(historyRef);
+    
+    if (!docSnap.exists()) {
+      return false;
+    }
+    
     await updateDoc(historyRef, {
       currentCardIndex: newIndex
     });
-    console.log(`updateHistoryCardIndex: Successfully updated card index to ${newIndex} for history entry ${historyId}`);
     
     // Emit event to notify that deck data has changed
     deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: historyId, currentCardIndex: newIndex });
@@ -430,6 +444,87 @@ export const updateHistoryCardIndex = async (
     return true;
   } catch (error) {
     console.error('Error updating history card index:', error);
+    return false;
+  }
+};
+
+/**
+ * Checks if a history entry exists in Firestore.
+ * @param historyId The ID of the history entry to check.
+ * @returns A promise that resolves to true if the document exists, false otherwise.
+ */
+export const doesHistoryEntryExist = async (historyId: string): Promise<boolean> => {
+  if (!historyId) {
+    console.error('History ID is required to check if entry exists.');
+    return false;
+  }
+  
+  try {
+    const historyRef = doc(db, USER_PROMPT_HISTORY_COLLECTION, historyId);
+    const docSnap = await getDoc(historyRef);
+    return docSnap.exists();
+  } catch (error) {
+    console.error('Error checking if history entry exists:', error);
+    return false;
+  }
+};
+
+/**
+ * Updates the current card index for a saved deck.
+ * @param deckId The ID of the deck.
+ * @param newIndex The new card index to save.
+ * @returns A promise that resolves to true on success, false on error.
+ */
+export const updateDeckCardIndex = async (
+  deckId: string,
+  newIndex: number
+): Promise<boolean> => {
+  if (!deckId) {
+    console.error('Deck ID is required to update card index.');
+    return false;
+  }
+  
+  try {
+    const deckRef = doc(db, DECKS_COLLECTION, deckId);
+    
+    // First, try to get the document to see if it exists
+    const docSnap = await getDoc(deckRef);
+    
+    if (!docSnap.exists()) {
+      return false;
+    }
+    
+    await updateDoc(deckRef, {
+      currentCardIndex: newIndex
+    });
+    
+    // Emit event to notify that deck data has changed
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating deck card index:', error);
+    return false;
+  }
+};
+
+/**
+ * Checks if a deck exists in Firestore.
+ * @param deckId The ID of the deck to check.
+ * @returns A promise that resolves to true if the document exists, false otherwise.
+ */
+export const doesDeckExist = async (deckId: string): Promise<boolean> => {
+  if (!deckId) {
+    console.error('Deck ID is required to check if deck exists.');
+    return false;
+  }
+  
+  try {
+    const deckRef = doc(db, DECKS_COLLECTION, deckId);
+    const docSnap = await getDoc(deckRef);
+    return docSnap.exists();
+  } catch (error) {
+    console.error('Error checking if deck exists:', error);
     return false;
   }
 };

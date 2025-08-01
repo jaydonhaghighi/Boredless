@@ -3,11 +3,37 @@ import BottomSheet from "@gorhom/bottom-sheet";
 import { Card, CardResponse } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
 import { addGeneratedSetToHistory } from '../services/firestoreService';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from './AuthContext';
 import axios from 'axios';
 
 // API base URL - should be in a config
 const API_BASE_URL = 'http://localhost:8000';
+
+// --- Current Tab Context ---
+type CurrentTabContextType = {
+  currentTab: string;
+  setCurrentTab: (tab: string) => void;
+};
+
+const CurrentTabContext = createContext<CurrentTabContextType | null>(null);
+
+export const useCurrentTab = () => {
+  const context = useContext(CurrentTabContext);
+  if (!context) {
+    throw new Error('useCurrentTab must be used within a CurrentTabProvider');
+  }
+  return context;
+};
+
+export const CurrentTabProvider = ({ children }: { children: React.ReactNode }) => {
+  const [currentTab, setCurrentTab] = useState('home');
+
+  return (
+    <CurrentTabContext.Provider value={{ currentTab, setCurrentTab }}>
+      {children}
+    </CurrentTabContext.Provider>
+  );
+};
 
 // --- New CurrentGenerationContext ---
 interface CurrentGenerationState {
@@ -20,6 +46,9 @@ interface CurrentGenerationState {
 type CurrentGenerationContextType = {
   generationState: CurrentGenerationState;
   triggerCardGeneration: (filters: FilterParams) => Promise<void>;
+  showOverlayLoading: () => void;
+  hideOverlayLoading: () => void;
+  isOverlayLoading: boolean;
 };
 
 const initialGenerationState: CurrentGenerationState = {
@@ -32,13 +61,25 @@ const initialGenerationState: CurrentGenerationState = {
 export const CurrentGenerationContext = createContext<CurrentGenerationContextType>({
   generationState: initialGenerationState,
   triggerCardGeneration: async () => {},
+  showOverlayLoading: () => {},
+  hideOverlayLoading: () => {},
+  isOverlayLoading: false,
 });
 
 export const useCurrentGeneration = () => useContext(CurrentGenerationContext);
 
 export const CurrentGenerationProvider = ({ children }: { children: React.ReactNode }) => {
   const [generationState, setGenerationState] = useState<CurrentGenerationState>(initialGenerationState);
+  const [isOverlayLoading, setIsOverlayLoading] = useState(false);
   const { userId } = useAuth();
+
+  const showOverlayLoading = useCallback(() => {
+    setIsOverlayLoading(true);
+  }, []);
+
+  const hideOverlayLoading = useCallback(() => {
+    setIsOverlayLoading(false);
+  }, []);
 
   const triggerCardGeneration = useCallback(async (filters: FilterParams) => {
     if (!userId) {
@@ -47,6 +88,8 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
       return;
     }
 
+    // Show overlay loading instead of bottom sheet loading
+    setIsOverlayLoading(true);
     setGenerationState({
       currentFilters: filters,
       generatedCards: null,
@@ -78,9 +121,11 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
           generatedCards: cardsFromApi,
           isGeneratingCards: false,
         }));
+        setIsOverlayLoading(false);
       } else {
         console.log('No cards returned from API.');
         setGenerationState(prev => ({ ...prev, isGeneratingCards: false, error: 'No cards generated.' }));
+        setIsOverlayLoading(false);
       }
     } catch (err: any) {
       console.error('Error during card generation or saving history:', err);
@@ -89,11 +134,18 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
         isGeneratingCards: false,
         error: err.message || 'Failed to generate cards.',
       }));
+      setIsOverlayLoading(false);
     }
   }, [userId]);
 
   return (
-    <CurrentGenerationContext.Provider value={{ generationState, triggerCardGeneration }}>
+    <CurrentGenerationContext.Provider value={{ 
+      generationState, 
+      triggerCardGeneration, 
+      showOverlayLoading, 
+      hideOverlayLoading, 
+      isOverlayLoading 
+    }}>
       {children}
     </CurrentGenerationContext.Provider>
   );

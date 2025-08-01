@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, 
-  Dimensions, Alert, Pressable, ActivityIndicator, ImageBackground
+  Dimensions, Alert, Pressable, ImageBackground
 } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackgroundProps } from "@gorhom/bottom-sheet";
 import Animated, { 
@@ -9,13 +9,15 @@ import Animated, {
   useAnimatedStyle, 
   interpolate,
   Extrapolation,
+  withTiming,
+  Easing
 } from 'react-native-reanimated';
 import { useBottomSheet } from '../context/BottomSheetContext';
 import { useCurrentGeneration, useBottomSheetVisibility } from '../context/TabContext';
 import PromptComponent from './PromptComponent';
 import { Card } from '../types/card';
 import { CustomBackdrop } from './CustomBackdrop';
-import { updateHistoryCardIndex, deckDataEvents, DECK_DATA_CHANGED } from '../services/firestoreService';
+import { updateHistoryCardIndex, deckDataEvents, DECK_DATA_CHANGED, doesHistoryEntryExist, updateDeckCardIndex, doesDeckExist } from '../services/firestoreService';
 
 /**
  * Gets the preview text to display in the bottom sheet based on card type
@@ -45,12 +47,68 @@ const getCardPreviewText = (card: Card | undefined): string => {
 };
 
 /**
+ * Small loading text component for the bottom sheet handle
+ */
+const HandleLoadingText = () => {
+  const opacity = useSharedValue(0);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+
+  const messages = [
+    "✨ Brewing magic...",
+    "🎭 Crafting questions...",
+    "🌟 Adding sparkle...",
+    "🎪 Setting up...",
+    "🎨 Painting words...",
+  ];
+
+  useEffect(() => {
+    // Start with fade in
+    opacity.value = withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) });
+
+    // Rotate messages with fade effect
+    const messageInterval = setInterval(() => {
+      // Fade out
+      opacity.value = withTiming(0, { 
+        duration: 300, 
+        easing: Easing.inOut(Easing.ease) 
+      });
+      
+      // Change message after fade out
+      setTimeout(() => {
+        setCurrentMessageIndex((prev) => (prev + 1) % messages.length);
+        // Fade in new message
+        opacity.value = withTiming(1, { 
+          duration: 500, 
+          easing: Easing.inOut(Easing.ease) 
+        });
+      }, 300);
+    }, 2000); // Faster rotation for handle
+
+    return () => clearInterval(messageInterval);
+  }, []);
+
+  const animatedTextStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.Text style={[styles.handleLoadingText, animatedTextStyle]}>
+      {messages[currentMessageIndex]}
+    </Animated.Text>
+  );
+};
+
+/**
  * TabBottomSheet component for displaying generated prompts
  * Extracted from _layout.tsx to improve organization
  */
-export const TabBottomSheet = () => {
+interface TabBottomSheetProps {
+  hideOnProfile?: boolean;
+}
+
+export const TabBottomSheet = ({ hideOnProfile = false }: TabBottomSheetProps) => {
   const { bottomSheetRef } = useBottomSheet();
-  const { generationState } = useCurrentGeneration();
+  const { generationState, isOverlayLoading } = useCurrentGeneration();
   const { 
     isVisible, 
     bottomSheetRef: visibilitySheetRef, 
@@ -61,10 +119,26 @@ export const TabBottomSheet = () => {
   
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [deckId, setDeckId] = useState<string | null>(null);
+  const [isSavedDeck, setIsSavedDeck] = useState(false);
   
   const screenHeight = Dimensions.get('window').height;
   const TAB_BAR_HEIGHT = 55;
   const snapPoints = useMemo(() => [`12%`, `100%`], [screenHeight]);
+
+  // Helper function to determine if we're dealing with a saved deck or history entry
+  const determineCollectionType = (id: string, cards: Card[]) => {
+    // If cards have deckId property, it's likely a saved deck
+    // If cards come from history, they won't have deckId
+    if (cards && cards.length > 0 && 'deckId' in cards[0] && cards[0].deckId) {
+      return 'deck';
+    }
+    // If the ID looks like a Firestore auto-generated ID (20 chars), it's likely a history entry
+    if (id && id.length === 20) {
+      return 'history';
+    }
+    // Default to history for backward compatibility
+    return 'history';
+  };
 
   const animatedPosition = useSharedValue(0);
   const animatedBackgroundStyle = useAnimatedStyle(() => {
@@ -78,27 +152,32 @@ export const TabBottomSheet = () => {
   
   useEffect(() => {
     if (!isVisible) {
-      // If sheet becomes not visible, ensure cards from deck view are cleared from TabContext
-      // This is already handled by hideBottomSheet in TabContext, but good to be aware
       return;
     }
 
-    console.log('TabBottomSheet - initialCardIndexInSheet:', initialCardIndexInSheet);
-    console.log('TabBottomSheet - cardsInSheet length:', cardsInSheet?.length || 0);
-    
-    // If a deckId property exists on the first card, store it for use in saving index
-    // This will come from the history entry ID that was attached in home.tsx
     let newDeckId = null;
+    let collectionType = 'history';
+    
     if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
-      console.log('TabBottomSheet - Setting deckId:', cardsInSheet[0].deckId);
       newDeckId = cardsInSheet[0].deckId;
+      
+      // Check if this is a history entry or saved deck
+      if ('isHistoryEntry' in cardsInSheet[0] && cardsInSheet[0].isHistoryEntry) {
+        collectionType = 'history';
+        setIsSavedDeck(false);
+      } else {
+        collectionType = 'deck';
+        setIsSavedDeck(true);
+      }
+      
       setDeckId(newDeckId);
     } else {
       setDeckId(null);
+      setIsSavedDeck(false);
     }
 
     // Determine target snap index and card index based on available data
-    let targetSnapIndex = 0; // Default to 12% (preview)
+    let targetSnapIndex = 0;
     let newCardIndex = initialCardIndexInSheet;
     let effectivelyDisplayingCards = false;
 
@@ -110,49 +189,52 @@ export const TabBottomSheet = () => {
         newCardIndex = 0;
       }
       
-      console.log('TabBottomSheet - Setting currentCardIndex to:', newCardIndex);
       setCurrentCardIndex(newCardIndex);
       
       // If this is a saved deck and we're opening at a specific index, update the state in Firestore
-      // This ensures that simply viewing a card (without changing it) will still save the position
       if (newDeckId && newCardIndex > 0) {
-        console.log(`Opening at saved position: index ${newCardIndex} for deck ${newDeckId}`);
-        // No need to await this, it can happen in the background
-        updateHistoryCardIndex(newDeckId, newCardIndex)
-          .catch(err => console.error('Failed to update initial card index:', err));
+        if (isSavedDeck) {
+          // For saved decks, update the deck collection
+          doesDeckExist(newDeckId).then(exists => {
+            if (exists) {
+              updateDeckCardIndex(newDeckId, newCardIndex)
+                .catch(err => console.error('Failed to update initial deck card index:', err));
+            }
+          }).catch(err => console.error('Failed to check if deck exists:', err));
+        } else {
+          // For history entries, update the history collection
+          doesHistoryEntryExist(newDeckId).then(exists => {
+            if (exists) {
+              updateHistoryCardIndex(newDeckId, newCardIndex)
+                .catch(err => console.error('Failed to update initial card index:', err));
+            }
+          }).catch(err => console.error('Failed to check if history entry exists:', err));
+        }
       }
       
-      targetSnapIndex = 1; // 100%
+      targetSnapIndex = 1;
       effectivelyDisplayingCards = true;
       setIsGeneratingSheetState(false);
     } else if (generationState.isGeneratingCards) {
-      targetSnapIndex = 0; // 12% - Show loading in handle
-      effectivelyDisplayingCards = false; // Or true if PromptComponent shows its own loader
-      // setIsGeneratingSheetState(true); // This is set by CurrentGenerationProvider
+      targetSnapIndex = 0;
+      effectivelyDisplayingCards = false;
     } else if (generationState.generatedCards && generationState.generatedCards.length > 0) {
       newCardIndex = 0;
-      targetSnapIndex = 1; // 100%
+      targetSnapIndex = 1;
       effectivelyDisplayingCards = true;
       setIsGeneratingSheetState(false);
     } else {
-      // No cards from deck, not generating, and no AI cards - stay at 12% or show error preview
       targetSnapIndex = 0;
       effectivelyDisplayingCards = false;
       setIsGeneratingSheetState(false);
-      if (generationState.error) {
-        // Alerting error here might be redundant if PromptComponent also shows it.
-        // Consider if Alert is needed or if UI just reflects error state.
-        // Alert.alert('Generation Error', generationState.error);
-      }
     }
     
     // Snap to the determined index
-    // Using a small timeout can sometimes help prevent race conditions with sheet rendering
     setTimeout(() => {
         if (visibilitySheetRef.current) {
             visibilitySheetRef.current.snapToIndex(targetSnapIndex);
         }
-    }, 50); // Reduced timeout slightly
+    }, 50);
 
   }, [
     isVisible, 
@@ -161,81 +243,139 @@ export const TabBottomSheet = () => {
     generationState.isGeneratingCards, 
     generationState.generatedCards, 
     generationState.error, 
-    // visibilitySheetRef, // Ref usually doesn't need to be in dep array
-    // setIsGeneratingSheetState // Setter usually doesn't need to be in dep array
   ]);
 
   // Save card index on sheet close if needed
   useEffect(() => {
     // When sheet becomes not visible
     if (!isVisible && deckId && currentCardIndex > 0) {
-      console.log(`Sheet closed - saving final position at index ${currentCardIndex} for deck ${deckId}`);
-      // Save the last known position when closing
-      updateHistoryCardIndex(deckId, currentCardIndex)
-        .then(success => {
-          if (success) {
-            // Emit an event to notify that deck data has changed when sheet is closed
-            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+      if (isSavedDeck) {
+        // For saved decks, update the deck collection
+        doesDeckExist(deckId).then(exists => {
+          if (exists) {
+            updateDeckCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed when sheet is closed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save final deck card position:', err));
+          } else {
+            console.warn(`Deck ${deckId} does not exist, skipping final card position save`);
           }
-        })
-        .catch(err => console.error('Failed to save final card position:', err));
+        }).catch(err => console.error('Failed to check if deck exists:', err));
+      } else {
+        // For history entries, update the history collection
+        doesHistoryEntryExist(deckId).then(exists => {
+          if (exists) {
+            updateHistoryCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed when sheet is closed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save final card position:', err));
+          } else {
+            console.warn(`History entry ${deckId} does not exist, skipping final card position save`);
+          }
+        }).catch(err => console.error('Failed to check if history entry exists:', err));
+      }
     }
-  }, [isVisible, deckId, currentCardIndex]);
+  }, [isVisible, deckId, currentCardIndex, isSavedDeck]);
   
   // Cleanup function for when component unmounts
   useEffect(() => {
     return () => {
-      console.log('TabBottomSheet component cleanup');
       // Any final cleanup if needed
     };
   }, []);
 
   const handleChangeCard = React.useCallback((newIndex: number) => {
-    console.log(`Changing card index to ${newIndex}`);
     setCurrentCardIndex(newIndex);
     
-    // If this card is from a history entry, save the index
     if (deckId) {
-      console.log(`Saving card index ${newIndex} for deck ${deckId}`);
-      updateHistoryCardIndex(deckId, newIndex)
-        .then(success => {
-          if (success) {
-            console.log(`Successfully saved card index ${newIndex} for deck ${deckId}`);
-            
-            // Emit an event to notify that deck data has changed
-            // This will trigger the home screen to refresh
-            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
-            
-            // Update the state in context immediately to help with navigation
-            if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
-              // This ensures that if the user returns to home, it will show correct index
-              console.log(`Updated card context for deck ${deckId} with index ${newIndex}`);
-            }
-          } else {
-            console.error(`Failed to save card index ${newIndex} for deck ${deckId}`);
+      if (isSavedDeck) {
+        // For saved decks, update the deck collection
+        doesDeckExist(deckId).then(exists => {
+          if (exists) {
+            updateDeckCardIndex(deckId, newIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
+                  
+                  // Update the state in context immediately to help with navigation
+                  if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
+                    // This ensures that if the user returns to home, it will show correct index
+                  }
+                }
+              })
+              .catch(err => 
+                console.error('Failed to save deck card index:', err)
+              );
           }
-        })
-        .catch(err => 
-          console.error('Failed to save card index:', err)
-        );
+        }).catch(err => console.error('Failed to check if deck exists:', err));
+      } else {
+        // For history entries, update the history collection
+        doesHistoryEntryExist(deckId).then(exists => {
+          if (exists) {
+            updateHistoryCardIndex(deckId, newIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex: newIndex });
+                  
+                  // Update the state in context immediately to help with navigation
+                  if (cardsInSheet && cardsInSheet.length > 0 && 'deckId' in cardsInSheet[0] && cardsInSheet[0].deckId) {
+                    // This ensures that if the user returns to home, it will show correct index
+                  }
+                }
+              })
+              .catch(err => 
+                console.error('Failed to save card index:', err)
+              );
+          }
+        }).catch(err => console.error('Failed to check if history entry exists:', err));
+      }
     }
-  }, [deckId, cardsInSheet]);
+  }, [deckId, cardsInSheet, isSavedDeck]);
 
   const handleClosePromptDisplay = () => {
     // Don't reset currentCardIndex when closing, so it stays saved
-    console.log('Closing prompt display - keeping currentCardIndex as:', currentCardIndex);
     
     // Save the current position before minimizing
     if (deckId) {
-      console.log(`Saving position at index ${currentCardIndex} before minimizing`);
-      updateHistoryCardIndex(deckId, currentCardIndex)
-        .then(success => {
-          if (success) {
-            // Emit an event to notify that deck data has changed
-            deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+      if (isSavedDeck) {
+        // For saved decks, update the deck collection
+        doesDeckExist(deckId).then(exists => {
+          if (exists) {
+            updateDeckCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save deck position before minimizing:', err));
           }
-        })
-        .catch(err => console.error('Failed to save position before minimizing:', err));
+        }).catch(err => console.error('Failed to check if deck exists:', err));
+      } else {
+        // For history entries, update the history collection
+        doesHistoryEntryExist(deckId).then(exists => {
+          if (exists) {
+            updateHistoryCardIndex(deckId, currentCardIndex)
+              .then(success => {
+                if (success) {
+                  // Emit an event to notify that deck data has changed
+                  deckDataEvents.emit(DECK_DATA_CHANGED, { deckId, currentCardIndex });
+                }
+              })
+              .catch(err => console.error('Failed to save position before minimizing:', err));
+          }
+        }).catch(err => console.error('Failed to check if history entry exists:', err));
+      }
     }
     
     // Just minimize the sheet without resetting the current card
@@ -248,7 +388,7 @@ export const TabBottomSheet = () => {
     ? cardsInSheet 
     : generationState.generatedCards || [];
 
-  if (!isVisible) {
+  if (!isVisible || isOverlayLoading || hideOnProfile) {
     return null;
   }
 
@@ -270,14 +410,13 @@ export const TabBottomSheet = () => {
         <View style={styles.customHandleContainer}>
           <Animated.View style={[animatedContentStyle, {width: '100%'}]}>
             {generationState.isGeneratingCards ? (
-              <View style={styles.loadingContainer}>
+              <View style={styles.emptyContainer}>
                 <ImageBackground
                   source={require('../assets/images/textures/noisy-background.jpg')}
-                  style={styles.loadingBackgroundSmall}
+                  style={styles.emptyBackgroundSmall}
                   imageStyle={{ opacity: 0.25, borderRadius: 5 }}
                 >
-                  <ActivityIndicator size="small" color="#A97C63" />
-                  <Text style={styles.loadingText}>Generating your cards...</Text>
+                  <HandleLoadingText />
                 </ImageBackground>
               </View>
             ) : finalCardsToDisplay.length > 0 ? (
@@ -338,17 +477,6 @@ export const TabBottomSheet = () => {
             onClose={handleClosePromptDisplay}
             onChangeCard={handleChangeCard}
           />
-        ) : generationState.isGeneratingCards ? (
-          <View style={styles.expandedLoadingContainer}>
-            <ImageBackground
-              source={require('../assets/images/textures/noisy-background.jpg')}
-              style={styles.loadingBackground}
-              imageStyle={{ opacity: 0.25, borderRadius: 5 }}
-            >
-              <ActivityIndicator size="large" color="#A97C63" />
-              <Text style={styles.expandedLoadingText}>Loading cards...</Text>
-            </ImageBackground>
-          </View>
         ) : (
           <View style={styles.emptyContentContainer}>
             <Text style={styles.emptyContentText}>
@@ -437,45 +565,11 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     height: '100%',
   },
-  loadingText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#495057',
-    fontFamily: 'Nunito_600SemiBold',
-  },
-  expandedLoadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  expandedLoadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#495057',
-    fontFamily: 'Nunito_600SemiBold',
-  },
-  loadingBackground: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  loadingBackgroundSmall: {
-    width: '100%',
-    height: '100%',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 8,
-  },
+
   emptyBackgroundSmall: {
     width: '100%',
     height: '100%',
@@ -484,5 +578,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     borderRadius: 16,
     padding: 8,
+  },
+  handleLoadingText: {
+    fontSize: 14,
+    color: '#6C757D',
+    fontFamily: 'Petrona-Regular',
+    textAlign: 'center',
   },
 }); 

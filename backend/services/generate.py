@@ -76,6 +76,27 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
     Each card item should be a JSON object containing the following fields:
     {field_definitions}
     
+    CRITICAL JSON REQUIREMENTS:
+    - Use exact field names: "card_type", "title", "question", "reflection", "followups", "twist", "bonus", "perspective1", "perspective2", "debate_twist", "group_vote", "reveal"
+    - Do NOT use underscores around field names (e.g., use "question" not "_question_")
+    - Do NOT use underscores around card_type values (e.g., use "deep_conversations" not "_deep_conversations")
+    - Ensure all string values are properly quoted
+    - Ensure all arrays are properly formatted with square brackets
+    - Do NOT include any trailing commas or invalid JSON syntax
+    
+    EXAMPLE JSON STRUCTURE:
+    {{
+      "cards": [
+        {{
+          "card_type": "deep_conversations",
+          "title": "Example Card Title",
+          "question": "What is your question here?",
+          "followups": ["Follow-up question 1", "Follow-up question 2"],
+          "reflection": "Your reflection text here"
+        }}
+      ]
+    }}
+    
     IMPORTANT: Make sure to include "card_type": "{card_type_id}" in each card.
     IMPORTANT: Ensure all required fields are included for each card and properly formatted.
 
@@ -145,48 +166,58 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
                     print(f"Warning: Skipping card with invalid structure: {card}")
                     continue
                 
-                # Get expected card type
-                card_type_name = card.get('card_type')
+                # Clean up malformed card_type values (remove leading underscores)
+                card_type_name = card.get('card_type', '').lstrip('_')
+                card['card_type'] = card_type_name
+                
+                # Clean up malformed field names (remove leading/trailing underscores)
+                cleaned_card = {}
+                for key, value in card.items():
+                    cleaned_key = key.strip('_')
+                    cleaned_card[cleaned_key] = value
                 
                 # Validate required fields for specific card types
                 if card_type_name == 'deep_conversations':
-                    if not all(k in card for k in ['question', 'title', 'reflection']):
-                        print(f"Warning: Skipping deep_conversations card with missing required fields: {card}")
+                    if not all(k in cleaned_card for k in ['question', 'title', 'reflection']):
+                        print(f"Warning: Skipping deep_conversations card with missing required fields: {cleaned_card}")
                         continue
                     # Ensure followups exists as at least an empty list
-                    if 'followups' not in card or card['followups'] is None:
-                        card['followups'] = []
+                    if 'followups' not in cleaned_card or cleaned_card['followups'] is None:
+                        cleaned_card['followups'] = []
                 
                 elif card_type_name == 'fun_challenges':
-                    if not all(k in card for k in ['question', 'title', 'twist']):
-                        print(f"Warning: Skipping fun_challenges card with missing required fields: {card}")
+                    if not all(k in cleaned_card for k in ['question', 'title', 'twist']):
+                        print(f"Warning: Skipping fun_challenges card with missing required fields: {cleaned_card}")
                         continue
                 
                 elif card_type_name == 'creative_prompts':
-                    if not all(k in card for k in ['question', 'title', 'bonus']):
-                        print(f"Warning: Skipping creative_prompts card with missing required fields: {card}")
+                    if not all(k in cleaned_card for k in ['question', 'title', 'bonus']):
+                        print(f"Warning: Skipping creative_prompts card with missing required fields: {cleaned_card}")
                         continue
                 
                 elif card_type_name == 'light_conversation':
-                    if not all(k in card for k in ['question', 'title']):
-                        print(f"Warning: Skipping light_conversation card with missing required fields: {card}")
+                    if not all(k in cleaned_card for k in ['question', 'title']):
+                        print(f"Warning: Skipping light_conversation card with missing required fields: {cleaned_card}")
                         continue
                     # Ensure bonus exists
-                    if 'bonus' not in card or not card['bonus']:
-                        card['bonus'] = "Just enjoy the conversation!"
+                    if 'bonus' not in cleaned_card or not cleaned_card['bonus']:
+                        cleaned_card['bonus'] = "Just enjoy the conversation!"
                 
                 elif card_type_name == 'hot_takes':
-                    if not all(k in card for k in ['question', 'title', 'perspective1', 'perspective2', 'debate_twist']):
-                        print(f"Warning: Skipping hot_takes card with missing required fields: {card}")
+                    if not all(k in cleaned_card for k in ['question', 'title', 'perspective1', 'perspective2']):
+                        print(f"Warning: Skipping hot_takes card with missing required fields: {cleaned_card}")
                         continue
+                    # Ensure debate_twist exists
+                    if 'debate_twist' not in cleaned_card or not cleaned_card['debate_twist']:
+                        cleaned_card['debate_twist'] = "Consider both perspectives!"
                 
                 elif card_type_name == 'personality_quizzes':
-                    if not all(k in card for k in ['question', 'title', 'group_vote', 'reveal']):
-                        print(f"Warning: Skipping personality_quizzes card with missing required fields: {card}")
+                    if not all(k in cleaned_card for k in ['question', 'title', 'group_vote', 'reveal']):
+                        print(f"Warning: Skipping personality_quizzes card with missing required fields: {cleaned_card}")
                         continue
                 
                 # Card passed validation, add to validated list
-                validated_cards.append(card)
+                validated_cards.append(cleaned_card)
             
             # Only continue if we have at least one valid card
             if not validated_cards:
@@ -201,6 +232,10 @@ async def generate_prompt(topic: str, card_type: str, tone: str, participants: s
         # Convert the JSON to a PromptResponse
         prompt_response = PromptResponse.model_validate(content_json)
         return prompt_response
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON from OpenAI response: {e}")
+        print(f"Response content: {content}")
+        raise ValueError(f"Failed to parse OpenAI response JSON: {e}")
     except Exception as e:
         print(f"Error parsing JSON from OpenAI response: {e}")
         print(f"Response content: {content}")

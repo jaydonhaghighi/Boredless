@@ -21,6 +21,7 @@ interface BaseCard {
   // Storage metadata
   id?: string;
   deckId?: string; // ID of the history entry or deck
+  isHistoryEntry?: boolean; // Flag to distinguish between history entries and saved decks
   createdAt?: any; // Timestamp of creation
 }
 
@@ -85,6 +86,4 @@ export type Card = DeepConversationCard | FunChallengeCard | CreativePromptCard 
 /**
  * Response type that includes all cards plus the main/featured card
  */
-export interface CardResponse extends Card {
-  cards: Card[];
-} 
+export type CardResponse = Card; 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator, Dimensions, Alert, Image, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Dimensions, Image, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -14,11 +14,12 @@ import Animated, {
   Extrapolation,
   Easing 
 } from 'react-native-reanimated';
-import { Card } from '../types/card';
+import { Card, DeepConversationCard } from '../types/card';
 import { CardTitle, CardSection, CardMainContent, CardListItem } from './CardElements';
 import { useFontLoader } from '../hooks/useFontLoader';
 import AnimatedCardStack from './AnimatedCardStack';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { 
   saveAiSetAsDeck, 
   createNewDeckWithSingleCard, 
@@ -27,6 +28,7 @@ import {
   Deck, // Import Deck type
   createEmptyDeck // Import createEmptyDeck
 } from '../services/firestoreService';
+import EngagingLoadingScreen from './EngagingLoadingScreen';
 
 // Screen dimensions for card animations
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -49,6 +51,7 @@ export default function PromptComponent({
   const [favoriteModalVisible, setFavoriteModalVisible] = useState(false);
   const router = useRouter();
   const { userId, isAuthenticated } = useAuth();
+  const { showToast } = useToast();
 
   // New state variables
   const [showNameDeckModal, setShowNameDeckModal] = useState(false);
@@ -62,8 +65,10 @@ export default function PromptComponent({
   const currentCard = cards[currentCardIndex] || cards[0] || {
     question: 'No question available',
     title: 'Prompt',
+    card_type: 'deep_conversations',
+    reflection: '',
     followups: []
-  } as Card;
+  } as DeepConversationCard;
 
   // Function to go to next card
   const goToNextCard = useCallback((newIndex: number) => {
@@ -102,7 +107,7 @@ export default function PromptComponent({
     // router.push('/create-deck');
     
     // For now, show confirmation
-    Alert.alert('New Deck', 'Started creating a new deck with this card!');
+    showToast('Started creating a new deck with this card!', 'success');
   }, [cards, currentCardIndex]);
   
   // Share functionality (example)
@@ -112,7 +117,11 @@ export default function PromptComponent({
       if (!cardToShare) return;
       // Customize this message
       let message = `Check out this prompt: ${cardToShare.title}\nQuestion: ${cardToShare.question}`;
-      if(cardToShare.reflection) message += `\nReflection: ${cardToShare.reflection}`;
+      
+      // Safely check for reflection property based on card type
+      if (cardToShare.card_type === 'deep_conversations' && 'reflection' in cardToShare) {
+        message += `\nReflection: ${cardToShare.reflection}`;
+      }
       // ... add other fields as needed
 
       await Share.share({
@@ -121,7 +130,7 @@ export default function PromptComponent({
         // title: 'Boredless Prompt' // Optional: for email subject etc.
       });
     } catch (error: any) {
-      Alert.alert(error.message);
+      showToast(error.message, 'error');
     }
   };
 
@@ -207,7 +216,7 @@ export default function PromptComponent({
             
             {card.followups && card.followups.length > 0 && (
               <CardSection title="Follow-up Questions">
-                {card.followups.map((followup, index) => (
+                {card.followups.map((followup: string, index: number) => (
                   <CardListItem key={index} text={followup} />
                 ))}
               </CardSection>
@@ -283,9 +292,10 @@ export default function PromptComponent({
           <>
             <CardTitle title={card.title} />
             
-            {card.followups && card.followups.length > 0 && (
+            {/* Only show followups if they exist and the card type supports them */}
+            {(card as any).followups && (card as any).followups.length > 0 && (
               <CardSection title="Follow-up Questions">
-                {card.followups.map((followup, index) => (
+                {(card as any).followups.map((followup: string, index: number) => (
                   <CardListItem key={index} text={followup} />
                 ))}
               </CardSection>
@@ -299,7 +309,7 @@ export default function PromptComponent({
 
   const handleCreateNewDeckPress = () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to perform this action.");
+      showToast("Please log in to perform this action.", "warning");
       return;
     }
     setFavoriteModalVisible(false);
@@ -309,7 +319,7 @@ export default function PromptComponent({
 
   const handleCreateEmptyDeckPress = () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to perform this action.");
+      showToast("Please log in to perform this action.", "warning");
       return;
     }
     setNameDeckModalAction('createEmpty');
@@ -320,11 +330,11 @@ export default function PromptComponent({
 
   const handleSaveEntireSetPress = () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to save decks.");
+      showToast("Please log in to save decks.", "warning");
       return;
     }
     if (!cards || cards.length === 0) {
-      Alert.alert("No Cards", "There are no cards in the current set to save.");
+      showToast("There are no cards in the current set to save.", "warning");
       return;
     }
     setNameDeckModalAction('saveSet');
@@ -337,7 +347,7 @@ export default function PromptComponent({
   const handleConfirmNameDeckModal = async () => { 
     if (!userId || !nameDeckModalAction) return;
     if (!newDeckName.trim()) {
-      Alert.alert("Invalid Name", "Please enter a name for your deck.");
+      showToast("Please enter a name for your deck.", "warning");
       return;
     }
 
@@ -353,7 +363,7 @@ export default function PromptComponent({
     } else if (nameDeckModalAction === 'saveSet') {
       const currentCardsToSave = cards; // Assuming 'cards' is the prop with the full set
       if (!currentCardsToSave || currentCardsToSave.length === 0) {
-        Alert.alert("Error", "No cards in the current set to save.");
+        showToast("No cards in the current set to save.", "error");
         setIsProcessingFavoriteAction(false);
         setShowNameDeckModal(false);
         setNameDeckModalAction(null);
@@ -367,17 +377,17 @@ export default function PromptComponent({
     setIsProcessingFavoriteAction(false);
 
     if (successId) {
-      Alert.alert("Success!", successMessage);
+      showToast(successMessage, "success");
       setShowNameDeckModal(false);
       setNameDeckModalAction(null); // Reset action
     } else {
-      Alert.alert("Error", errorMessage);
+      showToast(errorMessage, "error");
     }
   };
 
   const handleAddToExistingDeckPress = async () => {
     if (!isAuthenticated || !userId) {
-      Alert.alert("Authentication Required", "Please log in to perform this action.");
+      showToast("Please log in to perform this action.", "warning");
       return;
     }
     setIsProcessingFavoriteAction(true);
@@ -385,10 +395,8 @@ export default function PromptComponent({
     setIsProcessingFavoriteAction(false);
     
     if (fetchedDecks.length === 0) {
-        Alert.alert("No Decks", "You don't have any decks yet. Try creating one first!", [
-            { text: "OK", onPress: () => setFavoriteModalVisible(false) },
-            { text: "Create New Deck", onPress: handleCreateNewDeckPress }
-        ]);
+        showToast("You don't have any decks yet. Try creating one first!", "warning");
+        setFavoriteModalVisible(false);
         return;
     }
 
@@ -401,7 +409,7 @@ export default function PromptComponent({
     if (!userId) return;
     const cardToSave = cards[currentCardIndex];
     if (!cardToSave) {
-        Alert.alert("Error", "No card selected.");
+        showToast("No card selected.", "error");
         return;
     }
 
@@ -410,10 +418,10 @@ export default function PromptComponent({
     setIsProcessingFavoriteAction(false);
 
     if (success) {
-      Alert.alert("Card Added", "The current card has been added to the selected deck.");
+      showToast("The current card has been added to the selected deck.", "success");
       setShowDeckListModal(false);
     } else {
-      Alert.alert("Error", "Could not add the card to the deck. Please try again.");
+      showToast("Could not add the card to the deck. Please try again.", "error");
     }
   };
 
@@ -434,7 +442,7 @@ export default function PromptComponent({
         />
       </View>
       
-      {/* Favorite Modal */}
+      {/* Redesigned Favorite Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -448,29 +456,58 @@ export default function PromptComponent({
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Save Options</Text>
-              
-              <TouchableOpacity 
-                style={styles.modalOption} 
-                onPress={handleCreateEmptyDeckPress}
-              >
-                <Text style={styles.modalOptionText}>Create new empty deck</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.modalOption}
-                onPress={handleAddToExistingDeckPress}
-              >
-                <Text style={styles.modalOptionText}>Add current card to existing deck</Text>
-              </TouchableOpacity>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Save to Your Collection</Text>
+                <Text style={styles.modalSubtitle}>Choose how you'd like to save this card</Text>
+              </View>
 
-              <TouchableOpacity 
-                style={styles.modalOption} 
-                onPress={handleSaveEntireSetPress}
-              >
-                <Text style={styles.modalOptionText}>Save entire set as new deck</Text>
-              </TouchableOpacity>
+              {/* Primary Actions */}
+              <View style={styles.modalActionsContainer}>
+                {/* Save Current Card */}
+                <TouchableOpacity 
+                  style={styles.modalPrimaryAction} 
+                  onPress={handleAddToExistingDeckPress}
+                >
+                  <View style={styles.actionIconContainer}>
+                    <Text style={styles.actionIcon}>💾</Text>
+                  </View>
+                  <View style={styles.actionTextContainer}>
+                    <Text style={styles.actionTitle}>Save This Card</Text>
+                    <Text style={styles.actionDescription}>Add the current card to an existing deck</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Save Entire Set */}
+                <TouchableOpacity 
+                  style={styles.modalPrimaryAction} 
+                  onPress={handleSaveEntireSetPress}
+                >
+                  <View style={styles.actionIconContainer}>
+                    <Text style={styles.actionIcon}>📚</Text>
+                  </View>
+                  <View style={styles.actionTextContainer}>
+                    <Text style={styles.actionTitle}>Save Entire Set</Text>
+                    <Text style={styles.actionDescription}>Create a new deck with all {cards.length} cards</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Create Empty Deck */}
+                <TouchableOpacity 
+                  style={styles.modalSecondaryAction} 
+                  onPress={handleCreateEmptyDeckPress}
+                >
+                  <View style={styles.actionIconContainer}>
+                    <Text style={styles.actionIcon}>✨</Text>
+                  </View>
+                  <View style={styles.actionTextContainer}>
+                    <Text style={styles.actionTitle}>Create Empty Deck</Text>
+                    <Text style={styles.actionDescription}>Start a new deck from scratch</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
               
+              {/* Cancel Button */}
               <TouchableOpacity 
                 style={styles.modalCancelButton}
                 onPress={() => setFavoriteModalVisible(false)}
@@ -492,22 +529,37 @@ export default function PromptComponent({
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowNameDeckModal(false)}>
           <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Name Your New Deck</Text>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Name Your Deck</Text>
+                <Text style={styles.modalSubtitle}>
+                  {nameDeckModalAction === 'createEmpty' 
+                    ? 'Give your new deck a memorable name' 
+                    : 'Choose a name for your saved card collection'}
+                </Text>
+              </View>
+              
               <TextInput
                 style={styles.textInput}
-                placeholder="Deck Name"
+                placeholder="Enter deck name..."
                 value={newDeckName}
                 onChangeText={setNewDeckName}
                 autoFocus
+                maxLength={50}
               />
+              
               <TouchableOpacity 
-                style={[styles.modalOption, isProcessingFavoriteAction && styles.disabledButton]} 
+                style={[styles.modalPrimaryButton, isProcessingFavoriteAction && styles.disabledButton]} 
                 onPress={handleConfirmNameDeckModal}
                 disabled={isProcessingFavoriteAction}
               >
-                {isProcessingFavoriteAction ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalOptionText}>Save Deck</Text>}
+                {isProcessingFavoriteAction ? (
+                  <EngagingLoadingScreen variant="mini" showBackground={false} />
+                ) : (
+                  <Text style={styles.modalPrimaryButtonText}>Create Deck</Text>
+                )}
               </TouchableOpacity>
-         <TouchableOpacity 
+              
+              <TouchableOpacity 
                 style={styles.modalCancelButton}
                 onPress={() => setShowNameDeckModal(false)}
                 disabled={isProcessingFavoriteAction}
@@ -527,33 +579,51 @@ export default function PromptComponent({
         onRequestClose={() => setShowDeckListModal(false)}
       >
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowDeckListModal(false)}>
-            <View style={[styles.modalContainer, { maxHeight: '60%' }]} onStartShouldSetResponder={() => true}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Add to Which Deck?</Text>
-                    {isProcessingFavoriteAction && <ActivityIndicator style={{marginVertical: 10}}/>}
-                    {!isProcessingFavoriteAction && existingDecks.length > 0 ? (
-                        <ScrollView style={{width: '100%'}}>
-                        {existingDecks.map((deck) => (
-                            <TouchableOpacity 
-                            key={deck.id}
-                            style={styles.modalOption}
-                            onPress={() => handleSelectDeckAndAddCard(deck.id)}
-                            >
-                            <Text style={styles.modalOptionText}>{deck.name} ({deck.cardCount || 0} cards)</Text>
-                            </TouchableOpacity>
-                        ))}
-                        </ScrollView>
-                    ) : !isProcessingFavoriteAction ? (
-                        <Text style={styles.modalOptionText}>No decks found.</Text>
-                    ) : null}
-                    <TouchableOpacity 
-                        style={styles.modalCancelButton}
-                        onPress={() => setShowDeckListModal(false)}
-                    >
-                        <Text style={styles.modalCancelText}>Cancel</Text>
-                    </TouchableOpacity>
+          <View style={[styles.modalContainer, { maxHeight: '70%' }]} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Choose a Deck</Text>
+                <Text style={styles.modalSubtitle}>Select where to save this card</Text>
+              </View>
+              
+              {isProcessingFavoriteAction && (
+                <View style={styles.loadingContainer}>
+                  <EngagingLoadingScreen variant="mini" showBackground={false} />
                 </View>
-      </View>
+              )}
+              
+              {!isProcessingFavoriteAction && existingDecks.length > 0 ? (
+                <ScrollView style={styles.deckListContainer} showsVerticalScrollIndicator={false}>
+                  {existingDecks.map((deck) => (
+                    <TouchableOpacity 
+                      key={deck.id}
+                      style={styles.deckItem}
+                      onPress={() => handleSelectDeckAndAddCard(deck.id)}
+                    >
+                      <View style={styles.deckItemContent}>
+                        <Text style={styles.deckItemTitle}>{deck.name}</Text>
+                        <Text style={styles.deckItemCount}>{deck.cardCount || 0} cards</Text>
+                      </View>
+                      <Text style={styles.deckItemArrow}>→</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : !isProcessingFavoriteAction ? (
+                <View style={styles.emptyStateContainer}>
+                  <Text style={styles.emptyStateIcon}>📚</Text>
+                  <Text style={styles.emptyStateText}>No decks found</Text>
+                  <Text style={styles.emptyStateSubtext}>Create your first deck to get started</Text>
+                </View>
+              ) : null}
+              
+              <TouchableOpacity 
+                style={styles.modalCancelButton}
+                onPress={() => setShowDeckListModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
@@ -603,51 +673,133 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 24,
     borderRadius: 20,
-    width: '80%',
+    width: '85%',
     maxHeight: '80%',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   modalContent: {
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
+  modalHeader: {
+    alignItems: 'center',
     marginBottom: 24,
-    fontFamily: 'Petrona-Bold',
   },
-  modalOption: {
-    backgroundColor: '#5D5FEF',
-    padding: 12,
-    borderRadius: 8,
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1A202C',
+    marginBottom: 8,
+    fontFamily: 'Petrona-Bold',
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalActionsContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  modalPrimaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalSecondaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  actionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  actionIcon: {
+    fontSize: 20,
+  },
+  actionTextContainer: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A202C',
+    fontFamily: 'Petrona-Bold',
+    marginBottom: 2,
+  },
+  actionDescription: {
+    fontSize: 13,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+    lineHeight: 18,
+  },
+  modalPrimaryButton: {
+    backgroundColor: '#374151',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     width: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#374151',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  modalOptionText: {
+  modalPrimaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-    fontFamily: 'Petrona-Regular',
+    fontWeight: '600',
+    fontFamily: 'Petrona-Bold',
   },
   modalCancelButton: {
-    backgroundColor: '#F0F0F0',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     width: '100%',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   modalCancelText: {
-    color: '#666666',
+    color: '#64748B',
     fontSize: 16,
     fontWeight: '500',
-    textAlign: 'center',
     fontFamily: 'Petrona-Regular',
   },
   footerActions: {
@@ -677,17 +829,85 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_700Bold',
   },
   disabledButton: {
-    backgroundColor: '#D3C1B7',
+    backgroundColor: '#CBD5E0',
     opacity: 0.7,
   },
   textInput: {
     width: '100%',
-    padding: 10,
-    borderColor: '#CCC',
+    padding: 16,
+    borderColor: '#E2E8F0',
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 12,
     marginBottom: 20,
     fontSize: 16,
+    fontFamily: 'Petrona-Regular',
+    backgroundColor: '#FFFFFF',
+    color: '#1A202C',
+  },
+  deckListContainer: {
+    width: '100%',
+    maxHeight: 300,
+  },
+  deckItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  deckItemContent: {
+    flex: 1,
+  },
+  deckItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A202C',
+    fontFamily: 'Petrona-Bold',
+    marginBottom: 2,
+  },
+  deckItemCount: {
+    fontSize: 13,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
+  deckItemArrow: {
+    fontSize: 18,
+    color: '#CBD5E0',
+    fontFamily: 'Petrona-Regular',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748B',
+    fontFamily: 'Petrona-Bold',
+    marginBottom: 4,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#94A3B8',
+    fontFamily: 'Petrona-Regular',
+    textAlign: 'center',
   },
   cardTitleContainer: {
     marginBottom: 10,
