@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1023240139570",
+    "project_id": "boredless-d8d4e",
+    "storage_bucket": "boredless-d8d4e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1023240139570:android:cb908387c80253f29c1d2b",
+        "android_client_info": {
+          "package_name": "com.boredless"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1023240139570-7nk6ucdc4tn7vl3rualmij1rkh5ptljm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6fvElqIQ54r_iFO5-ayzD956QKO_-1GE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1023240139570-7nk6ucdc4tn7vl3rualmij1rkh5ptljm.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1023240139570-a7pkt6iat0evuce1rbf7p9j3m14gcr3o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.boredless"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

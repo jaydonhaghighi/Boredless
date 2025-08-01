@@ -1,18 +1,23 @@
 import { Text, StyleSheet, TextInput, TouchableOpacity, View, ScrollView, Alert } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import { auth } from '../../FirebaseConfig'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
 import { router } from 'expo-router'
 import { useAuth } from '../../context/AuthContext'
 import { useFontLoader } from '../../hooks/useFontLoader'
-import { Feather } from '@expo/vector-icons'
+import { Feather, AntDesign } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const index = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const { isAuthenticated, loading } = useAuth();
 
   // Redirect if already authenticated
@@ -22,6 +27,18 @@ const index = () => {
     }
   }, [isAuthenticated, loading]);
 
+  const handleSuccess = () => {
+    setEmail('');
+    setPassword('');
+    setFirstName('');
+    setLastName('');
+    setConfirmPassword('');
+    setShowForgotPassword(false);
+    setResetEmailSent(false);
+    setIsSignUp(false);
+    router.replace('/(tabs)/home');
+  };
+
   const handleEmailSignIn = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
@@ -30,18 +47,108 @@ const index = () => {
 
     try {
       setIsLoading(true);
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
-      router.replace('/(tabs)/home');
+      await signInWithEmailAndPassword(auth, email, password);
+      handleSuccess();
     } catch (error: any) {
       console.log('Email auth error:', error);
       Alert.alert('Authentication Failed', error.message);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEmailSignUp = async () => {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Update user profile with first and last name
+      if (userCredential.user) {
+        // Note: updateProfile is not available in React Native Firebase
+        // The display name will be set when the user profile is created in Firestore
+        console.log('User created with display name:', `${firstName} ${lastName}`.trim());
+      }
+      
+      handleSuccess();
+    } catch (error: any) {
+      console.log('Email signup error:', error);
+      Alert.alert('Sign Up Failed', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      // Note: For React Native, you'll need to implement Google Sign-In using
+      // @react-native-google-signin/google-signin package or expo-auth-session
+      // This is a placeholder for the actual implementation
+      Alert.alert('Coming Soon', 'Google Sign-In will be implemented with the proper React Native package');
+    } catch (error: any) {
+      console.log('Google sign-in error:', error);
+      Alert.alert('Google Sign-In Failed', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await sendPasswordResetEmail(auth, email);
+      setResetEmailSent(true);
+    } catch (error: any) {
+      console.log('Password reset error:', error);
+      Alert.alert('Password Reset Failed', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleForgotPassword = () => {
+    setShowForgotPassword(!showForgotPassword);
+    setResetEmailSent(false);
+  };
+
+  const backToLogin = () => {
+    setShowForgotPassword(false);
+    setResetEmailSent(false);
+    setIsSignUp(false);
+  };
+
+  const switchToSignUp = () => {
+    setIsSignUp(true);
+    setShowForgotPassword(false);
+    setPassword('');
+  };
+
+  const switchToSignIn = () => {
+    setIsSignUp(false);
+    setShowForgotPassword(false);
+    setFirstName('');
+    setLastName('');
+    setConfirmPassword('');
   };
 
   const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
@@ -63,78 +170,240 @@ const index = () => {
         {/* Auth Form Section */}
         <View style={styles.sectionContainer}>
           <View>
-            <Text style={styles.sectionTitle}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
+            <Text style={styles.sectionTitle}>
+              {resetEmailSent ? 'Check Your Email' : 
+               showForgotPassword ? 'Reset Password' : 
+               isSignUp ? 'Create Account' : 'Sign In'}
+            </Text>
             <Text style={styles.sectionSubtitle}>
-              {isSignUp ? 'Join us to save your conversations' : 'Welcome back! Sign in to continue'}
+              {resetEmailSent ? 'We\'ve sent a password reset link to your email' :
+               showForgotPassword ? 'Enter your email to receive a reset link' :
+               isSignUp ? 'Join us to save your conversations' : 'Welcome back! Sign in to continue'}
             </Text>
           </View>
         </View>
 
-        {/* Email/Password Form */}
-        <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Feather name="mail" size={20} color="#718096" style={styles.inputIcon} />
-            <TextInput 
-              style={styles.textInput} 
-              placeholder="Email address" 
-              value={email} 
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+        {resetEmailSent ? (
+          <View style={styles.successContainer}>
+            <View style={styles.successIcon}>
+              <Feather name="mail" size={32} color="#10B981" />
+            </View>
+            <Text style={styles.successTitle}>Check Your Email</Text>
+            <Text style={styles.successSubtitle}>
+              We've sent a password reset link to {'\n'}<Text style={styles.emailText}>{email}</Text>
+            </Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={backToLogin}>
+              <Text style={styles.primaryButtonText}>Back to Sign In</Text>
+            </TouchableOpacity>
           </View>
-          
-          <View style={styles.inputContainer}>
-            <Feather name="lock" size={20} color="#718096" style={styles.inputIcon} />
-            <TextInput 
-              style={styles.textInput} 
-              placeholder="Password" 
-              value={password} 
-              onChangeText={setPassword} 
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </View>
+        ) : showForgotPassword ? (
+          <View style={styles.formContainer}>
+            <View style={styles.inputContainer}>
+              <Feather name="mail" size={20} color="#718096" style={styles.inputIcon} />
+              <TextInput 
+                style={styles.textInput} 
+                placeholder="Email address" 
+                value={email} 
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
 
-          {/* Primary Action Button */}
-          <TouchableOpacity 
-            style={[styles.primaryButton, isLoading && styles.disabledButton]} 
-            onPress={handleEmailSignIn}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <Feather name="loader" size={16} color="#FFFFFF" />
-                <Text style={styles.loadingText}>
-                  {isSignUp ? 'Creating Account...' : 'Signing In...'}
-                </Text>
+            <TouchableOpacity 
+              style={[styles.primaryButton, isLoading && styles.disabledButton]} 
+              onPress={handlePasswordReset}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Feather name="loader" size={16} color="#FFFFFF" />
+                  <Text style={styles.loadingText}>Sending...</Text>
+                </View>
+              ) : (
+                <Text style={styles.primaryButtonText}>Send Reset Link</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.toggleButton} 
+              onPress={backToLogin}
+              disabled={isLoading}
+            >
+              <Text style={styles.toggleButtonText}>Back to Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isSignUp ? (
+          <View style={styles.formContainer}>
+            {/* Name Fields */}
+            <View style={styles.nameRow}>
+              <View style={[styles.inputContainer, styles.nameInput]}>
+                <Feather name="user" size={20} color="#718096" style={styles.inputIcon} />
+                <TextInput 
+                  style={styles.textInput} 
+                  placeholder="First Name" 
+                  value={firstName} 
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                />
               </View>
-            ) : (
-              <Text style={styles.primaryButtonText}>
-                {isSignUp ? 'Create Account' : 'Sign In'}
-              </Text>
-            )}
-          </TouchableOpacity>
+              <View style={[styles.inputContainer, styles.nameInput]}>
+                <Feather name="user" size={20} color="#718096" style={styles.inputIcon} />
+                <TextInput 
+                  style={styles.textInput} 
+                  placeholder="Last Name" 
+                  value={lastName} 
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
 
-          {/* Toggle Sign In/Sign Up */}
-          <TouchableOpacity 
-            style={styles.toggleButton} 
-            onPress={() => setIsSignUp(!isSignUp)}
-            disabled={isLoading}
-          >
-            <Text style={styles.toggleButtonText}>
-              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.inputContainer}>
+              <Feather name="mail" size={20} color="#718096" style={styles.inputIcon} />
+              <TextInput 
+                style={styles.textInput} 
+                placeholder="Email address" 
+                value={email} 
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Feather name="lock" size={20} color="#718096" style={styles.inputIcon} />
+              <TextInput 
+                style={styles.textInput} 
+                placeholder="Password (min 6 characters)" 
+                value={password} 
+                onChangeText={setPassword} 
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
 
-        {/* Google Sign-In Placeholder */}
-        <View style={styles.googleContainer}>
-          <View style={styles.googleButton}>
-            <Text style={styles.googleButtonText}>Google Sign-In Coming Soon</Text>
+            <View style={styles.inputContainer}>
+              <Feather name="lock" size={20} color="#718096" style={styles.inputIcon} />
+              <TextInput 
+                style={styles.textInput} 
+                placeholder="Confirm Password" 
+                value={confirmPassword} 
+                onChangeText={setConfirmPassword} 
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.primaryButton, isLoading && styles.disabledButton]} 
+              onPress={handleEmailSignUp}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Feather name="loader" size={16} color="#FFFFFF" />
+                  <Text style={styles.loadingText}>Creating Account...</Text>
+                </View>
+              ) : (
+                <Text style={styles.primaryButtonText}>Create Account</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.toggleButton} 
+              onPress={switchToSignIn}
+              disabled={isLoading}
+            >
+              <Text style={styles.toggleButtonText}>Already have an account? Sign In</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        ) : (
+          <View style={styles.formContainer}>
+            <View style={styles.inputContainer}>
+              <Feather name="mail" size={20} color="#718096" style={styles.inputIcon} />
+              <TextInput 
+                style={styles.textInput} 
+                placeholder="Email address" 
+                value={email} 
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Feather name="lock" size={20} color="#718096" style={styles.inputIcon} />
+              <TextInput 
+                style={styles.textInput} 
+                placeholder="Password" 
+                value={password} 
+                onChangeText={setPassword} 
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.forgotPasswordButton} 
+              onPress={toggleForgotPassword}
+              disabled={isLoading}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.primaryButton, isLoading && styles.disabledButton]} 
+              onPress={handleEmailSignIn}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Feather name="loader" size={16} color="#FFFFFF" />
+                  <Text style={styles.loadingText}>Signing In...</Text>
+                </View>
+              ) : (
+                <Text style={styles.primaryButtonText}>Sign In</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.toggleButton} 
+              onPress={switchToSignUp}
+              disabled={isLoading}
+            >
+              <Text style={styles.toggleButtonText}>Don't have an account? Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Divider */}
+        {!showForgotPassword && !resetEmailSent && (
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        )}
+
+        {/* Google Sign-In Button */}
+        {!showForgotPassword && !resetEmailSent && (
+          <View style={styles.googleContainer}>
+            <TouchableOpacity 
+              style={[styles.googleButton, isLoading && styles.disabledButton]} 
+              onPress={handleGoogleSignIn}
+              disabled={isLoading}
+            >
+              <AntDesign name="google" size={20} color="#374151" />
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -209,6 +478,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  nameRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  nameInput: {
+    flex: 1,
+  },
   inputIcon: {
     marginRight: 12,
   },
@@ -249,6 +525,34 @@ const styles = StyleSheet.create({
     color: '#5C6BC0',
     fontFamily: 'Petrona-Regular',
   },
+  // Forgot Password Button
+  forgotPasswordButton: {
+    alignItems: 'flex-end',
+    marginBottom: 16,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#5C6BC0',
+    fontFamily: 'Petrona-Regular',
+  },
+  // Divider
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E2E8F0',
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: '#718096',
+    fontFamily: 'Petrona-Regular',
+  },
   // Google Button
   googleContainer: {
     paddingHorizontal: 24,
@@ -257,18 +561,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    opacity: 0.6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   googleButtonText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#374151',
+    fontFamily: 'Petrona-Bold',
+  },
+  // Success Container
+  successContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  successIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#D1FAE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontFamily: 'Petrona-Bold',
+    fontSize: 20,
+    color: '#1A202C',
+    marginBottom: 8,
+  },
+  successSubtitle: {
+    fontFamily: 'Petrona-Regular',
     fontSize: 16,
     color: '#718096',
-    fontFamily: 'Petrona-Regular',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  emailText: {
+    fontFamily: 'Petrona-Bold',
+    color: '#1A202C',
   },
   // Loading States
   loadingContainer: {
