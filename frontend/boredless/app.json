@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bredless.boredless",
+      "bundleIdentifier": "com.boredless.boredless",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
