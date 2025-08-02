@@ -2,7 +2,46 @@ import { collection, addDoc, serverTimestamp, doc, writeBatch, Timestamp, query,
 import { db } from '../FirebaseConfig';
 import { Card } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
-import { EventEmitter } from 'events';
+// Simple EventEmitter implementation for React Native compatibility
+class SimpleEventEmitter {
+  private listeners: { [event: string]: Function[] } = {};
+
+  on(event: string, listener: Function) {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(listener);
+  }
+
+  emit(event: string, ...args: any[]) {
+    if (this.listeners[event]) {
+      this.listeners[event].forEach(listener => listener(...args));
+    }
+  }
+
+  off(event: string, listener: Function) {
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(l => l !== listener);
+    }
+  }
+
+  removeAllListeners(event?: string) {
+    if (event) {
+      delete this.listeners[event];
+    } else {
+      this.listeners = {};
+    }
+  }
+
+  // Aliases for compatibility with standard EventEmitter API
+  addListener(event: string, listener: Function) {
+    return this.on(event, listener);
+  }
+
+  removeListener(event: string, listener: Function) {
+    return this.off(event, listener);
+  }
+}
 
 const USER_PROMPT_HISTORY_COLLECTION = 'user_prompt_history';
 const DECKS_COLLECTION = 'decks';
@@ -35,7 +74,7 @@ export interface HistoryEntryData {
 }
 
 // Create a global event emitter for deck data changes
-export const deckDataEvents = new EventEmitter();
+export const deckDataEvents = new SimpleEventEmitter();
 
 // Event names
 export const DECK_DATA_CHANGED = 'deckDataChanged';
