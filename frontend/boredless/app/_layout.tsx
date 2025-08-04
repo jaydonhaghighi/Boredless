@@ -2,8 +2,12 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../context/AuthContext';
+import { ToastProvider, useToast } from '../context/ToastContext';
+import Toast from '../components/Toast';
 
 function RootLayoutContent() {
+  const { toastState, hideToast } = useToast();
+  
   return (
     <GestureHandlerRootView style={styles.container}>
       <Stack>
@@ -12,6 +16,13 @@ function RootLayoutContent() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <Toast 
+        visible={toastState.visible}
+        message={toastState.message}
+        type={toastState.type}
+        duration={toastState.duration}
+        onHide={hideToast}
+      />
     </GestureHandlerRootView>
   );
 }
@@ -19,7 +30,9 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutContent />
+      <ToastProvider>
+        <RootLayoutContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }

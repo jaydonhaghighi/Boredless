@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native';
+import { Text, View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
 import { auth } from '../../FirebaseConfig';
 import { signOut, updatePassword, updateProfile, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { router } from 'expo-router';
@@ -16,6 +16,7 @@ export default function ProfileScreen() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
   const { showToast } = useToast();
   const { setCurrentTab } = useCurrentTab();
 
@@ -37,29 +38,26 @@ export default function ProfileScreen() {
 
   const { fontsLoaded, fontError, onLayoutRootView } = useFontLoader();
 
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsSigningOut(true);
-              await signOut(auth);
-              router.replace('/(auth)/signIn');
-            } catch (error: any) {
-              showToast('Failed to sign out: ' + error.message, 'error');
-            } finally {
-              setIsSigningOut(false);
-            }
-          }
-        }
-      ]
-    );
+  const handleSignOut = () => {
+    setShowSignOutModal(true);
+  };
+
+  const confirmSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      setShowSignOutModal(false);
+      await signOut(auth);
+      showToast('Signed out successfully', 'success');
+      router.replace('/(auth)/signIn');
+    } catch (error: any) {
+      showToast('Failed to sign out: ' + error.message, 'error');
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const cancelSignOut = () => {
+    setShowSignOutModal(false);
   };
 
   const handleEditProfile = async () => {
@@ -390,6 +388,55 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Sign Out Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showSignOutModal}
+        onRequestClose={cancelSignOut}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={cancelSignOut}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <View style={styles.warningIcon}>
+                  <Feather name="log-out" size={32} color="#FF5252" />
+                </View>
+                <Text style={styles.modalTitle}>Sign Out</Text>
+                <Text style={styles.modalSubtitle}>Are you sure you want to sign out of your account?</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.signOutConfirmButton, isSigningOut && styles.disabledButton]} 
+                onPress={confirmSignOut}
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? (
+                  <View style={styles.modalLoadingContainer}>
+                    <Feather name="loader" size={16} color="#FFFFFF" />
+                    <Text style={styles.modalLoadingText}>Signing Out...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.signOutConfirmButtonText}>Sign Out</Text>
+                )}
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.modalCancelButton}
+                onPress={cancelSignOut}
+                disabled={isSigningOut}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -664,5 +711,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontFamily: 'Petrona-Regular',
+  },
+  // Sign Out Modal Styles
+  warningIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  signOutConfirmButton: {
+    backgroundColor: '#FF5252',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#FF5252',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  signOutConfirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Petrona-Bold',
   },
 }); 

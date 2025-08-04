@@ -1,9 +1,10 @@
-import { Text, StyleSheet, TextInput, TouchableOpacity, View, ScrollView, Alert } from 'react-native'
+import { Text, StyleSheet, TextInput, TouchableOpacity, View, ScrollView } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import { auth } from '../../FirebaseConfig'
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCredential, GoogleAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
 import { router } from 'expo-router'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../../context/ToastContext'
 import { useFontLoader } from '../../hooks/useFontLoader'
 import { Feather, AntDesign } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -19,6 +20,7 @@ const index = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const { isAuthenticated, loading } = useAuth();
+  const { showToast } = useToast();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -41,17 +43,18 @@ const index = () => {
 
   const handleEmailSignIn = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showToast('Please fill in all fields', 'error');
       return;
     }
 
     try {
       setIsLoading(true);
       await signInWithEmailAndPassword(auth, email, password);
+      showToast('Welcome back!', 'success');
       handleSuccess();
     } catch (error: any) {
       console.log('Email auth error:', error);
-      Alert.alert('Authentication Failed', error.message);
+      showToast('Authentication failed: ' + error.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -59,17 +62,17 @@ const index = () => {
 
   const handleEmailSignUp = async () => {
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showToast('Please fill in all fields', 'error');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showToast('Passwords do not match', 'error');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showToast('Password must be at least 6 characters', 'error');
       return;
     }
 
@@ -84,10 +87,11 @@ const index = () => {
         console.log('User created with display name:', `${firstName} ${lastName}`.trim());
       }
       
+      showToast('Account created successfully!', 'success');
       handleSuccess();
     } catch (error: any) {
       console.log('Email signup error:', error);
-      Alert.alert('Sign Up Failed', error.message);
+      showToast('Sign up failed: ' + error.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -96,13 +100,10 @@ const index = () => {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      // Note: For React Native, you'll need to implement Google Sign-In using
-      // @react-native-google-signin/google-signin package or expo-auth-session
-      // This is a placeholder for the actual implementation
-      Alert.alert('Coming Soon', 'Google Sign-In will be implemented with the proper React Native package');
+      showToast('Google Sign-In will be implemented with the proper React Native package', 'info');
     } catch (error: any) {
       console.log('Google sign-in error:', error);
-      Alert.alert('Google Sign-In Failed', error.message);
+      showToast('Google Sign-In failed: ' + error.message, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -110,17 +111,18 @@ const index = () => {
 
   const handlePasswordReset = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
+      showToast('Please enter your email address', 'error');
       return;
     }
 
     try {
       setIsLoading(true);
       await sendPasswordResetEmail(auth, email);
+      showToast('Password reset email sent successfully!', 'success');
       setResetEmailSent(true);
     } catch (error: any) {
       console.log('Password reset error:', error);
-      Alert.alert('Password Reset Failed', error.message);
+      showToast('Password reset failed: ' + error.message, 'error');
     } finally {
       setIsLoading(false);
     }
