@@ -47,8 +47,8 @@ const CARD_SCHEMAS = {
           required: ["title", "card_type", "question", "reflection", "followups"],
           additionalProperties: false
         },
-        minItems: 3,
-        maxItems: 4
+        minItems: 8,
+        maxItems: 8
       }
     },
     required: ["cards"],
@@ -71,8 +71,8 @@ const CARD_SCHEMAS = {
           required: ["title", "card_type", "question", "twist"],
           additionalProperties: false
         },
-        minItems: 3,
-        maxItems: 4
+        minItems: 8,
+        maxItems: 8
       }
     },
     required: ["cards"],
@@ -95,8 +95,8 @@ const CARD_SCHEMAS = {
           required: ["title", "card_type", "question", "bonus"],
           additionalProperties: false
         },
-        minItems: 3,
-        maxItems: 4
+        minItems: 8,
+        maxItems: 8
       }
     },
     required: ["cards"],
@@ -119,8 +119,8 @@ const CARD_SCHEMAS = {
           required: ["title", "card_type", "question", "bonus"],
           additionalProperties: false
         },
-        minItems: 3,
-        maxItems: 4
+        minItems: 8,
+        maxItems: 8
       }
     },
     required: ["cards"],
@@ -145,8 +145,8 @@ const CARD_SCHEMAS = {
           required: ["title", "card_type", "question", "perspective1", "perspective2", "debate_twist"],
           additionalProperties: false
         },
-        minItems: 3,
-        maxItems: 4
+        minItems: 8,
+        maxItems: 8
       }
     },
     required: ["cards"],
@@ -170,8 +170,8 @@ const CARD_SCHEMAS = {
           required: ["title", "card_type", "question", "group_vote", "reveal"],
           additionalProperties: false
         },
-        minItems: 3,
-        maxItems: 4
+        minItems: 8,
+        maxItems: 8
       }
     },
     required: ["cards"],
@@ -223,15 +223,17 @@ ${tone ? `- Tone: ${tone}` : ''}
 ${participants ? `- Participants: ${participants}` : ''}
 ${relationship ? `- Relationship: ${relationship}` : ''}
 
-Generate 3-4 unique, creative cards that match the specified card type structure. Make them:
+Generate exactly 8 unique, creative cards that match the specified card type structure. Make them:
 - Engaging and thought-provoking
 - Appropriate for the specified tone and relationship
-- Varied in depth and approach
+- Varied in depth and approach (mix light and deep questions)
 - Fun and memorable
+- Diverse in topics and scenarios
+- Progressive in complexity (start easier, build to more challenging)
 
 Each card must follow the exact structure for ${backendCardType} cards.`;
 
-  const userPrompt = `Generate ${cardType} cards focusing on ${topic || 'general conversation'} with a ${tone || 'balanced'} tone for ${participants || 'any number of'} participants in a ${relationship || 'mixed'} relationship context.`;
+  const userPrompt = `Generate exactly 8 ${cardType} cards focusing on ${topic || 'general conversation'} with a ${tone || 'balanced'} tone for ${participants || 'any number of'} participants in a ${relationship || 'mixed'} relationship context. Create a diverse set that ranges from lighter conversation starters to deeper, more meaningful questions.`;
 
   try {
     console.log('Generating cards with OpenAI structured output...');
@@ -252,7 +254,7 @@ Each card must follow the exact structure for ${backendCardType} cards.`;
         }
       },
       temperature: 0.8,
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     const response = completion.choices[0].message.content;
@@ -272,7 +274,7 @@ Each card must follow the exact structure for ${backendCardType} cards.`;
       relationship,
     }));
 
-    console.log(`Generated ${enhancedCards.length} cards with OpenAI structured output`);
+    console.log(`Generated ${enhancedCards.length} cards with OpenAI structured output (requested 8)`);
     return enhancedCards;
 
   } catch (error) {
