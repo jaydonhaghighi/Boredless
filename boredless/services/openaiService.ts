@@ -196,6 +196,303 @@ interface GenerateCardsParams {
   };
 }
 
+// High-quality examples for each card type to guide AI generation
+const getQualityExamples = (cardType: string): string => {
+  const examples: Record<string, string> = {
+    deep_conversations: `
+EXAMPLES OF HIGH-QUALITY DEEP CONVERSATION CARDS:
+
+✅ EXCELLENT:
+Title: "The Mentor's Shadow"
+Question: "Think of someone who shaped who you are today, but you've never properly thanked them. What would you say to them if they were sitting here right now?"
+Reflection: "Sometimes the people who change our lives don't even know they did it."
+Follow-ups: ["What specific moment with them stands out most?", "How do you carry their influence forward today?"]
+
+✅ EXCELLENT:  
+Title: "Future Self Letter"
+Question: "If your 80-year-old self could send you one piece of advice about the decision you're facing right now, what would they say?"
+Reflection: "Our future selves often have the clarity we're missing in the moment."
+Follow-ups: ["What do you think you'll regret not doing?", "What would make your older self proud?"]
+
+❌ AVOID (too generic):
+- "What's your biggest fear?"
+- "What makes you happy?"
+- "Tell me about yourself"`,
+
+    fun_challenges: `
+EXAMPLES OF HIGH-QUALITY FUN CHALLENGE CARDS:
+
+✅ EXCELLENT:
+Title: "Celebrity Swap Shop"
+Question: "You can trade lives with any celebrity for exactly 24 hours, but you have to handle their biggest current drama. Who do you pick?"
+Twist: "Everyone else gets to assign you one ridiculous task to complete during those 24 hours!"
+
+✅ EXCELLENT:
+Title: "Time Traveler's Dilemma" 
+Question: "You're sent back to your first day of high school, but you can only change ONE thing. What is it?"
+Twist: "Plot twist: The change creates a butterfly effect. What's the most unexpected consequence?"
+
+❌ AVOID (too simple):
+- "Would you rather be rich or famous?"
+- "What's your favorite color?"
+- "Do something silly"`,
+
+    light_conversation: `
+EXAMPLES OF HIGH-QUALITY LIGHT CONVERSATION CARDS:
+
+✅ EXCELLENT:
+Title: "Grocery Store Mysteries"
+Question: "What's the weirdest thing you've seen someone do in a grocery store that made you think 'There's definitely a story there'?"
+Follow-ups: ["What's your own weirdest grocery store moment?", "Which aisle tells the most about someone's life?"]
+
+✅ EXCELLENT:
+Title: "Childhood Food Crimes"
+Question: "What's the strangest food combination you loved as a kid that would horrify people now?"
+Follow-ups: ["Do you still secretly eat it sometimes?", "What's the weirdest thing you've seen someone else eat?"]
+
+❌ AVOID (too boring):
+- "What's your favorite food?"
+- "How was your day?"
+- "What do you do for fun?"`,
+
+    hot_takes: `
+EXAMPLES OF HIGH-QUALITY HOT TAKES CARDS:
+
+✅ EXCELLENT:
+Title: "Social Media Honesty Hour"
+Question: "Hot take: People who post gym selfies are either incredibly insecure or incredibly confident, and there's no in-between. Defend or destroy this theory."
+Follow-ups: ["What's the most honest reason you've posted something?", "Which social media behavior secretly annoys you most?"]
+
+✅ EXCELLENT:
+Title: "Modern Romance Reality Check"
+Question: "Controversial opinion: Dating apps have made us worse at actual relationships because we treat people like they're replaceable. Fight me or join me?"
+Follow-ups: ["What's the worst dating app experience that proves this point?", "How would you meet someone if apps didn't exist?"]
+
+❌ AVOID (not spicy enough):
+- "Do you like pineapple on pizza?"
+- "What's your opinion on..."
+- "Some people think..."`,
+
+    creative_prompts: `
+EXAMPLES OF HIGH-QUALITY CREATIVE PROMPT CARDS:
+
+✅ EXCELLENT:
+Title: "Parallel Universe Job Fair"
+Question: "In an alternate reality where your biggest childhood fear became a career, what would your job title be and what would a typical workday look like?"
+Follow-ups: ["What would be the best and worst part of this job?", "Who would be your ideal coworker in this universe?"]
+
+✅ EXCELLENT:
+Title: "Emotion Color Palette"
+Question: "If you had to paint your current mood using only three colors and kitchen utensils as brushes, what would your masterpiece look like?"
+Follow-ups: ["What song would be playing while you paint it?", "Where would you hang this emotional artwork?"]
+
+❌ AVOID (not creative enough):
+- "Draw something"
+- "Make up a story"
+- "Use your imagination"`,
+
+    personality_quizzes: `
+EXAMPLES OF HIGH-QUALITY PERSONALITY QUIZ CARDS:
+
+✅ EXCELLENT:
+Title: "Your Personal Brand Animal"
+Question: "If your personality was a animal at a house party, which animal would you be and what would you be doing at 2 AM when things get weird?"
+Follow-ups: ["What animal would be your best friend at this party?", "Which animal would you avoid all night?"]
+
+✅ EXCELLENT:
+Title: "Superpower Personality Test"
+Question: "You can have any superpower, but it only works when you're feeling your most authentic emotion. What power do you choose and when would it be strongest?"
+Follow-ups: ["What would be your superhero weakness?", "Who would be your sidekick and what would their power be?"]
+
+❌ AVOID (too predictable):
+- "What type of person are you?"
+- "Pick your favorite..."
+- "Which category describes you?"`
+  };
+
+  return examples[cardType] || `
+GENERAL QUALITY GUIDELINES:
+- Be specific and concrete rather than vague
+- Include unexpected twists or angles  
+- Create emotional connection points
+- Use vivid, memorable language
+- Avoid clichéd question formats`;
+};
+
+// Quality validation and improvement function
+const validateAndImproveCards = async (cards: Card[], cardType: string, retryCount = 0): Promise<Card[]> => {
+  const maxRetries = 1; // Limit retries to avoid excessive API calls
+  const qualityIssues: string[] = [];
+  const improvedCards: Card[] = [];
+  const lowQualityCards: Card[] = [];
+
+  for (const card of cards) {
+    const issues = checkCardQuality(card);
+    
+    if (issues.length === 0) {
+      // Card passes quality check
+      improvedCards.push(card);
+    } else {
+      // Log quality issues for monitoring
+      qualityIssues.push(`Card "${card.title}": ${issues.join(', ')}`);
+      lowQualityCards.push(card);
+    }
+  }
+
+  // If we have quality issues and haven't exceeded retry limit
+  if (lowQualityCards.length > 0 && retryCount < maxRetries) {
+    console.warn(`Quality issues detected in ${lowQualityCards.length} cards, attempting refinement...`);
+    
+    try {
+      // Attempt to refine the low-quality cards
+      const refinedCards = await refineCards(lowQualityCards, cardType, qualityIssues);
+      
+      // Recursively validate the refined cards (with incremented retry count)
+      const finalRefinedCards = await validateAndImproveCards(refinedCards, cardType, retryCount + 1);
+      
+      // Combine good cards with refined cards
+      improvedCards.push(...finalRefinedCards);
+      
+    } catch (error) {
+      console.error('Failed to refine cards:', error);
+      // Fall back to original cards if refinement fails
+      improvedCards.push(...lowQualityCards);
+    }
+  } else {
+    // Either no quality issues, or we've exceeded retry limit
+    if (lowQualityCards.length > 0) {
+      console.warn(`${lowQualityCards.length} cards still have quality issues after ${retryCount} retries`);
+      // Include them anyway - some conversation is better than none
+      improvedCards.push(...lowQualityCards);
+    }
+  }
+
+  if (qualityIssues.length > 0) {
+    console.warn('Final quality report:', qualityIssues);
+    // Could trigger analytics/monitoring here
+  }
+
+  return improvedCards;
+};
+
+// Refine low-quality cards using OpenAI
+const refineCards = async (cards: Card[], cardType: string, issues: string[]): Promise<Card[]> => {
+  const openai = getOpenAIClient();
+  
+  const refinementPrompt = `You are a conversation card quality expert. The following cards have quality issues and need improvement:
+
+QUALITY ISSUES DETECTED:
+${issues.join('\n')}
+
+CARDS TO REFINE:
+${cards.map((card, i) => `
+${i + 1}. Title: "${card.title}"
+   Question: "${card.question}"
+   ${card.reflection ? `Reflection: "${card.reflection}"` : ''}
+   ${card.followups ? `Follow-ups: ${JSON.stringify(card.followups)}` : ''}
+`).join('')}
+
+IMPROVEMENT REQUIREMENTS:
+- Make questions more specific and concrete
+- Add emotional hooks and relatable scenarios
+- Avoid generic patterns like "What's your favorite..."
+- Ensure questions are at least 50 characters
+- Include engaging words like "imagine", "describe", "remember"
+- Create memorable, creative titles
+- Ensure proper question formatting
+
+Please rewrite these cards to fix the quality issues while maintaining their core intent and the ${cardType} card structure.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are an expert at improving conversation card quality." },
+        { role: "user", content: refinementPrompt }
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "refined_cards",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              cards: {
+                type: "array",
+                items: CARD_SCHEMAS[cardType as keyof typeof CARD_SCHEMAS].properties.cards.items,
+                minItems: cards.length,
+                maxItems: cards.length
+              }
+            },
+            required: ["cards"],
+            additionalProperties: false
+          }
+        }
+      },
+      max_tokens: 2000,
+      temperature: 0.8,
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    console.log(`Successfully refined ${result.cards?.length || 0} cards`);
+    
+    return result.cards || cards; // Fall back to original if parsing fails
+    
+  } catch (error) {
+    console.error('Error refining cards:', error);
+    return cards; // Return original cards if refinement fails
+  }
+};
+
+// Check individual card quality
+const checkCardQuality = (card: Card): string[] => {
+  const issues: string[] = [];
+
+  // Check for generic/cliché patterns
+  const genericPatterns = [
+    /what.?s your favorite/i,
+    /tell me about yourself/i,
+    /what makes you happy/i,
+    /what.?s your biggest/i,
+    /if you could have any/i,
+    /what would you do if/i
+  ];
+
+  const question = card.question.toLowerCase();
+  
+  genericPatterns.forEach(pattern => {
+    if (pattern.test(question)) {
+      issues.push('uses generic question pattern');
+    }
+  });
+
+  // Check for specificity
+  if (card.question.length < 50) {
+    issues.push('question too short/vague');
+  }
+
+  // Check for emotional engagement
+  const engagementWords = ['feel', 'remember', 'imagine', 'describe', 'picture', 'think about'];
+  const hasEngagement = engagementWords.some(word => question.includes(word));
+  
+  if (!hasEngagement) {
+    issues.push('lacks emotional engagement words');
+  }
+
+  // Check title quality
+  if (!card.title || card.title.length < 10) {
+    issues.push('title too short or missing');
+  }
+
+  // Check for question marks (should have them for questions)
+  if (!card.question.includes('?')) {
+    issues.push('missing question mark');
+  }
+
+  return issues;
+};
+
 export const generateCardsWithOpenAI = async (params: GenerateCardsParams): Promise<Card[]> => {
   const { cardType, topic, tone, participants, relationship, excludedQuestions = [], categoryBalance } = params;
 
@@ -246,26 +543,51 @@ ${categoryBalance.storytelling <= 2 ? '- Storytelling questions ("Describe a tim
 ${categoryBalance.values <= 2 ? '- Values questions ("What matters most...", "What\'s important to you...", "What do you value...")' : ''}
 ${categoryBalance.future <= 2 ? '- Future questions ("In 10 years...", "Someday...", "Your future...")' : ''}` : '';
 
+  // Build quality examples for this card type
+  const qualityExamples = getQualityExamples(backendCardType);
+  
   // Build the prompt based on card type and user preferences
-  const systemPrompt = `You are a creative assistant that generates engaging conversation cards for social interactions. 
+  const systemPrompt = `You are an expert conversation designer who creates meaningful, engaging dialogue prompts based on psychology and human connection principles.
 
 Card Type: ${cardType}
 ${cardTypeInfo.structure ? `Structure: ${JSON.stringify(cardTypeInfo.structure)}` : ''}
 ${cardTypeInfo.description ? `Purpose: ${cardTypeInfo.description}` : ''}
 
-User Preferences:
-${topic ? `- Topic: ${topic}` : ''}
-${tone ? `- Tone: ${tone}` : ''}
-${participants ? `- Participants: ${participants}` : ''}
-${relationship ? `- Relationship: ${relationship}` : ''}${exclusionPrompt}${categoryGuidance}
+User Context:
+${topic ? `- Topic Focus: ${topic}` : ''}
+${tone ? `- Desired Tone: ${tone}` : ''}
+${participants ? `- Group Size: ${participants}` : ''}
+${relationship ? `- Relationship Dynamic: ${relationship}` : ''}${exclusionPrompt}${categoryGuidance}
 
-Generate exactly 8 unique, creative cards that match the specified card type structure. Make them:
-- Engaging and thought-provoking
-- Appropriate for the specified tone and relationship
-- Varied in depth and approach (mix light and deep questions)
-- Fun and memorable
-- Diverse in topics and scenarios
-- Progressive in complexity (start easier, build to more challenging)
+QUALITY STANDARDS - Each question must meet ALL criteria:
+
+🎯 ENGAGEMENT PRINCIPLES:
+- Use specific, concrete scenarios rather than abstract concepts
+- Include emotional hooks that create genuine curiosity
+- Reference relatable life experiences and situations
+- Avoid cliché or overused question formats
+
+🧠 PSYCHOLOGICAL DEPTH:
+- Tap into core human motivations (belonging, growth, meaning, fun)
+- Create safe vulnerability - personal but not invasive
+- Use progressive disclosure (start accessible, build depth)
+- Include elements of surprise or unexpected angles
+
+🗣️ CONVERSATION FLOW:
+- Questions should naturally lead to follow-up dialogue
+- Include built-in conversation bridges ("What about you?")
+- Balance sharing vs. asking dynamics
+- Create opportunities for storytelling, not just yes/no answers
+
+✨ CREATIVITY & SPECIFICITY:
+- Use vivid, memorable language and imagery
+- Include specific details, names, scenarios, or contexts
+- Avoid generic templates ("What's your favorite...")
+- Create unique angles on familiar topics
+
+${qualityExamples}
+
+Generate exactly 8 cards that exemplify these quality standards. Each card should feel like it was crafted by a professional conversation facilitator who understands human psychology and social dynamics.
 
 Each card must follow the exact structure for ${backendCardType} cards.`;
 
@@ -310,8 +632,11 @@ Each card must follow the exact structure for ${backendCardType} cards.`;
       relationship,
     }));
 
-    console.log(`Generated ${enhancedCards.length} cards with OpenAI structured output (requested 8)`);
-    return enhancedCards;
+    // Validate and potentially improve card quality
+    const validatedCards = await validateAndImproveCards(enhancedCards, backendCardType);
+    
+    console.log(`Generated ${validatedCards.length} high-quality cards with OpenAI structured output`);
+    return validatedCards;
 
   } catch (error) {
     console.error('Error generating cards with OpenAI:', error);
