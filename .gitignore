@@ -70,4 +70,4 @@ taskmaster/scripts/example_prd.txt
 taskmaster/scripts/PRD.txt
 taskmaster/scripts/task-complexity-report.json
 frontend/boredless/ios
-frontend/boredless/FirebaseConfig.ts
+boredless/AI_QUALITY_SYSTEM.md
