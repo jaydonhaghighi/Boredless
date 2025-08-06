@@ -10,18 +10,17 @@ import { useCurrentGeneration, useBottomSheetVisibility, useCurrentTab } from '.
 import { useToast } from '../../context/ToastContext';
 import { Card } from '../../types/card';
 import { FilterParams } from '../../utils/cardUtils';
-import { CardTypeName } from '../../constants/cardTypes';
+import { CardTypeName, QUICK_START_TYPES, QuickStartTypeName, getQuickStartFilters } from '../../constants/cardTypes';
 import { useFocusEffect } from '@react-navigation/native';
 
 SplashScreen.preventAutoHideAsync();
 
 interface QuickStartItemData {
   id: string;
-  title: CardTypeName;
+  title: QuickStartTypeName;
   icon: ReactNode;
   backgroundColor: string;
   color: string;
-  apiParams: Omit<FilterParams, 'card_type'>;
   description: string;
 }
 
@@ -108,8 +107,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/tablefortwo.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Perfect for dates',
-      apiParams: { topic: "Relationships & Dating", tone: "Romantic", participants: "2", relationship: "Romantic Partners" }
+      description: 'Perfect for dates'
     },
     {
       id: 'real-talk', 
@@ -117,8 +115,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/realtalk.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Deep conversations',
-      apiParams: { topic: "Personality & Self-discovery", tone: "Reflective", participants: "2", relationship: "Close Friends" }
+      description: 'Deep conversations'
     },
     {
       id: 'last-call', 
@@ -126,8 +123,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/lastcall.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Party vibes',
-      apiParams: { topic: "Pop Culture & Entertainment", tone: "Energetic", participants: "6+", relationship: "Friends" }
+      description: 'Party vibes'
     },
     {
       id: 'icebreakers', 
@@ -135,8 +131,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/icebreaker.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Break the ice',
-      apiParams: { topic: "Casual Chat", tone: "Friendly", participants: "3-5", relationship: "Aquaintances" }
+      description: 'Break the ice'
     },
     {
       id: 'true-self', 
@@ -144,8 +139,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/trueself.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Personality reveals',
-      apiParams: { topic: "Personality & Self-discovery", tone: "Playful", participants: "3-5", relationship: "Mixed Group" }
+      description: 'Personality reveals'
     },
     {
       id: 'hot-seat', 
@@ -153,8 +147,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/hotseat.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Spicy questions',
-      apiParams: { topic: "Personality & Self-discovery", tone: "Serious", participants: "3-5", relationship: "Close Friends" }
+      description: 'Spicy questions'
     },
     {
       id: 'face-off', 
@@ -162,8 +155,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/faceoff.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Friendly debates',
-      apiParams: { topic: "Debates & Opinions", tone: "Thoughtful", participants: "3-5", relationship: "Mixed Group" }
+      description: 'Friendly debates'
     },
     {
       id: 'deep-cuts', 
@@ -171,8 +163,7 @@ export default function Index() {
       icon: <Image source={require('../../assets/images/home/deepcuts.png')} style={{ width: 50, height: 50 }} />,
       backgroundColor: '#FFF', 
       color: '#2D3748',
-      description: 'Philosophical talks',
-      apiParams: { topic: "Philosophy & Big Questions", tone: "Reflective", participants: "2", relationship: "Close Friends" }
+      description: 'Philosophical talks'
     },
   ];
 
@@ -185,14 +176,19 @@ export default function Index() {
   const [promptHistory, setPromptHistory] = useState<HistoryEntryData[]>([]);
 
   const handleQuickStartPress = async (item: QuickStartItemData) => {
+    // Get recommended filters for this Quick Start type
+    const quickStartFilters = getQuickStartFilters(item.title);
+    
+    // Use the first recommended option from each filter category
     const filters: FilterParams = {
       card_type: item.title,
-      topic: item.apiParams.topic,
-      tone: item.apiParams.tone,
-      participants: item.apiParams.participants,
-      relationship: item.apiParams.relationship,
+      topic: quickStartFilters.topics[0] || null,
+      tone: quickStartFilters.tones[0] || null,
+      participants: quickStartFilters.participants[0] || null,
+      relationship: quickStartFilters.relationships[0] || null,
     };
     
+    console.log(`Quick Start: ${item.title}`, filters);
     await triggerCardGeneration(filters);
   };
 

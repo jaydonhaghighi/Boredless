@@ -1,28 +1,51 @@
 /**
  * Constants for card type mappings and definitions
+ * Aligned with backend CARD_TYPE_MAPPING and CARD_TYPE_STRUCTURES
  */
 
+// Backend card type mapping - matches backend/constants.py
+export const BACKEND_CARD_TYPE_MAPPING = {
+  // Standard card types
+  "Deep Conversations": "deep_conversations",
+  "Fun Challenges": "fun_challenges", 
+  "Creative Prompts": "creative_prompts",
+  "Light Conversation": "light_conversation",
+  "Hot Takes": "hot_takes",
+  "Personality Quizzes": "personality_quizzes",
+  // Quick Start items map to standard card types
+  "Table for Two": "deep_conversations",
+  "Real Talk": "deep_conversations", 
+  "Last Call": "fun_challenges",
+  "Icebreakers": "light_conversation",
+  "True Self": "personality_quizzes",
+  "Hot Seat": "deep_conversations",
+  "Face-Off": "hot_takes",
+  "Deep Cuts": "deep_conversations"
+} as const;
+
 /**
- * Card type definition and recommended filter mappings
+ * Card type definitions with structures that match backend output
  */
 export const CARD_TYPES = {
   "Deep Conversations": {
     id: "deep_conversations",
     structure: {
-      front: "Open-ended personal question",
-      back: "Reflection: [prompt to go deeper]"
+      front: "A sincere, emotionally relevant question that invites reflection",
+      back: "A short prompt encouraging the person to explain more deeply"
     },
+    fields: ["title", "question", "reflection", "followups"],
     topics: ["Relationships & Dating", "Personality & Self-discovery", "Family & Home", "Philosophy & Big Questions"],
     tones: ["Thoughtful", "Reflective", "Romantic", "Calm", "Serious"],
     participants: ["Solo", "2", "3-5"],
     relationships: ["Self", "Close Friends", "Romantic Partners", "Friends", "Family"]
   },
   "Fun Challenges": {
-    id: "fun_challenges",
+    id: "fun_challenges", 
     structure: {
-      front: "Daring or playful question",
-      back: "Twist: [game mechanic or rule]"
+      front: "A playful, wild or daring challenge/question",
+      back: "A rule that escalates the prompt (e.g. take a sip, switch, reveal more)"
     },
+    fields: ["title", "question", "twist"],
     topics: ["Pop Culture & Entertainment", "Casual Chat", "Creativity & Imagination"],
     tones: ["Playful", "Humourous", "Energetic"],
     participants: ["2", "3-5", "6+"],
@@ -31,9 +54,10 @@ export const CARD_TYPES = {
   "Creative Prompts": {
     id: "creative_prompts",
     structure: {
-      front: "Imaginative scenario",
-      back: "Bonus: [creative extension]"
+      front: "A creative scenario or question",
+      back: "An extra twist that continues the scenario or adds a new creative element"
     },
+    fields: ["title", "question", "bonus"],
     topics: ["Creativity & Imagination", "Personality & Self-discovery", "Pop Culture & Entertainment", "Casual Chat"],
     tones: ["Playful", "Friendly"],
     participants: ["Solo", "2", "3-5"],
@@ -42,9 +66,10 @@ export const CARD_TYPES = {
   "Light Conversation": {
     id: "light_conversation",
     structure: {
-      front: "Casual or small-talk prompt",
-      back: "Bonus: [light follow-up]"
+      front: "A fun, easygoing, or observational question",
+      back: "A light follow-up or activity to extend the moment"
     },
+    fields: ["title", "question", "bonus"],
     topics: ["Casual Chat", "Pop Culture & Entertainment", "Career & Goals", "Learning & Education"],
     tones: ["Friendly", "Calm", "Humourous", "Thoughtful"],
     participants: ["2", "3-5", "6+"],
@@ -53,9 +78,10 @@ export const CARD_TYPES = {
   "Hot Takes": {
     id: "hot_takes",
     structure: {
-      front: "Debatable prompt",
-      back: "Perspective 1 / Perspective 2 / Debate twist"
+      front: "A polarizing or opinion-based question",
+      back: "Perspective 1: One common viewpoint / Perspective 2: The opposing view / Debate twist: A rule"
     },
+    fields: ["title", "question", "perspective1", "perspective2", "debate_twist"],
     topics: ["Pop Culture & Entertainment", "Philosophy & Big Questions", "Debates & Opinions", "Learning & Education"],
     tones: ["Serious", "Humourous"],
     participants: ["2", "3-5", "6+"],
@@ -64,106 +90,138 @@ export const CARD_TYPES = {
   "Personality Quizzes": {
     id: "personality_quizzes",
     structure: {
-      front: "Group guessing prompt",
-      back: "Group vote / Reveal"
+      front: "A personality-style label or guessing question",
+      back: "Group vote: Instruction for the group to decide / Reveal: Prompt for the person to reveal and react"
     },
+    fields: ["title", "question", "group_vote", "reveal"],
     topics: ["Personality & Self-discovery", "Pop Culture & Entertainment", "Creativity & Imagination"],
     tones: ["Playful", "Friendly"],
     participants: ["2", "3-5", "6+"],
     relationships: ["Friends", "Aquaintances", "Close Friends"]
-  },
+  }
+} as const;
+
+/**
+ * Quick Start options with their specific configurations
+ */
+export const QUICK_START_TYPES = {
   "Table for Two": {
-    id: "deep_conversations",
+    backend_id: "deep_conversations",
+    description: "Perfect for dates",
     structure: {
-      front: "Meaningful, romantic, or playful question for couples",
+      front: "A meaningful, romantic, or playful question for couples",
       back: "Follow-up: A deeper or more specific prompt to extend the moment"
     },
-    topics: ["Relationships & Dating"],
-    tones: ["Romantic", "Thoughtful"],
-    participants: ["2"],
-    relationships: ["Romantic Partners"]
+    recommended_filters: {
+      topics: ["Relationships & Dating"],
+      tones: ["Romantic", "Thoughtful"],
+      participants: ["2"],
+      relationships: ["Romantic Partners"]
+    }
   },
   "Real Talk": {
-    id: "deep_conversations",
+    backend_id: "deep_conversations",
+    description: "Deep conversations",
     structure: {
       front: "A heartfelt or revealing question between friends",
       back: "Reflection: A prompt to unpack or explain the response"
     },
-    topics: ["Personality & Self-discovery", "Relationships & Dating"],
-    tones: ["Reflective", "Serious"],
-    participants: ["2"],
-    relationships: ["Close Friends", "Friends"]
+    recommended_filters: {
+      topics: ["Personality & Self-discovery", "Relationships & Dating"],
+      tones: ["Reflective", "Serious"],
+      participants: ["2"],
+      relationships: ["Close Friends", "Friends"]
+    }
   },
   "Last Call": {
-    id: "light_conversation",
+    backend_id: "fun_challenges",
+    description: "Party vibes",
     structure: {
       front: "A bold, revealing, or hilarious challenge",
       back: "Twist: A rule or action that escalates the tension"
     },
-    topics: ["Pop Culture & Entertainment", "Casual Chat"],
-    tones: ["Energetic", "Playful", "Humourous"],
-    participants: ["6+", "3-5"],
-    relationships: ["Friends", "Mixed Group"]
+    recommended_filters: {
+      topics: ["Pop Culture & Entertainment", "Casual Chat"],
+      tones: ["Energetic", "Playful", "Humourous"],
+      participants: ["6+", "3-5"],
+      relationships: ["Friends", "Mixed Group"]
+    }
   },
   "Icebreakers": {
-    id: "light_conversation",
+    backend_id: "light_conversation",
+    description: "Break the ice",
     structure: {
       front: "A light, fun, or quirky question anyone can answer",
       back: "Bonus: A second, humorous or surprising follow-up"
     },
-    topics: ["Casual Chat"],
-    tones: ["Friendly", "Playful", "Humourous"],
-    participants: ["3-5", "6+", "2"],
-    relationships: ["Aquaintances", "Strangers", "Mixed Group"]
+    recommended_filters: {
+      topics: ["Casual Chat"],
+      tones: ["Friendly", "Playful", "Humourous"],
+      participants: ["3-5", "6+", "2"],
+      relationships: ["Aquaintances", "Strangers", "Mixed Group"]
+    }
   },
   "True Self": {
-    id: "personality_quizzes",
+    backend_id: "personality_quizzes",
+    description: "Personality reveals",
     structure: {
       front: "A playful personality-style question",
       back: "Group vote: Ask others to decide / Reveal: The person explains"
     },
-    topics: ["Personality & Self-discovery", "Pop Culture & Entertainment"],
-    tones: ["Playful", "Friendly", "Humourous"],
-    participants: ["3-5", "6+"],
-    relationships: ["Mixed Group", "Friends", "Close Friends"]
+    recommended_filters: {
+      topics: ["Personality & Self-discovery", "Pop Culture & Entertainment"],
+      tones: ["Playful", "Friendly", "Humourous"],
+      participants: ["3-5", "6+"],
+      relationships: ["Mixed Group", "Friends", "Close Friends"]
+    }
   },
   "Hot Seat": {
-    id: "deep_conversations",
+    backend_id: "deep_conversations",
+    description: "Spicy questions",
     structure: {
       front: "A revealing question aimed at one person",
       back: "Push further: A second question that goes even deeper"
     },
-    topics: ["Personality & Self-discovery", "Relationships & Dating"],
-    tones: ["Serious", "Thoughtful", "Reflective"],
-    participants: ["3-5"],
-    relationships: ["Close Friends", "Friends"]
+    recommended_filters: {
+      topics: ["Personality & Self-discovery", "Relationships & Dating"],
+      tones: ["Serious", "Thoughtful", "Reflective"],
+      participants: ["3-5"],
+      relationships: ["Close Friends", "Friends"]
+    }
   },
   "Face-Off": {
-    id: "hot_takes",
+    backend_id: "hot_takes",
+    description: "Friendly debates",
     structure: {
       front: "A polarizing question with two clear sides",
       back: "Perspective 1 / Perspective 2 / Debate twist"
     },
-    topics: ["Debates & Opinions", "Pop Culture & Entertainment", "Philosophy & Big Questions"],
-    tones: ["Thoughtful", "Serious", "Playful"],
-    participants: ["3-5", "6+", "2"],
-    relationships: ["Mixed Group", "Friends", "Aquaintances"]
+    recommended_filters: {
+      topics: ["Debates & Opinions", "Pop Culture & Entertainment", "Philosophy & Big Questions"],
+      tones: ["Thoughtful", "Serious", "Playful"],
+      participants: ["3-5", "6+", "2"],
+      relationships: ["Mixed Group", "Friends", "Aquaintances"]
+    }
   },
   "Deep Cuts": {
-    id: "deep_conversations",
+    backend_id: "deep_conversations",
+    description: "Philosophical talks",
     structure: {
       front: "A deep or abstract emotional prompt",
       back: "Follow-up: A related question that cuts even deeper"
     },
-    topics: ["Philosophy & Big Questions", "Personality & Self-discovery"],
-    tones: ["Reflective", "Serious", "Thoughtful", "Calm"],
-    participants: ["2", "Solo"],
-    relationships: ["Close Friends", "Self", "Romantic Partners"]
+    recommended_filters: {
+      topics: ["Philosophy & Big Questions", "Personality & Self-discovery"],
+      tones: ["Reflective", "Serious", "Thoughtful", "Calm"],
+      participants: ["2", "Solo"],
+      relationships: ["Close Friends", "Self", "Romantic Partners"]
+    }
   }
 } as const;
 
 // Define types based on the mappings
 export type CardTypeName = keyof typeof CARD_TYPES;
+export type QuickStartTypeName = keyof typeof QUICK_START_TYPES;
 export type CardTypeId = typeof CARD_TYPES[CardTypeName]['id'];
 
 /**
@@ -190,6 +248,17 @@ export const FILTER_OPTIONS = {
     "Light Conversation",
     "Hot Takes",
     "Personality Quizzes"
+  ] as const,
+
+  quickStartTypes: [
+    "Table for Two",
+    "Real Talk", 
+    "Last Call",
+    "Icebreakers",
+    "True Self",
+    "Hot Seat",
+    "Face-Off",
+    "Deep Cuts"
   ] as const,
 
   tones: [
@@ -231,14 +300,14 @@ export type Participants = typeof FILTER_OPTIONS.participants[number];
 export type Relationship = typeof FILTER_OPTIONS.relationships[number];
 
 /**
- * Maps card type name to card type ID
+ * Maps card type name to backend card type ID using the new mapping
  */
-export const mapCardTypeToId = (cardType: CardTypeName | null): string => {
+export const mapCardTypeToBackendId = (cardType: CardTypeName | QuickStartTypeName | null): string => {
   if (!cardType) return "light_conversation"; // Default
   
-  // Check if the cardType exists in CARD_TYPES
-  if (CARD_TYPES[cardType]) {
-    return CARD_TYPES[cardType].id;
+  // Check if it's in the backend mapping
+  if (cardType in BACKEND_CARD_TYPE_MAPPING) {
+    return BACKEND_CARD_TYPE_MAPPING[cardType as keyof typeof BACKEND_CARD_TYPE_MAPPING];
   }
   
   // Fallback to default if cardType isn't recognized
@@ -266,9 +335,23 @@ export const getRecommendedFilters = (cardType: CardTypeName | null) => {
 };
 
 /**
+ * Gets recommended filter values for a Quick Start type
+ */
+export const getQuickStartFilters = (quickStartType: QuickStartTypeName) => {
+  return QUICK_START_TYPES[quickStartType].recommended_filters;
+};
+
+/**
  * Gets the card structure for a specific card type
  */
 export const getCardStructure = (cardType: CardTypeName | null) => {
   if (!cardType) return CARD_TYPES["Light Conversation"].structure;
   return CARD_TYPES[cardType].structure;
+};
+
+/**
+ * Gets the Quick Start structure
+ */
+export const getQuickStartStructure = (quickStartType: QuickStartTypeName) => {
+  return QUICK_START_TYPES[quickStartType].structure;
 }; 

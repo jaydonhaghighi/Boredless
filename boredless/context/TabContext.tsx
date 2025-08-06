@@ -3,11 +3,8 @@ import BottomSheet from "@gorhom/bottom-sheet";
 import { Card, CardResponse } from '../types/card';
 import { FilterParams } from '../utils/cardUtils';
 import { addGeneratedSetToHistory } from '../services/firestoreService';
+import { generateCardsAPI } from '../services/apiService';
 import { useAuth } from './AuthContext';
-import axios from 'axios';
-
-// API base URL - should be in a config
-const API_BASE_URL = 'http://localhost:8000';
 
 // --- Current Tab Context ---
 type CurrentTabContextType = {
@@ -98,7 +95,7 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
     });
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/generator/`, {
+      const response = await generateCardsAPI({
         topic: filters.topic,
         card_type: filters.card_type,
         tone: filters.tone,
@@ -106,7 +103,7 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
         relationship: filters.relationship,
       });
 
-      const cardsFromApi: Card[] = response.data.cards || [];
+      const cardsFromApi: Card[] = response.cards || [];
 
       if (cardsFromApi.length > 0) {
         const historyId = await addGeneratedSetToHistory(userId, cardsFromApi, filters);

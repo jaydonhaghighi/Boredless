@@ -49,6 +49,9 @@
       "eas": {
         "projectId": "f426e9b3-1635-416b-880f-0453fde60b11"
       }
+    },
+    "env": {
+      "EXPO_PUBLIC_OPENAI_API_KEY": "$EXPO_PUBLIC_OPENAI_API_KEY"
     }
   }
 }

@@ -5,7 +5,8 @@ import { Card, CardResponse } from '../types/card';
 import { 
   CARD_TYPES, 
   CardTypeName, 
-  mapCardTypeToId, 
+  QuickStartTypeName,
+  mapCardTypeToBackendId, 
   Topic, 
   Tone, 
   Participants, 
@@ -17,7 +18,7 @@ import {
  */
 export interface FilterParams {
   topic: Topic | null;
-  card_type: CardTypeName | null;
+  card_type: CardTypeName | QuickStartTypeName | null;
   tone: Tone | null;
   participants: Participants | null;
   relationship: Relationship | null;
@@ -67,9 +68,8 @@ export const mapSingleCardData = (
     ? cardData.followups 
     : ["What's your experience with this?", "How does this make you feel?", "Can you share a related story?"];
   
-  // Determine card type using shared utility
-  const card_type = cardData.card_type || 
-    (filters.card_type ? mapCardTypeToId(filters.card_type) : 'light_conversation');
+  // Use the card_type from the data directly (it's already in the correct format from our local generation)
+  const card_type = cardData.card_type || 'light_conversation';
   
   // Create base card with common fields
   const baseCard = {

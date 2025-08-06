@@ -12,6 +12,7 @@ import {
   Tone, 
   Participants, 
   Relationship,
+  getRecommendedFilters
 } from '../../constants/cardTypes';
 import { useFontLoader } from '../../hooks/useFontLoader';
 import { FilterParams } from "../../utils/cardUtils";

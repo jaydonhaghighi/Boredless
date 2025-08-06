@@ -1,11 +1,10 @@
 import { Card } from '../types/card';
+import { CardTypeName, QuickStartTypeName } from '../constants/cardTypes';
+import { generateCardsWithOpenAI } from './openaiService'; 
 
-// TODO: Make this configurable, e.g., via environment variables
-const API_BASE_URL = 'http://localhost:8000'; 
-
-export interface PromptRequestData {
+export interface GenerateCardsRequest {
   topic?: string | null;
-  card_type?: string | null; // This will be the friendly name like "Table for Two"
+  card_type: CardTypeName | QuickStartTypeName; // Frontend card type name
   tone?: string | null;
   participants?: string | null;
   relationship?: string | null;
@@ -15,31 +14,24 @@ export interface PromptResponseData {
   cards: Card[];
 }
 
-export const generateCardsAPI = async (data: PromptRequestData): Promise<PromptResponseData> => {
+export const generateCardsAPI = async (data: GenerateCardsRequest): Promise<PromptResponseData> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/generator/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
+    console.log('Generating cards with OpenAI structured output:', data);
+
+    // Generate cards using OpenAI with structured output
+    const cards = await generateCardsWithOpenAI({
+      cardType: data.card_type,
+      topic: data.topic,
+      tone: data.tone,
+      participants: data.participants,
+      relationship: data.relationship,
     });
 
-    if (!response.ok) {
-      let errorDetail = `HTTP error! status: ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorDetail = errorData.detail || errorDetail;
-      } catch (e) {
-        // Could not parse error JSON, use default error
-      }
-      throw new Error(errorDetail);
-    }
-    return await response.json();
+    console.log('Successfully generated cards with OpenAI:', cards);
+    
+    return { cards };
   } catch (error) {
-    console.error("Error generating cards from API:", error);
-    // It's good practice to throw a custom error or the original error
-    // to be handled by the calling function.
+    console.error("Error generating cards with OpenAI:", error);
     throw error; 
   }
 }; 
