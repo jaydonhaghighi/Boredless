@@ -101,6 +101,7 @@ export const CurrentGenerationProvider = ({ children }: { children: React.ReactN
         tone: filters.tone,
         participants: filters.participants,
         relationship: filters.relationship,
+        userId: userId, // Pass userId for history tracking
       });
 
       const cardsFromApi: Card[] = response.cards || [];

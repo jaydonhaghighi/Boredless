@@ -185,10 +185,19 @@ interface GenerateCardsParams {
   tone?: string | null;
   participants?: string | null;
   relationship?: string | null;
+  excludedQuestions?: string[]; // Questions to avoid generating
+  categoryBalance?: {           // Question category usage for balancing
+    hypothetical: number;
+    personal: number;
+    comparative: number;
+    storytelling: number;
+    values: number;
+    future: number;
+  };
 }
 
 export const generateCardsWithOpenAI = async (params: GenerateCardsParams): Promise<Card[]> => {
-  const { cardType, topic, tone, participants, relationship } = params;
+  const { cardType, topic, tone, participants, relationship, excludedQuestions = [], categoryBalance } = params;
 
   // Map card type to backend ID for schema lookup
   let backendCardType: string;
@@ -210,6 +219,33 @@ export const generateCardsWithOpenAI = async (params: GenerateCardsParams): Prom
     throw new Error(`No schema found for card type: ${backendCardType}`);
   }
 
+  // Build exclusion prompt if we have previous questions
+  const exclusionPrompt = excludedQuestions.length > 0 ? `
+
+CRITICAL: Avoid generating questions similar to these recent ones:
+${excludedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n')}
+
+Requirements for uniqueness:
+- Use completely different question structures and phrasings
+- Approach the topic from fresh angles and perspectives
+- Vary conversation starters (What if/How would/Imagine/Tell me/Describe/etc.)
+- Create scenarios the user hasn't explored recently
+- Ensure each question feels genuinely new and different from the above list` : '';
+
+  // Build category balance guidance
+  const categoryGuidance = categoryBalance ? `
+
+Question Type Balance Guidance:
+Recent usage: Hypothetical(${categoryBalance.hypothetical}), Personal(${categoryBalance.personal}), Comparative(${categoryBalance.comparative}), Storytelling(${categoryBalance.storytelling}), Values(${categoryBalance.values}), Future(${categoryBalance.future})
+
+To create variety, emphasize these question types:
+${categoryBalance.hypothetical <= 2 ? '- Hypothetical questions ("What if...", "Imagine if...", "Suppose...")' : ''}
+${categoryBalance.personal <= 2 ? '- Personal questions ("Tell me about...", "Describe your...", "Share a...")' : ''}
+${categoryBalance.comparative <= 2 ? '- Comparative questions ("Would you rather...", "Do you prefer...", "Choose between...")' : ''}
+${categoryBalance.storytelling <= 2 ? '- Storytelling questions ("Describe a time...", "Remember when...", "Tell a story about...")' : ''}
+${categoryBalance.values <= 2 ? '- Values questions ("What matters most...", "What\'s important to you...", "What do you value...")' : ''}
+${categoryBalance.future <= 2 ? '- Future questions ("In 10 years...", "Someday...", "Your future...")' : ''}` : '';
+
   // Build the prompt based on card type and user preferences
   const systemPrompt = `You are a creative assistant that generates engaging conversation cards for social interactions. 
 
@@ -221,7 +257,7 @@ User Preferences:
 ${topic ? `- Topic: ${topic}` : ''}
 ${tone ? `- Tone: ${tone}` : ''}
 ${participants ? `- Participants: ${participants}` : ''}
-${relationship ? `- Relationship: ${relationship}` : ''}
+${relationship ? `- Relationship: ${relationship}` : ''}${exclusionPrompt}${categoryGuidance}
 
 Generate exactly 8 unique, creative cards that match the specified card type structure. Make them:
 - Engaging and thought-provoking

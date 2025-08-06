@@ -103,6 +103,10 @@ export const addGeneratedSetToHistory = async (
       currentCardIndex: 0,
     };
     const docRef = await addDoc(collection(db, USER_PROMPT_HISTORY_COLLECTION), historyEntry);
+    
+    // Emit event to notify that deck data has changed (for history refresh)
+    deckDataEvents.emit(DECK_DATA_CHANGED, { deckId: docRef.id });
+    
     return docRef.id;
   } catch (error) {
     console.error('Error adding generated set to history:', error);
